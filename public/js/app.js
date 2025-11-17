@@ -6,6 +6,7 @@ class PostPilot {
     this.currentUser = null;
     this.currentGrid = null;
     this.currentContent = [];
+    window.app = this; // Make available globally for collections manager
     this.init();
   }
 
@@ -73,6 +74,11 @@ class PostPilot {
           break;
         case 'content':
           this.loadContentLibrary();
+          break;
+        case 'collections':
+          if (window.collectionsManager) {
+            window.collectionsManager.loadCollections();
+          }
           break;
         case 'grid':
           this.loadGrids();
@@ -735,6 +741,14 @@ class PostPilot {
     setTimeout(() => {
       notification.remove();
     }, 3000);
+  }
+
+  showSuccess(message) {
+    this.showNotification(message, 'success');
+  }
+
+  showError(message) {
+    this.showNotification(message, 'error');
   }
 }
 
