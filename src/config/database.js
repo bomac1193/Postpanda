@@ -21,8 +21,9 @@ const connectDB = async () => {
     console.error('  1. Make sure MongoDB is running: sudo systemctl start mongod');
     console.error('  2. Check your MONGODB_URI in .env file');
     console.error('  3. Verify MongoDB is accessible on the specified host/port');
-    console.error('\nExiting process...\n');
-    process.exit(1);
+    console.error('\n⚠️  Server will continue without database (UI only mode)\n');
+    // Don't exit - allow server to run for UI testing
+    // process.exit(1);
   }
 };
 
