@@ -11,9 +11,17 @@ const authRoutes = require('./routes/auth');
 const contentRoutes = require('./routes/content');
 const gridRoutes = require('./routes/grid');
 const aiRoutes = require('./routes/ai');
+const collectionRoutes = require('./routes/collection');
+const postingRoutes = require('./routes/posting');
+const schedulingService = require('./services/schedulingService');
 
 // Connect to MongoDB
 connectDB();
+
+// Start scheduling service
+setTimeout(() => {
+  schedulingService.start();
+}, 5000); // Start after 5 seconds to ensure DB is connected
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -61,6 +69,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/grid', gridRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/collection', collectionRoutes);
+app.use('/api/post', postingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

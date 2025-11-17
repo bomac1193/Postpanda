@@ -112,9 +112,11 @@ const contentSchema = new mongoose.Schema({
     format: String,
     dominantColors: [String]
   },
-  // Scheduling
+  // Scheduling and Publishing
   scheduledFor: Date,
   publishedAt: Date,
+  platformPostUrl: String, // Direct link to post on Instagram/TikTok
+  platformPostId: String,  // Platform-specific post ID
   status: {
     type: String,
     enum: ['draft', 'scheduled', 'published', 'failed'],
