@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PostPilot - AI-Powered Content Planner</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <div class="header-content">
+        <div class="logo">
+          <span class="logo-icon">✈️</span>
+          <h1>PostPilot</h1>
+        </div>
+        <nav class="nav" id="mainNav">
+          <button class="nav-btn" data-view="dashboard">Dashboard</button>
+          <button class="nav-btn" data-view="content">Content Library</button>
+          <button class="nav-btn active" data-view="grid">Grid Planner</button>
+          <button class="nav-btn" data-view="analytics">AI Analytics</button>
+        </nav>
+        <div class="user-actions">
+          <button class="btn btn-secondary" id="connectSocial">Connect Accounts</button>
+          <div class="user-profile" id="userProfile">
+            <span class="user-name">Guest</span>
+            <button class="btn btn-logout" id="logoutBtn">Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="container">
+
+      <!-- Dashboard View -->
+      <div class="view" id="dashboardView" style="display: none;">
+        <h2>Dashboard</h2>
+        <div class="dashboard-grid">
+          <div class="stat-card">
+            <h3>Total Content</h3>
+            <p class="stat-number" id="totalContent">0</p>
+          </div>
+          <div class="stat-card">
+            <h3>Active Grids</h3>
+            <p class="stat-number" id="totalGrids">0</p>
+          </div>
+          <div class="stat-card">
+            <h3>Scheduled Posts</h3>
+            <p class="stat-number" id="scheduledPosts">0</p>
+          </div>
+          <div class="stat-card">
+            <h3>Avg AI Score</h3>
+            <p class="stat-number" id="avgScore">0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Library View -->
+      <div class="view" id="contentView" style="display: none;">
+        <div class="view-header">
+          <h2>Content Library</h2>
+          <button class="btn btn-primary" id="uploadContentBtn">
+            <span>📤</span> Upload Content
+          </button>
+        </div>
+
+        <div class="filters">
+          <select id="platformFilter" class="filter-select">
+            <option value="">All Platforms</option>
+            <option value="instagram">Instagram</option>
+            <option value="tiktok">TikTok</option>
+          </select>
+          <select id="statusFilter" class="filter-select">
+            <option value="">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="published">Published</option>
+          </select>
+        </div>
+
+        <div class="content-grid" id="contentLibrary">
+          <!-- Content items will be loaded here -->
+        </div>
+      </div>
+
+      <!-- Grid Planner View -->
+      <div class="view active" id="gridView">
+        <div class="view-header">
+          <h2>Grid Planner</h2>
+          <div class="grid-actions">
+            <select id="gridSelector" class="filter-select">
+              <option value="">Select a grid...</option>
+            </select>
+            <button class="btn btn-primary" id="createGridBtn">+ New Grid</button>
+          </div>
+        </div>
+
+        <div class="grid-controls">
+          <div class="control-group">
+            <label>Grid Name:</label>
+            <input type="text" id="gridName" placeholder="My Instagram Feed" class="input">
+          </div>
+          <div class="control-group">
+            <label>Platform:</label>
+            <select id="gridPlatform" class="filter-select">
+              <option value="instagram">Instagram</option>
+              <option value="tiktok">TikTok</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>Columns:</label>
+            <input type="number" id="gridColumns" min="1" max="9" value="3" class="input">
+          </div>
+          <div class="control-group">
+            <button class="btn btn-secondary" id="addRowBtn">+ Add Row</button>
+            <button class="btn btn-secondary" id="removeRowBtn">- Remove Row</button>
+          </div>
+        </div>
+
+        <div class="grid-container" id="gridContainer">
+          <div class="instagram-grid" id="instagramGrid">
+            <!-- Grid cells will be generated here -->
+          </div>
+        </div>
+
+        <div class="grid-preview-actions">
+          <button class="btn btn-primary" id="saveGridBtn">💾 Save Grid</button>
+          <button class="btn btn-secondary" id="exportGridBtn">📸 Export Preview</button>
+        </div>
+      </div>
+
+      <!-- AI Analytics View -->
+      <div class="view" id="analyticsView" style="display: none;">
+        <h2>AI Analytics & Insights</h2>
+
+        <div class="analytics-section">
+          <h3>Content Performance Predictions</h3>
+          <div id="analyticsContent" class="analytics-grid">
+            <!-- AI scores and analytics will appear here -->
+          </div>
+        </div>
+
+        <div class="analytics-section">
+          <h3>Best Posting Times</h3>
+          <div class="insights-card">
+            <p>Based on AI analysis of your content and platform trends:</p>
+            <ul id="postingTimesList">
+              <li>Instagram: Weekdays 11AM-1PM, 7PM-9PM</li>
+              <li>TikTok: Tuesday 9AM, Thursday 12PM, Friday 5AM</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Upload Modal -->
+  <div class="modal" id="uploadModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Upload Content</h3>
+        <button class="modal-close" id="closeUploadModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="uploadForm" enctype="multipart/form-data">
+          <div class="form-group">
+            <label>Media File</label>
+            <input type="file" id="mediaFile" name="media" accept="image/*,video/*" required class="input">
+            <div id="filePreview" class="file-preview"></div>
+          </div>
+
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="contentTitle" name="title" placeholder="Give your content a title" class="input">
+          </div>
+
+          <div class="form-group">
+            <label>Caption</label>
+            <textarea id="contentCaption" name="caption" rows="4" placeholder="Write your caption..." class="input"></textarea>
+            <button type="button" class="btn btn-secondary btn-sm" id="generateCaptionBtn">✨ AI Generate</button>
+          </div>
+
+          <div class="form-group">
+            <label>Platform</label>
+            <select id="contentPlatform" name="platform" class="filter-select">
+              <option value="instagram">Instagram</option>
+              <option value="tiktok">TikTok</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Media Type</label>
+            <select id="contentMediaType" name="mediaType" class="filter-select">
+              <option value="image">Image</option>
+              <option value="video">Video</option>
+              <option value="carousel">Carousel</option>
+            </select>
+          </div>
+
+          <div class="ai-suggestions" id="aiSuggestions" style="display: none;">
+            <h4>🤖 AI Suggestions</h4>
+            <p id="suggestionText"></p>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Upload & Analyze</button>
+            <button type="button" class="btn btn-secondary" id="cancelUpload">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content Detail Modal -->
+  <div class="modal" id="contentModal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Content Analysis</h3>
+        <button class="modal-close" id="closeContentModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="content-detail">
+          <div class="content-preview">
+            <img id="contentPreviewImage" src="" alt="Content Preview">
+          </div>
+          <div class="content-info">
+            <h4 id="contentDetailTitle"></h4>
+            <p id="contentDetailCaption"></p>
+
+            <div class="ai-scores">
+              <h4>AI Performance Scores</h4>
+              <div class="score-item">
+                <span>Virality Potential</span>
+                <div class="score-bar">
+                  <div class="score-fill" id="scoreVirality"></div>
+                  <span class="score-value" id="scoreViralityValue">0</span>
+                </div>
+              </div>
+              <div class="score-item">
+                <span>Engagement Prediction</span>
+                <div class="score-bar">
+                  <div class="score-fill" id="scoreEngagement"></div>
+                  <span class="score-value" id="scoreEngagementValue">0</span>
+                </div>
+              </div>
+              <div class="score-item">
+                <span>Aesthetic Quality</span>
+                <div class="score-bar">
+                  <div class="score-fill" id="scoreAesthetic"></div>
+                  <span class="score-value" id="scoreAestheticValue">0</span>
+                </div>
+              </div>
+              <div class="score-item">
+                <span>Trend Alignment</span>
+                <div class="score-bar">
+                  <div class="score-fill" id="scoreTrend"></div>
+                  <span class="score-value" id="scoreTrendValue">0</span>
+                </div>
+              </div>
+              <div class="score-item overall">
+                <span>Overall Score</span>
+                <div class="score-bar">
+                  <div class="score-fill" id="scoreOverall"></div>
+                  <span class="score-value" id="scoreOverallValue">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ai-recommendations">
+              <h4>📊 AI Recommendations</h4>
+              <div id="recommendationsList"></div>
+            </div>
+
+            <div class="content-actions">
+              <button class="btn btn-primary" id="addToGridBtn">Add to Grid</button>
+              <button class="btn btn-secondary" id="analyzeAgainBtn">Re-analyze</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div class="modal" id="authModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="authModalTitle">Login</h3>
+        <button class="modal-close" id="closeAuthModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="authForm">
+          <div class="form-group" id="nameGroup" style="display: none;">
+            <label>Name</label>
+            <input type="text" id="authName" placeholder="Your name" class="input">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="authEmail" placeholder="your@email.com" required class="input">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="authPassword" placeholder="Password" required class="input">
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="authSubmitBtn">Login</button>
+          </div>
+          <p class="auth-switch">
+            <span id="authSwitchText">Don't have an account?</span>
+            <a href="#" id="authSwitchLink">Sign up</a>
+          </p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
