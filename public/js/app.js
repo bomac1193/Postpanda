@@ -6,6 +6,7 @@ class PostPilot {
     this.currentUser = null;
     this.currentGrid = null;
     this.currentContent = [];
+    this.draggedCell = null;
     window.app = this; // Make available globally for collections manager
     this.init();
   }
@@ -629,13 +630,28 @@ class PostPilot {
       const content = cell.contentId;
       if (content) {
         div.innerHTML = `
-          <img src="${content.thumbnailUrl || content.mediaUrl}" alt="${content.title}">
+          <img src="${content.thumbnailUrl || content.mediaUrl}" alt="${content.title}" draggable="false">
           <div class="grid-cell-actions">
             <button class="grid-cell-btn" onclick="postPilot.removeFromGrid(${cell.position.row}, ${cell.position.col})">✕</button>
           </div>
         `;
       }
     }
+
+    if (!cell.isEmpty) {
+      div.setAttribute('draggable', true);
+    } else {
+      div.removeAttribute('draggable');
+    }
+
+    div.addEventListener('dragstart', (event) => this.handleGridDragStart(cell, event));
+    div.addEventListener('dragover', (event) => this.handleGridDragOver(event, div));
+    div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+    div.addEventListener('drop', (event) => this.handleGridDrop(event, cell.position, div));
+    div.addEventListener('dragend', () => {
+      this.draggedCell = null;
+      div.classList.remove('drag-over');
+    });
 
     return div;
   }
@@ -645,6 +661,111 @@ class PostPilot {
     div.className = 'grid-cell';
     div.innerHTML = '<span class="grid-cell-placeholder">+</span>';
     return div;
+  }
+
+  handleGridDragStart(cell, event) {
+    if (cell.isEmpty) {
+      event.preventDefault();
+      return;
+    }
+    this.draggedCell = cell.position;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('application/json', JSON.stringify(cell.position));
+  }
+
+  handleGridDragOver(event, element) {
+    if (event.dataTransfer?.types?.includes('Files')) {
+      event.preventDefault();
+      element.classList.add('drag-over');
+      event.dataTransfer.dropEffect = 'copy';
+      return;
+    }
+    if (!this.draggedCell) return;
+    event.preventDefault();
+    element.classList.add('drag-over');
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  handleGridDrop(event, targetPosition, element) {
+    event.preventDefault();
+    element.classList.remove('drag-over');
+
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      this.draggedCell = null;
+      this.uploadFileToGrid(files[0], targetPosition);
+      return;
+    }
+
+    if (!this.draggedCell) return;
+
+    let sourcePosition = this.draggedCell;
+    try {
+      const payload = event.dataTransfer.getData('application/json');
+      if (payload) {
+        sourcePosition = JSON.parse(payload);
+      }
+    } catch (_) {
+      // ignore parse errors and use stored position
+    }
+
+    if (!sourcePosition ||
+      (sourcePosition.row === targetPosition.row && sourcePosition.col === targetPosition.col)) {
+      return;
+    }
+
+    this.draggedCell = null;
+    this.moveGridContent(sourcePosition, targetPosition);
+  }
+
+  async moveGridContent(from, to) {
+    if (!this.currentGrid) return;
+    try {
+      const response = await this.api(`/grid/${this.currentGrid._id}/reorder`, 'POST', {
+        moves: [{ from, to }]
+      });
+      this.currentGrid = response.grid;
+      this.renderGrid();
+      this.showNotification('Grid rearranged', 'success');
+    } catch (error) {
+      this.showNotification('Failed to move content', 'error');
+    }
+  }
+
+  async uploadFileToGrid(file, position) {
+    if (!this.currentGrid) return;
+    if (!file.type.startsWith('image/')) {
+      this.showNotification('Only image drops are supported right now.', 'warning');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('media', file);
+      formData.append('title', file.name || 'Dropped Image');
+      formData.append('platform', 'instagram');
+      formData.append('mediaType', 'image');
+
+      const uploadResponse = await this.apiUpload('/content', formData);
+      const contentId = uploadResponse.content?._id;
+      if (!contentId) {
+        this.showNotification('Upload failed', 'error');
+        return;
+      }
+
+      const response = await this.api(`/grid/${this.currentGrid._id}/add-content`, 'POST', {
+        contentId,
+        row: position.row,
+        col: position.col
+      });
+
+      this.currentGrid = response.grid;
+      this.renderGrid();
+      this.showNotification('Image uploaded and placed on the grid!', 'success');
+    } catch (error) {
+      console.error('Drop upload error:', error);
+      this.showNotification('Failed to upload image to grid', 'error');
+    }
   }
 
   async addRow() {
