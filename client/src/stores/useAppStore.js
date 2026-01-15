@@ -147,7 +147,7 @@ export const useAppStore = create(
       partialize: (state) => ({
         theme: state.theme,
         posts: state.posts,
-        gridPosts: state.gridPosts,
+        // gridPosts removed - should always come from MongoDB to avoid stale data
         sidebarCollapsed: state.sidebarCollapsed,
       }),
     }

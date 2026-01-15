@@ -39,6 +39,9 @@ import {
   ImagePlus,
   LogIn,
   AlertCircle,
+  GripVertical,
+  ChevronUp,
+  ChevronDown as ChevronDownIcon,
 } from 'lucide-react';
 
 const GRID_LAYOUTS = [
@@ -248,10 +251,71 @@ function GridPlanner() {
     setGridPosts([...gridPosts, newPost]);
   };
 
+  // Handle delete - remove from backend AND local state
+  const handleDeletePost = useCallback(async (postId) => {
+    // Remove from local state immediately for responsiveness
+    removeFromGrid(postId);
+
+    // Remove from backend
+    if (currentGridId) {
+      try {
+        await gridApi.removeContent(currentGridId, postId);
+      } catch (err) {
+        console.error('Failed to remove from grid:', err);
+        // Optionally: refetch grid to sync state if delete failed
+      }
+    }
+  }, [currentGridId, removeFromGrid]);
+
   const handleExport = async (format) => {
     // Export grid as image
     console.log('Exporting as', format);
   };
+
+  // Group posts into rows for row-based operations
+  const getRows = useCallback(() => {
+    const cols = currentLayout?.cols || 3;
+    const rows = [];
+    for (let i = 0; i < gridPosts.length; i += cols) {
+      rows.push(gridPosts.slice(i, i + cols));
+    }
+    return rows;
+  }, [gridPosts, currentLayout]);
+
+  // Move an entire row up or down
+  const handleMoveRow = useCallback(async (rowIndex, direction) => {
+    const cols = currentLayout?.cols || 3;
+    const rows = getRows();
+
+    const targetIndex = direction === 'up' ? rowIndex - 1 : rowIndex + 1;
+
+    // Check bounds
+    if (targetIndex < 0 || targetIndex >= rows.length) return;
+
+    // Swap the rows
+    const newRows = [...rows];
+    [newRows[rowIndex], newRows[targetIndex]] = [newRows[targetIndex], newRows[rowIndex]];
+
+    // Flatten back to posts array and update positions
+    const newPosts = newRows.flat().map((post, i) => ({
+      ...post,
+      gridPosition: i,
+    }));
+
+    setGridPosts(newPosts);
+
+    // Save to backend
+    if (currentGridId) {
+      try {
+        await gridApi.reorder(currentGridId, newPosts.map((p, i) => ({
+          contentId: p.id,
+          position: i,
+        })));
+      } catch (err) {
+        console.error('Failed to save row reorder:', err);
+      }
+    }
+  }, [currentLayout, getRows, setGridPosts, currentGridId]);
 
   // Helper to add delay between uploads
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -639,7 +703,7 @@ function GridPlanner() {
                 <Instagram className="w-5 h-5 text-dark-400 ml-auto" />
               </div>
 
-              {/* Grid */}
+              {/* Grid with Row Controls */}
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -651,21 +715,67 @@ function GridPlanner() {
                   items={gridPosts.map((p) => p.id)}
                   strategy={rectSortingStrategy}
                 >
-                  <div
-                    className="grid gap-1"
-                    style={{
-                      gridTemplateColumns: `repeat(${currentLayout?.cols || 3}, minmax(0, 1fr))`,
-                    }}
-                  >
-                    {gridPosts.map((post) => (
-                      <GridItem
-                        key={post.id}
-                        post={post}
-                        isSelected={post.id === selectedPostId}
-                        isLocked={isLocked}
-                        onClick={() => selectPost(post.id)}
-                        onDelete={() => removeFromGrid(post.id)}
-                      />
+                  <div className="space-y-1">
+                    {getRows().map((row, rowIndex) => (
+                      <div key={rowIndex} className="flex items-center gap-2 group/row">
+                        {/* Row Controls */}
+                        <div className="flex flex-col gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleMoveRow(rowIndex, 'up')}
+                            disabled={rowIndex === 0 || isLocked}
+                            className={`p-1 rounded transition-colors ${
+                              rowIndex === 0 || isLocked
+                                ? 'text-dark-600 cursor-not-allowed'
+                                : 'text-dark-400 hover:text-accent-purple hover:bg-dark-700'
+                            }`}
+                            title="Move row up"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </button>
+                          <div className="px-1 text-xs text-dark-500 text-center font-medium">
+                            {rowIndex + 1}
+                          </div>
+                          <button
+                            onClick={() => handleMoveRow(rowIndex, 'down')}
+                            disabled={rowIndex === getRows().length - 1 || isLocked}
+                            className={`p-1 rounded transition-colors ${
+                              rowIndex === getRows().length - 1 || isLocked
+                                ? 'text-dark-600 cursor-not-allowed'
+                                : 'text-dark-400 hover:text-accent-purple hover:bg-dark-700'
+                            }`}
+                            title="Move row down"
+                          >
+                            <ChevronDownIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Row Items */}
+                        <div
+                          className="flex-1 grid gap-1"
+                          style={{
+                            gridTemplateColumns: `repeat(${currentLayout?.cols || 3}, minmax(0, 1fr))`,
+                          }}
+                        >
+                          {row.map((post) => (
+                            <GridItem
+                              key={post.id}
+                              post={post}
+                              isSelected={post.id === selectedPostId}
+                              isLocked={isLocked}
+                              onClick={() => selectPost(post.id)}
+                              onDelete={() => handleDeletePost(post.id)}
+                            />
+                          ))}
+                          {/* Fill empty cells in incomplete rows */}
+                          {row.length < (currentLayout?.cols || 3) &&
+                            Array.from({ length: (currentLayout?.cols || 3) - row.length }).map((_, i) => (
+                              <div
+                                key={`empty-${rowIndex}-${i}`}
+                                className="aspect-square bg-dark-700/30 rounded-lg border border-dashed border-dark-600"
+                              />
+                            ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </SortableContext>

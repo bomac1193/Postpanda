@@ -258,14 +258,21 @@ exports.addContentToGrid = async (req, res) => {
 // Remove content from grid
 exports.removeContentFromGrid = async (req, res) => {
   try {
-    const { row, col } = req.body;
+    const { row, col, contentId } = req.body;
 
     const grid = await Grid.findOne({ _id: req.params.id, userId: req.userId });
     if (!grid) {
       return res.status(404).json({ error: 'Grid not found' });
     }
 
-    const cell = grid.cells.find(c => c.position.row === row && c.position.col === col);
+    let cell;
+    // Find by contentId if provided, otherwise by row/col
+    if (contentId) {
+      cell = grid.cells.find(c => c.contentId && c.contentId.toString() === contentId.toString());
+    } else if (row !== undefined && col !== undefined) {
+      cell = grid.cells.find(c => c.position.row === row && c.position.col === col);
+    }
+
     if (!cell) {
       return res.status(404).json({ error: 'Cell not found' });
     }
@@ -290,32 +297,80 @@ exports.removeContentFromGrid = async (req, res) => {
 // Reorder content in grid
 exports.reorderContent = async (req, res) => {
   try {
-    const { moves } = req.body; // Array of { from: {row, col}, to: {row, col} }
+    const { items, moves } = req.body;
 
     const grid = await Grid.findOne({ _id: req.params.id, userId: req.userId });
     if (!grid) {
       return res.status(404).json({ error: 'Grid not found' });
     }
 
-    // Apply all moves
-    for (const move of moves) {
-      const fromCell = grid.cells.find(c => c.position.row === move.from.row && c.position.col === move.from.col);
-      const toCell = grid.cells.find(c => c.position.row === move.to.row && c.position.col === move.to.col);
+    // New format: items is array of { contentId, position } representing the new order
+    if (items && Array.isArray(items)) {
+      const cols = grid.settings?.columns || 3;
 
-      if (fromCell && toCell) {
-        // Swap content
-        const tempContent = toCell.contentId;
-        const tempIsEmpty = toCell.isEmpty;
-        const tempCrop = toCell.crop ? { ...toCell.crop } : { ...DEFAULT_CROP };
-
-        toCell.contentId = fromCell.contentId;
-        toCell.isEmpty = fromCell.isEmpty;
-        toCell.crop = fromCell.crop || { ...DEFAULT_CROP };
-
-        fromCell.contentId = tempContent;
-        fromCell.isEmpty = tempIsEmpty;
-        fromCell.crop = tempCrop;
+      // Clear all cells first
+      for (const cell of grid.cells) {
+        cell.contentId = null;
+        cell.isEmpty = true;
       }
+
+      // Place content in new positions
+      for (const item of items) {
+        const position = item.position;
+        const row = Math.floor(position / cols);
+        const col = position % cols;
+
+        // Find or create the cell at this position
+        let cell = grid.cells.find(c => c.position.row === row && c.position.col === col);
+
+        if (!cell) {
+          // Create new cell if needed
+          cell = {
+            position: { row, col },
+            contentId: null,
+            isEmpty: true,
+            crop: { ...DEFAULT_CROP }
+          };
+          grid.cells.push(cell);
+        }
+
+        if (item.contentId) {
+          cell.contentId = item.contentId;
+          cell.isEmpty = false;
+        }
+      }
+
+      // Update row count if needed
+      const maxRow = Math.max(...items.map(i => Math.floor(i.position / cols)));
+      if (!grid.settings) {
+        grid.settings = { columns: cols, rows: maxRow + 1 };
+      } else if (maxRow + 1 > (grid.settings.rows || 0)) {
+        grid.settings.rows = maxRow + 1;
+      }
+    }
+    // Legacy format: moves is array of { from: {row, col}, to: {row, col} }
+    else if (moves && Array.isArray(moves)) {
+      for (const move of moves) {
+        const fromCell = grid.cells.find(c => c.position.row === move.from.row && c.position.col === move.from.col);
+        const toCell = grid.cells.find(c => c.position.row === move.to.row && c.position.col === move.to.col);
+
+        if (fromCell && toCell) {
+          // Swap content
+          const tempContent = toCell.contentId;
+          const tempIsEmpty = toCell.isEmpty;
+          const tempCrop = toCell.crop ? { ...toCell.crop } : { ...DEFAULT_CROP };
+
+          toCell.contentId = fromCell.contentId;
+          toCell.isEmpty = fromCell.isEmpty;
+          toCell.crop = fromCell.crop || { ...DEFAULT_CROP };
+
+          fromCell.contentId = tempContent;
+          fromCell.isEmpty = tempIsEmpty;
+          fromCell.crop = tempCrop;
+        }
+      }
+    } else {
+      return res.status(400).json({ error: 'items or moves array required' });
     }
 
     await grid.save();
