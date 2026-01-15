@@ -149,6 +149,48 @@ button {
   margin: 0 0 1rem;
 }
 
+.panel-head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.lock-btn {
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 1px solid rgba(17, 15, 14, 0.2);
+  background: transparent;
+  color: #7a6f65;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.lock-btn.locked {
+  background: #111;
+  color: #fdfbf7;
+  border-color: #111;
+}
+
+.grid-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.grid-actions .action-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #7a6f65;
+}
+
 .grid-planner .grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -170,6 +212,19 @@ button {
 .grid-item.active {
   border-color: #b29674;
   transform: translateY(-4px);
+}
+
+.grid-item.drag-over {
+  border-color: #7eb29e;
+  background: rgba(126, 178, 158, 0.15);
+}
+
+.grid-item.locked {
+  cursor: default;
+}
+
+.grid-item.locked:not(.active):hover {
+  transform: none;
 }
 
 .grid-item img {
@@ -195,13 +250,133 @@ button {
   border-radius: 20px;
   overflow: hidden;
   margin-bottom: 1rem;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.post-editor .editor-preview img,
+.post-editor .editor-preview-frame {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #000;
+  position: relative;
+}
+
+.post-editor .editor-preview-frame .reactEasyCrop {
+  width: 100%;
+  height: 100%;
+}
+
+/* Enhanced grid overlay */
+.post-editor .editor-preview-frame .reactEasyCrop_CropArea {
+  border: 2px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5) !important;
+}
+
+.post-editor .editor-preview-frame .reactEasyCrop_CropAreaGrid::before {
+  border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.post-editor .editor-preview-frame .reactEasyCrop_CropAreaGrid::after {
+  border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.drag-hint {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #7a6f65;
+  margin: 0.5rem 0 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+.zoom-field {
+  flex: 2;
+}
+
 .post-editor .editor-preview .placeholder {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.crop-controls {
+  background: #f7f2eb;
+  border-radius: 16px;
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.crop-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+.crop-controls small {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: #7a6f65;
+}
+
+.snap-toggle {
+  align-items: center;
+}
+
+.snap-btn {
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  border: 1px solid rgba(17, 15, 14, 0.2);
+  background: transparent;
+  color: #7a6f65;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.snap-btn.active {
+  background: #111;
+  color: #fdfbf7;
+  border-color: #111;
+}
+
+/* react-easy-crop injects its own handles; no manual overlay styles needed */
+
+.versions-panel {
+  margin-top: 1rem;
+}
+
+.versions-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.version-chip {
+  border: 1px solid rgba(17, 15, 14, 0.2);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: transparent;
+  cursor: pointer;
+}
+
+.version-chip.active {
+  background: #111;
+  color: #fdfbf7;
 }
 
 .ai-panel,

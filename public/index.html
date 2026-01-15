@@ -27,6 +27,9 @@
           <button class="nav-btn" data-view="collections">Collections</button>
           <button class="nav-btn active" data-view="grid">Grid Planner</button>
           <button class="nav-btn" data-view="analytics">AI Analytics</button>
+          <button class="nav-btn" data-view="marketplace">Marketplace</button>
+          <button class="nav-btn" data-view="growth">Growth Finder</button>
+          <button class="nav-btn" id="alchemyNav">Alchemy Lab</button>
         </nav>
         <div class="user-actions">
           <button class="btn btn-secondary" id="connectSocial">Connect Accounts</button>
@@ -106,6 +109,20 @@
 
         <div class="collection-stats" id="collectionStatsContainer">
           <!-- Stats will be loaded here -->
+        </div>
+
+        <div class="collections-gallery" id="collectionsGallery">
+          <!-- Visual gallery -->
+        </div>
+
+        <div class="saved-grids-panel">
+          <div class="saved-grids-header">
+            <h3>Saved Grids</h3>
+            <p class="text-muted">Quickly jump into a grid or clean up old layouts.</p>
+          </div>
+          <div id="savedGridsContainer" class="saved-grids-list">
+            <!-- Saved grids will be rendered here -->
+          </div>
         </div>
 
         <div class="collection-layout">
@@ -209,6 +226,210 @@
         </div>
       </div>
 
+      <!-- Growth Finder View -->
+      <div class="view" id="growthView" style="display: none;">
+        <div class="view-header">
+          <h2>Growth Finder</h2>
+        </div>
+        <div class="growth-grid">
+          <div class="growth-card">
+            <h3>Aligned Influencers</h3>
+            <p class="text-muted">Your current inspiration list fuels the AI’s taste profile.</p>
+            <ul id="growthAlignedList" class="creator-influencer-list"></ul>
+          </div>
+          <div class="growth-card">
+            <h3>Suggested Creators</h3>
+            <p class="text-muted">Fresh voices the AI spotted while benchmarking similar posts.</p>
+            <div id="growthSuggestedList"></div>
+          </div>
+          <div class="growth-card">
+            <h3>Profile Pulse</h3>
+            <div id="growthProfilePulse"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Marketplace View -->
+      <div class="view" id="marketplaceView" style="display: none;">
+        <div class="view-header">
+          <h2>Marketplace</h2>
+          <button class="btn btn-secondary btn-sm" id="refreshMarketplaceBtn">Refresh</button>
+        </div>
+        <div class="marketplace-hero">
+          <div class="hero-copy">
+            <p class="eyebrow">HALOS & ROLLOUTS</p>
+            <h3>Discover ready-to-drop vibes + label-tested templates.</h3>
+            <p class="text-muted">Browse premium prompts, LUTs, and album launch schedules from creators, indie labels, and major teams.</p>
+            <div class="marketplace-tabs">
+              <button class="marketplace-tab active" data-market-tab="all">All Packs</button>
+              <button class="marketplace-tab" data-market-tab="halo">Halos</button>
+              <button class="marketplace-tab" data-market-tab="rollout">Rollouts</button>
+            </div>
+          </div>
+          <div class="hero-stats">
+            <div class="hero-stat-card">
+              <span class="stat-label">Published packs</span>
+              <span class="stat-value" id="marketStatHalos">0</span>
+              <small>Halos live</small>
+            </div>
+            <div class="hero-stat-card">
+              <span class="stat-label">Label templates</span>
+              <span class="stat-value" id="marketStatRollouts">0</span>
+              <small>Rollout playbooks</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="marketplace-layout">
+          <section class="halo-sell-panel">
+            <div class="panel-subhead">
+              <div>
+                <p class="eyebrow">CREATE PACK</p>
+                <h3>Sell your halo</h3>
+                <p class="text-muted">Package your prompt, references, LUTs, or full rollout timelines.</p>
+              </div>
+              <div class="sell-highlight">
+                <span>✨ Tip</span>
+                <p>Use vivid descriptions + reference assets to boost unlocks.</p>
+              </div>
+            </div>
+            <form id="haloForm" class="halo-form">
+              <label class="field halo-field">
+                <span>Pack type</span>
+                <select name="type" id="haloTypeSelect">
+                  <option value="halo">Halo (prompt & vibe pack)</option>
+                  <option value="rollout">Rollout template</option>
+                </select>
+              </label>
+              <label class="field halo-field">
+                <span>Title</span>
+                <input type="text" name="title" placeholder="e.g. Neon Noir DJ Pack" required>
+              </label>
+              <label class="field halo-field">
+                <span>Description</span>
+                <textarea name="description" rows="3" placeholder="What’s inside? How should creators use it?"></textarea>
+              </label>
+              <div class="rollout-field">
+                <div class="dual-field">
+                  <label class="field halo-field">
+                    <span>Label type</span>
+                    <select name="labelType" id="haloLabelType">
+                      <option value="indie">Indie label / DIY</option>
+                      <option value="major">Major label</option>
+                      <option value="agency">Agency / Collective</option>
+                      <option value="brand">Brand / Partner</option>
+                      <option value="independent">Independent creator</option>
+                    </select>
+                  </label>
+                  <label class="field halo-field">
+                    <span>Project / album</span>
+                    <input type="text" name="projectName" placeholder="e.g. Midnight Halo Tour">
+                  </label>
+                </div>
+                <label class="field halo-field">
+                  <span>Launch date</span>
+                  <input type="date" name="launchDate">
+                </label>
+              </div>
+              <label class="field halo-field">
+                <span>Primary niche / vibe</span>
+                <input type="text" name="niche" placeholder="e.g. cyberpunk nightlife">
+              </label>
+              <div class="dual-field">
+                <label class="field halo-field">
+                  <span>Tags</span>
+                  <input type="text" name="tags" placeholder="dj, fashion, cinematic">
+                </label>
+                <label class="field halo-field">
+                  <span>Price (credits)</span>
+                  <input type="number" name="priceCredits" min="0" step="1" value="0">
+                </label>
+              </div>
+              <label class="field halo-field">
+                <span>Prompt text</span>
+                <textarea name="promptText" rows="4" placeholder="Share the core prompt or instructions..." required></textarea>
+              </label>
+              <div class="rollout-field">
+                <label class="field halo-field">
+                  <span>Schedule JSON</span>
+                  <textarea name="scheduleJson" rows="4" placeholder='[{"title":"Teaser Drop","dayOffset":-21,"platform":"Instagram","deliverable":"Mood film"}]'></textarea>
+                  <small class="text-muted">Optional • provide a structured schedule so buyers can import it.</small>
+                </label>
+                <label class="field halo-field file-field">
+                  <span>Schedule files (.ics/.csv)</span>
+                  <input type="file" name="scheduleFiles" id="haloScheduleFiles" multiple accept=".csv,.ics,.json,.txt">
+                  <small class="text-muted">Upload calendar exports for album rollouts.</small>
+                </label>
+              </div>
+              <label class="field halo-field file-field">
+                <span>Reference images</span>
+                <div class="upload-shell">
+                  <input type="file" name="referenceImages" id="haloReferenceInput" multiple accept="image/*">
+                  <span>Drop files or click to add up to 6 JPG/PNG/WebP shots.</span>
+                </div>
+              </label>
+              <label class="field halo-field file-field">
+                <span>LUT / preset files</span>
+                <div class="upload-shell">
+                  <input type="file" name="lutFiles" id="haloLutInput" multiple accept=".cube,.CUBE,.3dl,.txt">
+                  <span>Optional • upload .cube or .3dl files.</span>
+                </div>
+              </label>
+              <div class="form-actions">
+                <button class="btn btn-primary" type="submit">Publish halo</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="halo-market-panel">
+            <div class="panel-head">
+              <h3>Explore halos</h3>
+              <p class="text-muted">Unlock prompts and assets from other creators.</p>
+            </div>
+            <div class="panel-section" id="haloMarketplaceSection">
+              <div class="section-head">
+                <h4>Halos</h4>
+                <p class="text-muted">Prompt + vibe packs</p>
+              </div>
+              <div id="haloMarketplaceGrid" class="halo-grid"></div>
+            </div>
+            <div class="panel-section" id="rolloutMarketplaceSection">
+              <div class="section-head">
+                <h4>Rollout templates</h4>
+                <p class="text-muted">Album/launch schedules from labels & teams</p>
+              </div>
+              <div id="rolloutMarketplaceGrid" class="halo-grid"></div>
+            </div>
+          </section>
+
+          <section class="halo-inventory-panel">
+            <div class="panel-head">
+              <h3>Your halo library</h3>
+              <p class="text-muted">Everything you’ve published or purchased.</p>
+            </div>
+            <div class="panel-section" id="haloInventorySection">
+              <div class="section-head">
+                <h4>Halos</h4>
+              </div>
+              <div id="haloInventoryGrid" class="halo-grid"></div>
+            </div>
+            <div class="panel-section" id="rolloutInventorySection">
+              <div class="section-head">
+                <h4>Rollout templates</h4>
+              </div>
+              <div id="rolloutInventoryGrid" class="halo-grid"></div>
+            </div>
+            <div class="panel-section">
+              <div class="section-head">
+                <h4>Imported schedules</h4>
+                <p class="text-muted">Recently imported templates</p>
+              </div>
+              <ul id="rolloutImportsList" class="creator-influencer-list"></ul>
+            </div>
+          </section>
+        </div>
+      </div>
+
     </div>
   </main>
 
@@ -283,7 +504,7 @@
           </div>
           <div class="content-info">
             <h4 id="contentDetailTitle"></h4>
-            <p id="contentDetailCaption"></p>
+            <p id="contentDetailCaption" class="text-muted"></p>
 
             <div class="ai-scores">
               <h4>AI Performance Scores</h4>
@@ -327,6 +548,94 @@
             <div class="ai-recommendations">
               <h4>📊 AI Recommendations</h4>
               <div id="recommendationsList"></div>
+            </div>
+
+            <div class="content-metadata-edit">
+              <label class="field field-with-actions">
+                <div class="field-head">
+                  <span>Post Title</span>
+                  <div class="field-actions">
+                    <button class="btn btn-xs btn-secondary" type="button" id="autoTitleBtn">Autofill</button>
+                    <button class="btn btn-xs btn-secondary" type="button" id="shuffleTitleBtn">Shuffle</button>
+                  </div>
+                </div>
+                <input type="text" id="contentTitleEdit" placeholder="Give this post a working title">
+              </label>
+              <label class="field field-with-actions">
+                <div class="field-head">
+                  <span>Caption</span>
+                  <div class="field-actions">
+                    <button class="btn btn-xs btn-secondary" type="button" id="autoCaptionBtn">Autofill</button>
+                    <button class="btn btn-xs btn-secondary" type="button" id="shuffleCaptionBtn">Shuffle</button>
+                  </div>
+                </div>
+                <textarea id="contentCaptionEdit" rows="4" placeholder="Refine your caption here"></textarea>
+              </label>
+              <div class="content-metadata-actions">
+                <button class="btn btn-secondary" type="button" id="saveContentMetadataBtn">Save Post Details</button>
+              </div>
+            </div>
+
+            <div class="creator-profile-panel">
+              <div class="creator-profile-header">
+                <div>
+                  <h4>🎯 Creator Profile</h4>
+                  <p class="text-muted" style="margin:0;">Saved locally. Shared with AI to tailor every analysis.</p>
+                </div>
+                <button class="btn btn-sm btn-secondary" type="button" id="saveCreatorProfileBtn">Save Profile</button>
+              </div>
+              <div class="creator-profile-grid">
+                <label class="field">
+                  <span>Primary niche</span>
+                  <input type="text" id="creatorNiche" placeholder="eg. Sustainable beauty commentary">
+                </label>
+                <label class="field">
+                  <span>Brand voice</span>
+                  <input type="text" id="creatorVoice" placeholder="eg. Witty big-sister energy">
+                </label>
+                <label class="field">
+                  <span>Signature aesthetic</span>
+                  <input type="text" id="creatorAesthetic" placeholder="eg. Moody film, warm neutrals">
+                </label>
+                <label class="field">
+                  <span>Audience</span>
+                  <input type="text" id="creatorAudience" placeholder="eg. Gen Z founders & beauty lovers">
+                </label>
+                <label class="field">
+                  <span>Growth goals</span>
+                  <textarea id="creatorGoals" rows="2" placeholder="eg. Drive newsletter signups + increase saves"></textarea>
+                </label>
+                <label class="field">
+                  <span>Taste keywords</span>
+                  <input type="text" id="creatorTastes" placeholder="eg. slow luxury, editorial futurism, high-contrast">
+                </label>
+                <label class="field">
+                  <span>Influencers you align with</span>
+                  <input type="text" id="creatorInspiration" placeholder="@creatorone, @creatortwo">
+                </label>
+              </div>
+              <div class="creator-platforms">
+                <span class="field-label">Platform focus</span>
+                <div class="platform-checkboxes">
+                  <label class="checkbox-label"><input type="checkbox" name="creatorPlatform" value="instagram" checked>Instagram</label>
+                  <label class="checkbox-label"><input type="checkbox" name="creatorPlatform" value="tiktok" checked>TikTok</label>
+                  <label class="checkbox-label"><input type="checkbox" name="creatorPlatform" value="youtube">YouTube Shorts</label>
+                  <label class="checkbox-label"><input type="checkbox" name="creatorPlatform" value="pinterest">Pinterest</label>
+                </div>
+              </div>
+              <div class="creator-alignment">
+                <span class="field-label">Influencers I align with</span>
+                <div class="alignment-controls">
+                  <input type="search" id="creatorInfluencerSearch" class="creator-search-input" placeholder="Search creators or paste a handle">
+                  <select id="creatorInfluencerSelect">
+                    <option value="">Select or discover…</option>
+                  </select>
+                  <button class="btn btn-sm btn-secondary" type="button" id="addInfluencerBtn">Add</button>
+                </div>
+                <ul id="creatorInfluencerList" class="creator-influencer-list"></ul>
+                <p class="creator-profile-hint" id="suggestedInfluencerHint"></p>
+              </div>
+              <p class="creator-profile-hint">Need to tweak your vibe? Update these fields, save, and rerun analysis.</p>
             </div>
 
             <div class="content-actions">
@@ -428,7 +737,7 @@
             <span>or</span>
           </div>
 
-          <div class="form-actions">
+          <div class="form-actions social-login-buttons">
             <button type="button" class="btn btn-google" id="googleSignInBtn">
               <svg width="18" height="18" viewBox="0 0 18 18" style="margin-right: 8px;">
                 <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
@@ -437,6 +746,21 @@
                 <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/>
               </svg>
               Continue with Google
+            </button>
+            <button type="button" class="btn btn-instagram" id="instagramSignInBtn">
+              <svg width="18" height="18" viewBox="0 0 24 24" style="margin-right: 8px;">
+                <defs>
+                  <linearGradient id="instagram-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#FEDA75"/>
+                    <stop offset="25%" style="stop-color:#FA7E1E"/>
+                    <stop offset="50%" style="stop-color:#D62976"/>
+                    <stop offset="75%" style="stop-color:#962FBF"/>
+                    <stop offset="100%" style="stop-color:#4F5BD5"/>
+                  </linearGradient>
+                </defs>
+                <path fill="url(#instagram-gradient)" d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+              </svg>
+              Continue with Instagram
             </button>
           </div>
 
@@ -563,6 +887,57 @@
             <button type="button" class="btn btn-secondary" onclick="document.getElementById('scheduleModal').classList.remove('active')">Cancel</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lite Grid Edit Modal -->
+  <div class="modal" id="liteEditModal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Quick Grid Edit</h3>
+        <button class="modal-close" id="closeLiteEditModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="lite-edit-hint">Drag image to position • Drag corners to resize crop • Scroll to zoom</p>
+        <div class="lite-edit-preview" id="liteEditPreview">
+          <div class="lite-edit-canvas" id="liteEditCanvas">
+            <img id="liteEditImage" alt="Grid item preview" draggable="false">
+            <div class="lite-edit-cropbox" id="liteEditCropbox">
+              <div class="cropbox-grid"></div>
+              <div class="cropbox-handle nw" data-handle="nw"></div>
+              <div class="cropbox-handle ne" data-handle="ne"></div>
+              <div class="cropbox-handle sw" data-handle="sw"></div>
+              <div class="cropbox-handle se" data-handle="se"></div>
+            </div>
+          </div>
+        </div>
+        <div class="lite-edit-controls">
+          <label class="field">
+            <span>Aspect Ratio</span>
+            <select id="liteEditAspectRatio">
+              <option value="1:1">Square 1:1</option>
+              <option value="4:5">Portrait 4:5</option>
+              <option value="9:16">TikTok 9:16</option>
+              <option value="16:9">Landscape 16:9</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Zoom</span>
+            <input type="range" id="liteEditScale" min="0.2" max="1.5" step="0.01" value="0.3">
+            <small id="liteEditScaleValue">0.30x</small>
+          </label>
+          <label class="field">
+            <span>Crop Size</span>
+            <input type="range" id="liteEditCropSize" min="50" max="100" step="1" value="80">
+            <small id="liteEditCropSizeValue">80%</small>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="liteEditResetBtn">Reset</button>
+          <button type="button" class="btn btn-secondary" id="liteEditCancelBtn">Cancel</button>
+          <button type="button" class="btn btn-primary" id="liteEditSaveBtn">Save</button>
+        </div>
       </div>
     </div>
   </div>

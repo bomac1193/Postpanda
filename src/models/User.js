@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: function() {
       // Password only required if not using OAuth
-      return !this.googleId;
+      return !this.googleId && !this.instagramId;
     }
   },
   name: {
@@ -25,12 +25,17 @@ const userSchema = new mongoose.Schema({
     unique: true,
     sparse: true // Allows null values to be non-unique
   },
+  instagramId: {
+    type: String,
+    unique: true,
+    sparse: true // Allows null values to be non-unique
+  },
   avatar: {
     type: String
   },
   authProvider: {
     type: String,
-    enum: ['local', 'google'],
+    enum: ['local', 'google', 'instagram'],
     default: 'local'
   },
   socialAccounts: {

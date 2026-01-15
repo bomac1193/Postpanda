@@ -45,6 +45,7 @@ exports.createContent = async (req, res) => {
       title: title || 'Untitled Content',
       caption,
       mediaUrl,
+      originalMediaUrl: mediaUrl,
       thumbnailUrl,
       mediaType: mediaType || 'image',
       platform: platform || 'instagram',
@@ -119,10 +120,10 @@ exports.updateContent = async (req, res) => {
       return res.status(404).json({ error: 'Content not found' });
     }
 
-    if (title) content.title = title;
-    if (caption) content.caption = caption;
-    if (hashtags) content.hashtags = hashtags;
-    if (location) content.location = location;
+    if (title !== undefined) content.title = title;
+    if (caption !== undefined) content.caption = caption;
+    if (hashtags !== undefined) content.hashtags = hashtags;
+    if (location !== undefined) content.location = location;
     if (status) content.status = status;
 
     await content.save();

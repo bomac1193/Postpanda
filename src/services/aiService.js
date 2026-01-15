@@ -12,33 +12,37 @@ class AIService {
   constructor() {
     this.openaiApiKey = process.env.OPENAI_API_KEY;
     this.openaiBaseURL = 'https://api.openai.com/v1';
+    this.publicBaseURL = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
   }
 
   /**
    * Analyze content comprehensively
    */
-  async analyzeContent(content) {
+  async analyzeContent(content, context = {}) {
     try {
       const [
         viralityScore,
         engagementScore,
         aestheticScore,
         trendScore,
-        suggestions
+        creatorInsights
       ] = await Promise.all([
         this.calculateViralityScore(content),
         this.calculateEngagementScore(content),
         this.calculateAestheticScore(content),
         this.calculateTrendScore(content),
-        this.generateSuggestions(content)
+        this.generateCreatorInsights(content, context)
       ]);
+
+      const suggestions = await this.generateSuggestions(content, creatorInsights, context);
 
       return {
         viralityScore,
         engagementScore,
         aestheticScore,
         trendScore,
-        suggestions
+        suggestions,
+        creatorInsights
       };
     } catch (error) {
       console.error('AI analysis error:', error);
@@ -185,18 +189,29 @@ Respond with ONLY a number.`;
   /**
    * Generate comprehensive suggestions
    */
-  async generateSuggestions(content) {
+  async generateSuggestions(content, creatorInsights = null, context = {}) {
     try {
-      const contentType = await this.suggestContentType(content);
+      const contentType = await this.suggestContentType(content, creatorInsights, context);
+      const targetAudience = context.creatorProfile?.targetAudience || 'General audience';
+      const hashtags = await this.generateHashtags(content, 10);
+      const platformRec = creatorInsights?.platformRecommendation || {};
 
       return {
         recommendedType: contentType.type,
         reason: contentType.reason,
         improvements: contentType.improvements || [],
         bestTimeToPost: this.suggestBestPostingTime(content),
-        targetAudience: 'General audience', // Could be enhanced with ML
-        hashtagSuggestions: await this.generateHashtags(content, 10),
-        confidenceScore: contentType.confidence
+        targetAudience,
+        hashtagSuggestions: hashtags,
+        confidenceScore: contentType.confidence,
+        platformRecommendation: platformRec.platform,
+        platformConfidence: platformRec.confidence,
+        platformReason: platformRec.rationale,
+        captionIdeas: creatorInsights?.captionIdeas || [],
+        hookIdeas: creatorInsights?.hookIdeas || contentType.hookIdeas || [],
+        actionItems: creatorInsights?.actionItems || [],
+        similarCreators: creatorInsights?.similarCreators || [],
+        creatorInsights
       };
     } catch (error) {
       console.error('Suggestions error:', error);
@@ -212,50 +227,106 @@ Respond with ONLY a number.`;
   /**
    * Suggest best content type (post, carousel, reel, story)
    */
-  async suggestContentType(content) {
+  async suggestContentType(content, creatorInsights = null, context = {}) {
     try {
+      const profile = this.normalizeCreatorProfile(context.creatorProfile);
       const aspectRatio = content.metadata?.aspectRatio;
       const mediaType = content.mediaType;
-      const platform = content.platform;
+      const platform = creatorInsights?.platformRecommendation?.platform || profile.platformFocus?.[0] || content.platform;
+      const platformKey = (platform || '').toLowerCase();
 
       let recommendedType = 'post';
       let reason = '';
       let confidence = 70;
       let improvements = [];
+      const hookIdeas = [];
+      const goalText = (profile.goals || '').toLowerCase();
+      const longFormCaption = content.caption && content.caption.length > 400;
 
-      // Analyze aspect ratio and content
       if (mediaType === 'video') {
-        if (platform === 'instagram') {
-          if (aspectRatio && aspectRatio.includes('9:16')) {
-            recommendedType = 'reel';
-            reason = 'Vertical video format is perfect for Instagram Reels, which get higher reach and engagement';
-            confidence = 95;
-          } else {
-            recommendedType = 'video';
-            reason = 'Standard video post format works well for your aspect ratio';
-            confidence = 75;
-          }
-        } else if (platform === 'tiktok') {
-          recommendedType = 'video';
-          reason = 'TikTok is optimized for vertical video content';
-          confidence = 90;
+        if (platformKey === 'instagram') {
+          recommendedType = aspectRatio?.includes('9:16') ? 'reel' : 'video';
+          reason = aspectRatio?.includes('9:16')
+            ? 'Your vertical framing is reel-ready and reels over-index on reach for your niche.'
+            : 'A standard feed video will preserve your cinematic framing without trimming.';
+          confidence = aspectRatio?.includes('9:16') ? 95 : 78;
+          hookIdeas.push(
+            aspectRatio?.includes('9:16')
+              ? 'Open with a kinetic beat + on-screen text (“STOP scrolling if…”) to grab Reels viewers.'
+              : 'Start with a cinematic crop + bold overlay (“Note to self:”) before revealing the product.'
+          );
+        } else if (platformKey === 'tiktok') {
+          recommendedType = 'vertical-video';
+          reason = 'TikTok rewards fast hooks and vertical pacing—lean into it for trend lift.';
+          confidence = 92;
+          hookIdeas.push('Cold open with a POV statement (“POV: you’re done playing small”) and cut straight into action.');
+        } else if (platformKey === 'youtube' || platformKey === 'youtube shorts') {
+          recommendedType = 'short';
+          reason = 'Repurpose this cut as a YouTube Short to earn incremental impressions.';
+          confidence = 80;
+          hookIdeas.push('Promise the payoff within 2 seconds (“In 30 seconds you’ll know how to…”)');
+        } else if (platformKey === 'twitch') {
+          recommendedType = 'stream-highlight';
+          reason = 'Turn this into a Twitch highlight/short to drive watchers into your live room.';
+          confidence = 88;
+          hookIdeas.push('Start with the punchline (“I can’t believe chat dared me to…”) before rewinding.');
+          improvements.push('Caption the first five seconds so muted viewers stay hooked.');
+        } else if (platformKey === 'twitter' || platformKey === 'x') {
+          recommendedType = 'quote-tweet-video';
+          reason = 'Lead with a spicy one-liner, then embed the clip for X/Twitter scrollers.';
+          confidence = 80;
+          hookIdeas.push('First tweet: “Unpopular opinion: ____” then drop the clip underneath.');
         }
       } else if (mediaType === 'image') {
-        if (platform === 'instagram') {
-          if (aspectRatio === '1:1' || aspectRatio === '4:5') {
-            recommendedType = 'post';
-            reason = 'Square or portrait images perform well as standard Instagram posts';
-            confidence = 80;
-          }
-
-          // Suggest carousel if it could be part of a series
-          if (content.caption && content.caption.length > 500) {
-            recommendedType = 'carousel';
-            reason = 'Long caption suggests multiple images could tell a better story. Consider creating a carousel';
-            confidence = 85;
-            improvements.push('Break content into 3-5 related images for a carousel');
-          }
+        const isSquareOrPortrait = aspectRatio === '1:1' || aspectRatio === '4:5';
+        if (isSquareOrPortrait && !longFormCaption) {
+          recommendedType = 'single-post';
+          reason = 'Clean single posts dominate saves for your aesthetic-heavy feed.';
+          confidence = 82;
+          hookIdeas.push('Overlay a minimalist headline (“Note to self: ____”) that mirrors your warm editorial vibe.');
         }
+        if (longFormCaption || goalText.includes('teach') || goalText.includes('educat')) {
+          recommendedType = 'carousel';
+          reason = 'Carousel storytelling matches your educational goals and boosts dwell time.';
+          confidence = 88;
+          improvements.push('Chunk this story into 4-6 cards with one takeaway per frame.');
+           hookIdeas.push('Card 1 headline: “3 things I wish I knew before ____” with a subtle motion underline.');
+        }
+        if (profile.tastes?.toLowerCase().includes('behind the scenes')) {
+          improvements.push('Add a BTS slide or short clip for extra authenticity.');
+        }
+        if (platformKey === 'pinterest') {
+          recommendedType = 'idea-pin';
+          reason = 'Pinterest Idea Pins or carousels thrive on mood-board ready visuals.';
+          confidence = 86;
+          hookIdeas.push('Frame 1: “Pin this before your next creative sprint 🔖”.');
+        } else if (platformKey === 'onlyfans') {
+          recommendedType = 'exclusive-gallery';
+          reason = 'An exclusive gallery with a story-driven caption keeps OnlyFans subscribers retained.';
+          confidence = 90;
+          hookIdeas.push('Tease the payoff: “Slide 5 is the moment everyone kept DM’ing me about…”');
+          improvements.push('Include a CTA pointing to the gated set.');
+        } else if (platformKey === 'twitter' || platformKey === 'x') {
+          recommendedType = 'thread';
+          reason = 'Break this visual into a 3-tweet thread—first tweet grabs, second tweet gives context, third drives action.';
+          confidence = 82;
+          hookIdeas.push('Tweet 1: “Threads no one asked for but absolutely need 👇”.');
+        }
+      } else if (platformKey === 'onlyfans') {
+        recommendedType = 'exclusive-drop';
+        reason = 'Behind-the-scenes video + gallery fits your subscriber-only drop cadence.';
+        confidence = 90;
+        hookIdeas.push('“Tonight’s afterparty lives here first. Slide in before it disappears.”');
+      } else if (platformKey === 'twitch') {
+        recommendedType = 'live-segment';
+        reason = 'Frame this as a live segment or raid moment and promote the stream schedule.';
+        confidence = 84;
+        hookIdeas.push('“Live in five—bring your questions, I’m spilling everything.”');
+      } else if (platformKey === 'pinterest') {
+        recommendedType = 'story-pin';
+        reason = 'Story Pins keep Pinterest users swiping through your aesthetic shots.';
+        confidence = 83;
+        hookIdeas.push('“Save this palette for your next mood board.”');
       }
 
       // Additional improvements
@@ -272,7 +343,8 @@ Respond with ONLY a number.`;
         reason,
         confidence,
         improvements,
-        alternatives: this.getAlternativeTypes(recommendedType, platform)
+        alternatives: this.getAlternativeTypes(recommendedType, platform),
+        hookIdeas
       };
     } catch (error) {
       console.error('Content type suggestion error:', error);
@@ -323,12 +395,13 @@ Respond with ONLY hashtags separated by commas (without # symbol).`;
    */
   async generateCaption(content, options = {}) {
     try {
-      const { tone = 'casual', length = 'medium' } = options;
+      const { tone = 'casual', length = 'medium', creatorProfile = null } = options;
 
       if (!this.openaiApiKey) {
         return ['Caption generation requires OpenAI API key'];
       }
 
+      const profile = this.normalizeCreatorProfile(creatorProfile);
       const lengthGuide = {
         short: '1-2 sentences',
         medium: '3-5 sentences',
@@ -342,6 +415,10 @@ Media Type: ${content.mediaType}
 Tone: ${tone}
 Length: ${lengthGuide[length] || lengthGuide.medium}
 Current Caption: ${content.caption || 'None'}
+Creator Niche: ${profile.niche}
+Voice & Vibe: ${profile.voice}
+Audience: ${profile.targetAudience}
+Goals: ${profile.goals}
 
 Requirements:
 - ${tone} tone
@@ -380,7 +457,7 @@ Provide 3 variations separated by "---"`;
    * Suggest best posting time
    */
   suggestBestPostingTime(content) {
-    const platform = content.platform;
+    const platformKey = (content.platform || 'instagram').toLowerCase();
 
     const bestTimes = {
       instagram: [
@@ -394,11 +471,228 @@ Provide 3 variations separated by "---"`;
         'Thursday 12PM',
         'Friday 5AM',
         'Weekdays 6PM-10PM'
+      ],
+      twitter: [
+        'Weekdays 7AM-9AM',
+        'Weekdays 11AM',
+        'Sunday 8PM-10PM'
+      ],
+      twitch: [
+        'Thursday 6PM-10PM',
+        'Saturday 2PM-6PM',
+        'Late-night (midnight-2AM) for global raids'
+      ],
+      pinterest: [
+        'Saturday 8PM-11PM',
+        'Sunday 9-11AM',
+        'Weekdays 2PM-4PM'
+      ],
+      onlyfans: [
+        'Weekdays 9PM-1AM',
+        'Friday midnight drops',
+        'Sunday 3PM (tease upcoming set)'
       ]
     };
 
-    const times = bestTimes[platform] || bestTimes.instagram;
+    const times = bestTimes[platformKey] || bestTimes.instagram;
     return times[Math.floor(Math.random() * times.length)];
+  }
+
+  getMediaUrl(relativePath) {
+    if (!relativePath) return null;
+    if (/^https?:\/\//i.test(relativePath)) return relativePath;
+    return `${this.publicBaseURL}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`;
+  }
+
+  normalizeCreatorProfile(profile = {}) {
+    const defaults = {
+      niche: 'Modern lifestyle creator',
+      voice: 'Optimistic, expert mentor',
+      aesthetic: 'Editorial, minimal, warm neutrals',
+      goals: 'Grow an engaged community and drive meaningful conversions',
+      targetAudience: 'Ambitious creatives and founders',
+      tastes: 'Slow luxury, cinematic color grading, high-energy hooks',
+      inspiration: [],
+      platformFocus: ['instagram', 'tiktok']
+    };
+
+    const normalized = {
+      ...defaults,
+      ...(profile || {})
+    };
+
+    normalized.inspiration = Array.isArray(normalized.inspiration)
+      ? normalized.inspiration.filter(Boolean)
+      : this.parseCommaList(normalized.inspiration || normalized.inspirationHandles);
+
+    normalized.platformFocus = Array.isArray(normalized.platformFocus) && normalized.platformFocus.length
+      ? normalized.platformFocus
+      : defaults.platformFocus;
+
+    return normalized;
+  }
+
+  parseCommaList(value) {
+    if (!value || typeof value !== 'string') return [];
+    return value
+      .split(',')
+      .map(token => token.replace(/[@#]/g, '').trim())
+      .filter(Boolean);
+  }
+
+  /**
+   * Build detailed creator-fit insights with multimodal AI when available
+   */
+  async generateCreatorInsights(content, context = {}) {
+    const profile = this.normalizeCreatorProfile(context.creatorProfile);
+
+    if (!this.openaiApiKey) {
+      return this.heuristicCreatorInsights(content, profile);
+    }
+
+    try {
+      const mediaUrl = this.getMediaUrl(content.mediaUrl);
+      const systemPrompt = 'You are a senior social media strategist who audits creator content, benchmarking it against top-performing influencers in the same niche.';
+      const analysisInstructions = `Use the supplied creator profile and media to:
+- Evaluate how the visual and caption align with their niche, tastes, and goals.
+- Benchmark against similar creators (invent realistic examples if you cannot look them up) and explain how their posts performed.
+- Decide which platform (Instagram, TikTok, YouTube Shorts, Pinterest, Twitter/X, Twitch, or OnlyFans) this specific post will perform best on, and explain why.
+- Suggest fresh hooks/caption ideas grounded in the creator's tone.
+- Provide concrete action items to improve the asset before publishing.
+
+Respond strictly as JSON with the following schema:
+{
+  "platformRecommendation": { "platform": string, "rationale": string, "confidence": number },
+  "nicheAlignment": { "score": number, "notes": string, "strengths": [string], "gaps": [string] },
+  "similarCreators": [{ "name": string, "handle": string, "overlap": string, "performanceNote": string }],
+  "captionIdeas": [string],
+  "hookIdeas": [string],
+  "actionItems": [string]
+}`;
+
+      const userContent = [
+        {
+          type: 'text',
+          text: `Creator Profile:
+- Niche: ${profile.niche}
+- Goals: ${profile.goals}
+- Brand Voice: ${profile.voice}
+- Aesthetic: ${profile.aesthetic}
+- Tastes / keywords: ${profile.tastes}
+- Target audience: ${profile.targetAudience}
+- Inspiration accounts: ${profile.inspiration.join(', ') || 'None'}
+- Preferred platforms: ${profile.platformFocus.join(', ')}
+
+Content Details:
+- Platform intent: ${content.platform}
+- Media type: ${content.mediaType}
+- Caption: ${content.caption || 'No caption yet'}
+- Hashtags: ${(content.hashtags || []).join(', ') || 'None'}
+${context.campaignNotes ? `- Campaign notes: ${context.campaignNotes}` : ''}`
+        }
+      ];
+
+      if (mediaUrl) {
+        userContent.push({
+          type: 'image_url',
+          image_url: { url: mediaUrl }
+        });
+      }
+
+      const response = await this.callOpenAIMultimodal([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+        { role: 'user', content: analysisInstructions }
+      ], true);
+
+      const parsed = JSON.parse(response);
+      return this.formatCreatorInsights(parsed, profile);
+    } catch (error) {
+      console.error('Creator insights error:', error.response?.data || error.message);
+      return this.heuristicCreatorInsights(content, this.normalizeCreatorProfile(context.creatorProfile));
+    }
+  }
+
+  formatCreatorInsights(raw = {}, profile = {}) {
+    const recommendation = {
+      platform: raw.platformRecommendation?.platform || profile.platformFocus?.[0] || 'instagram',
+      rationale: raw.platformRecommendation?.rationale || raw.platformRecommendation?.reason || 'Optimized for your current platform focus.',
+      confidence: raw.platformRecommendation?.confidence || 70
+    };
+
+    const sanitizeCreatives = Array.isArray(raw.similarCreators)
+      ? raw.similarCreators.map((creator, index) => ({
+          name: creator.name || `Creator ${index + 1}`,
+          handle: creator.handle || '',
+          overlap: creator.overlap || 'Shares similar audience and tone',
+          performanceNote: creator.performanceNote || creator.performance || 'Consistently outperforms platform benchmarks.'
+        }))
+      : [];
+
+    return {
+      platformRecommendation: recommendation,
+      nicheAlignment: {
+        score: raw.nicheAlignment?.score || raw.nicheAlignment?.value || 72,
+        notes: raw.nicheAlignment?.notes || raw.nicheAlignment?.summary || 'Solid niche alignment. Keep emphasizing signature motifs.',
+        strengths: raw.nicheAlignment?.strengths || raw.nicheAlignment?.matchedTraits || [profile.aesthetic],
+        gaps: raw.nicheAlignment?.gaps || raw.nicheAlignment?.opportunities || ['Clarify the storytelling arc in the caption.']
+      },
+      similarCreators: sanitizeCreatives,
+      captionIdeas: Array.isArray(raw.captionIdeas) ? raw.captionIdeas : [],
+      hookIdeas: Array.isArray(raw.hookIdeas) ? raw.hookIdeas : [],
+      actionItems: Array.isArray(raw.actionItems) ? raw.actionItems : ['Lead with a stronger hook in the first 3 seconds.']
+    };
+  }
+
+  heuristicCreatorInsights(content, profile) {
+    const platform = profile.platformFocus?.[0] || content.platform || 'instagram';
+    const lower = (value, fallback = '') => (value || fallback).toLowerCase();
+    const niche = lower(profile.niche, 'your niche');
+    const audience = lower(profile.targetAudience, 'your people');
+    const aesthetic = lower(profile.aesthetic, 'signature aesthetic');
+    const voice = lower(profile.voice, 'mentor');
+    const goals = profile.goals || 'create obsession';
+
+    const captionIdeas = [
+      `Swipe-worthy peek into ${niche} — remind ${audience} why it matters right now.`,
+      `Take them behind the scenes of your ${aesthetic} mood + drop a tip they can steal tonight.`,
+      `My hot take as a ${voice} voice: ${goals}. Save it, test it, report back.`
+    ];
+
+    const inspo = (profile.inspiration && profile.inspiration.length ? profile.inspiration : ['creativecurator'])
+      .slice(0, 3)
+      .map(handle => ({
+        name: handle.replace(/^[^a-zA-Z]+/, '') || 'Influencer',
+        handle: `@${handle}`,
+        overlap: `Shares similar ${profile.aesthetic.toLowerCase()} aesthetic`,
+        performanceNote: 'Posts that lean into storytelling carousels outperform baseline engagement by ~18%.'
+      }));
+
+    return {
+      platformRecommendation: {
+        platform,
+        rationale: `Your ${profile.aesthetic.toLowerCase()} visuals and ${profile.voice.toLowerCase()} tone already resonate with ${platform}.`,
+        confidence: 70
+      },
+      nicheAlignment: {
+        score: 70,
+        notes: `Visual language fits ${profile.niche.toLowerCase()}, but reinforce your goals (${profile.goals}) in the caption.`,
+        strengths: [profile.aesthetic, profile.voice],
+        gaps: ['Add clear CTA and mention outcomes for the audience.']
+      },
+      similarCreators: inspo,
+      captionIdeas,
+      hookIdeas: [
+        `POV: ${audience} finally ${goals.toLowerCase()}.`,
+        `“If you're into ${niche}, screenshot this before the algorithm buries it.”`,
+        `First line: “Dear ${audience}, here’s the ${aesthetic} mood board you begged for.”`
+      ],
+      actionItems: [
+        'Add 1-2 trend-backed hooks in the first line.',
+        `Reference your audience (${profile.targetAudience}) directly to boost saves.`,
+        'Test a carousel or short-form video variant to see if retention climbs.'
+      ]
+    };
   }
 
   // Helper methods
@@ -439,6 +733,36 @@ Provide 3 variations separated by "---"`;
       console.error('OpenAI API error:', error.response?.data || error.message);
       throw error;
     }
+  }
+
+  async callOpenAIMultimodal(messages, jsonResponse = false) {
+    if (!this.openaiApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const payload = {
+      model: 'gpt-4o-mini',
+      messages,
+      temperature: 0.35,
+      max_tokens: 900
+    };
+
+    if (jsonResponse) {
+      payload.response_format = { type: 'json_object' };
+    }
+
+    const response = await axios.post(
+      `${this.openaiBaseURL}/chat/completions`,
+      payload,
+      {
+        headers: {
+          'Authorization': `Bearer ${this.openaiApiKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return response.data.choices[0].message.content;
   }
 
   async getAIScore(prompt, content) {

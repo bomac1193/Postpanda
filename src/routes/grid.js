@@ -15,6 +15,7 @@ router.post('/:id/add-row', authenticate, gridController.addRow);
 router.post('/:id/remove-row', authenticate, gridController.removeRow);
 router.post('/:id/add-content', authenticate, gridController.addContentToGrid);
 router.post('/:id/remove-content', authenticate, gridController.removeContentFromGrid);
+router.post('/:id/crop', authenticate, gridController.updateCellCrop);
 router.post('/:id/reorder', authenticate, gridController.reorderContent);
 
 // Grid preview

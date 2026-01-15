@@ -34,6 +34,11 @@ const gridSchema = new mongoose.Schema({
     isEmpty: {
       type: Boolean,
       default: true
+    },
+    crop: {
+      scale: { type: Number, default: 1 },
+      offsetX: { type: Number, default: 0 },
+      offsetY: { type: Number, default: 0 }
     }
   }],
   totalRows: {

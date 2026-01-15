@@ -6,6 +6,43 @@ import './App.css';
 
 const STORAGE_KEY = 'minimal-grid-posts';
 const COLOR_SWATCHES = ['#d3c7b5', '#c7d3bd', '#cfdce1', '#e0c0cf', '#f6e0c8'];
+const DEFAULT_CROP = { scale: 1, offsetX: 0, offsetY: 0 };
+const DEFAULT_CROP_RECT = { x: 10, y: 10, width: 80, height: 80 };
+
+const normalizePost = (post) => {
+  const originalImage = post?.originalImage || post?.image || null;
+  const versions =
+    post?.versions && post.versions.length
+      ? post.versions
+      : originalImage
+      ? [
+          {
+            id: 'version-original',
+            label: 'Original',
+            image: originalImage,
+            createdAt: post?.createdAt || Date.now(),
+          },
+        ]
+      : [];
+
+  return {
+    ...post,
+    originalImage,
+    image: post?.image || originalImage,
+    crop: {
+      scale: post?.crop?.scale ?? DEFAULT_CROP.scale,
+      offsetX: post?.crop?.offsetX ?? DEFAULT_CROP.offsetX,
+      offsetY: post?.crop?.offsetY ?? DEFAULT_CROP.offsetY,
+    },
+    cropRect: {
+      x: post?.cropRect?.x ?? DEFAULT_CROP_RECT.x,
+      y: post?.cropRect?.y ?? DEFAULT_CROP_RECT.y,
+      width: post?.cropRect?.width ?? DEFAULT_CROP_RECT.width,
+      height: post?.cropRect?.height ?? DEFAULT_CROP_RECT.height,
+    },
+    versions,
+  };
+};
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -28,12 +65,47 @@ function App() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setPosts(parsed);
-        if (parsed[0]) {
-          setSelectedId(parsed[0].id);
+        const normalized = parsed.map(normalizePost);
+        setPosts(normalized);
+        if (normalized[0]) {
+          setSelectedId(normalized[0].id);
         }
       } catch (error) {
         console.warn('Failed to parse stored posts', error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const seed = localStorage.getItem('alchemy_seed');
+    if (seed) {
+      try {
+        const parsed = JSON.parse(seed);
+        const originalImage = parsed.originalImageUrl || parsed.imageUrl || parsed.thumbnailUrl || null;
+        const seededPost = normalizePost({
+          id: crypto.randomUUID(),
+          caption: parsed.caption || '',
+          image: parsed.imageUrl || parsed.thumbnailUrl || parsed.originalImageUrl || null,
+          originalImage,
+          versions: originalImage
+            ? [
+                {
+                  id: `version-${Date.now()}`,
+                  label: 'Original',
+                  image: originalImage,
+                  createdAt: Date.now(),
+                },
+              ]
+            : [],
+          color: parsed.color || COLOR_SWATCHES[0],
+          createdAt: Date.now(),
+        });
+        setPosts((prev) => [seededPost, ...prev]);
+        setSelectedId(seededPost.id);
+      } catch (error) {
+        console.warn('Failed to parse alchemy seed', error);
+      } finally {
+        localStorage.removeItem('alchemy_seed');
       }
     }
   }, []);
@@ -52,17 +124,33 @@ function App() {
     if (!newCaption.trim() && !file) return;
 
     let image = null;
+    let originalImage = null;
     if (file) {
-      image = await fileToDataUrl(file);
+      originalImage = await fileToDataUrl(file);
+      image = originalImage;
     }
 
-    const newPost = {
+    const versions =
+      originalImage || image
+        ? [
+            {
+              id: `version-${Date.now()}`,
+              label: 'Original',
+              image: originalImage || image,
+              createdAt: Date.now(),
+            },
+          ]
+        : [];
+
+    const newPost = normalizePost({
       id: crypto.randomUUID(),
       caption: newCaption.trim(),
       image,
+      originalImage,
+      versions,
       color: newColor,
       createdAt: Date.now(),
-    };
+    });
 
     setPosts((prev) => [newPost, ...prev]);
     setSelectedId(newPost.id);

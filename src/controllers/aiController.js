@@ -4,7 +4,7 @@ const aiService = require('../services/aiService');
 // Analyze content with AI
 exports.analyzeContent = async (req, res) => {
   try {
-    const { contentId } = req.body;
+    const { contentId, creatorProfile = null } = req.body;
 
     const content = await Content.findOne({ _id: contentId, userId: req.userId });
     if (!content) {
@@ -12,7 +12,7 @@ exports.analyzeContent = async (req, res) => {
     }
 
     // Perform AI analysis
-    const analysis = await aiService.analyzeContent(content);
+    const analysis = await aiService.analyzeContent(content, { creatorProfile });
 
     // Update content with AI scores
     content.aiScores = {
@@ -32,7 +32,8 @@ exports.analyzeContent = async (req, res) => {
     res.json({
       message: 'Content analyzed successfully',
       aiScores: content.aiScores,
-      aiSuggestions: content.aiSuggestions
+      aiSuggestions: content.aiSuggestions,
+      creatorInsights: analysis.creatorInsights
     });
   } catch (error) {
     console.error('Analyze content error:', error);
@@ -153,7 +154,7 @@ exports.generateHashtags = async (req, res) => {
 // Generate caption
 exports.generateCaption = async (req, res) => {
   try {
-    const { contentId, tone = 'casual', length = 'medium' } = req.body;
+    const { contentId, tone = 'casual', length = 'medium', creatorProfile = null } = req.body;
 
     const content = await Content.findOne({ _id: contentId, userId: req.userId });
     if (!content) {
@@ -161,7 +162,7 @@ exports.generateCaption = async (req, res) => {
     }
 
     // Generate caption using AI
-    const captions = await aiService.generateCaption(content, { tone, length });
+    const captions = await aiService.generateCaption(content, { tone, length, creatorProfile });
 
     res.json({
       message: 'Captions generated successfully',

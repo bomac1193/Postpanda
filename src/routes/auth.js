@@ -13,9 +13,13 @@ router.get('/me', authenticate, authController.getCurrentUser);
 router.get('/google', authController.googleAuth);
 router.get('/google/callback', authController.googleCallback);
 
-// Instagram OAuth
-router.get('/instagram', authController.instagramAuth);
-router.get('/instagram/callback', authController.instagramCallback);
+// Instagram OAuth - Login (for signing in)
+router.get('/instagram/login', authController.instagramAuthLogin);
+router.get('/instagram/callback', authController.instagramLoginCallback);
+
+// Instagram OAuth - Connect Account (for existing users)
+router.get('/instagram/connect', authenticate, authController.instagramAuth);
+router.get('/instagram/connect/callback', authenticate, authController.instagramCallback);
 router.post('/instagram/disconnect', authenticate, authController.disconnectInstagram);
 
 // TikTok OAuth

@@ -1,6 +1,36 @@
 const Grid = require('../models/Grid');
 const Content = require('../models/Content');
 
+const DEFAULT_CROP = { scale: 1, offsetX: 0, offsetY: 0 };
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const sanitizeCrop = (input = {}) => ({
+  scale: clamp(Number(input.scale) || 1, 0.5, 3),
+  offsetX: clamp(Number(input.offsetX) || 0, -100, 100),
+  offsetY: clamp(Number(input.offsetY) || 0, -100, 100)
+});
+
+const normalizeGrid = (grid) => {
+  if (!grid || !Array.isArray(grid.cells)) return;
+  grid.cells.forEach(cell => {
+    if (!cell.crop) {
+      cell.crop = { ...DEFAULT_CROP };
+    }
+  });
+};
+
+const createEmptyCell = (row, col) => ({
+  position: { row, col },
+  isEmpty: true,
+  crop: { ...DEFAULT_CROP }
+});
+
+const populateGrid = async (gridId) => {
+  const populated = await Grid.findById(gridId).populate('cells.contentId');
+  normalizeGrid(populated);
+  return populated;
+};
+
 // Create new grid
 exports.createGrid = async (req, res) => {
   try {
@@ -10,10 +40,7 @@ exports.createGrid = async (req, res) => {
     const cells = [];
     for (let row = 0; row < (totalRows || 3); row++) {
       for (let col = 0; col < (columns || 3); col++) {
-        cells.push({
-          position: { row, col },
-          isEmpty: true
-        });
+        cells.push(createEmptyCell(row, col));
       }
     }
 
@@ -27,6 +54,7 @@ exports.createGrid = async (req, res) => {
     });
 
     await grid.save();
+    normalizeGrid(grid);
 
     res.status(201).json({
       message: 'Grid created successfully',
@@ -44,6 +72,7 @@ exports.getAllGrids = async (req, res) => {
     const grids = await Grid.find({ userId: req.userId })
       .populate('cells.contentId')
       .sort({ updatedAt: -1 });
+    grids.forEach(normalizeGrid);
 
     res.json({ grids });
   } catch (error) {
@@ -62,6 +91,7 @@ exports.getGridById = async (req, res) => {
       return res.status(404).json({ error: 'Grid not found' });
     }
 
+    normalizeGrid(grid);
     res.json({ grid });
   } catch (error) {
     console.error('Get grid error:', error);
@@ -122,18 +152,16 @@ exports.addRow = async (req, res) => {
 
     const newRow = grid.totalRows;
     for (let col = 0; col < grid.columns; col++) {
-      grid.cells.push({
-        position: { row: newRow, col },
-        isEmpty: true
-      });
+      grid.cells.push(createEmptyCell(newRow, col));
     }
 
     grid.totalRows += 1;
     await grid.save();
+    const populated = await populateGrid(grid._id);
 
     res.json({
       message: 'Row added successfully',
-      grid
+      grid: populated
     });
   } catch (error) {
     console.error('Add row error:', error);
@@ -158,10 +186,11 @@ exports.removeRow = async (req, res) => {
     grid.totalRows -= 1;
 
     await grid.save();
+    const populated = await populateGrid(grid._id);
 
     res.json({
       message: 'Row removed successfully',
-      grid
+      grid: populated
     });
   } catch (error) {
     console.error('Remove row error:', error);
@@ -194,12 +223,14 @@ exports.addContentToGrid = async (req, res) => {
     // Update cell
     cell.contentId = contentId;
     cell.isEmpty = false;
+    cell.crop = { ...DEFAULT_CROP };
 
     await grid.save();
+    const populated = await populateGrid(grid._id);
 
     res.json({
       message: 'Content added to grid successfully',
-      grid: await Grid.findById(grid._id).populate('cells.contentId')
+      grid: populated
     });
   } catch (error) {
     console.error('Add content to grid error:', error);
@@ -224,12 +255,14 @@ exports.removeContentFromGrid = async (req, res) => {
 
     cell.contentId = null;
     cell.isEmpty = true;
+    cell.crop = { ...DEFAULT_CROP };
 
     await grid.save();
+    const populated = await populateGrid(grid._id);
 
     res.json({
       message: 'Content removed from grid successfully',
-      grid
+      grid: populated
     });
   } catch (error) {
     console.error('Remove content from grid error:', error);
@@ -256,24 +289,63 @@ exports.reorderContent = async (req, res) => {
         // Swap content
         const tempContent = toCell.contentId;
         const tempIsEmpty = toCell.isEmpty;
+        const tempCrop = toCell.crop ? { ...toCell.crop } : { ...DEFAULT_CROP };
 
         toCell.contentId = fromCell.contentId;
         toCell.isEmpty = fromCell.isEmpty;
+        toCell.crop = fromCell.crop || { ...DEFAULT_CROP };
 
         fromCell.contentId = tempContent;
         fromCell.isEmpty = tempIsEmpty;
+        fromCell.crop = tempCrop;
       }
     }
 
     await grid.save();
+    const populated = await populateGrid(grid._id);
 
     res.json({
       message: 'Content reordered successfully',
-      grid: await Grid.findById(grid._id).populate('cells.contentId')
+      grid: populated
     });
   } catch (error) {
     console.error('Reorder content error:', error);
     res.status(500).json({ error: 'Failed to reorder content' });
+  }
+};
+
+// Update crop for a grid cell
+exports.updateCellCrop = async (req, res) => {
+  try {
+    const { row, col, crop } = req.body || {};
+    const rowIndex = Number(row);
+    const colIndex = Number(col);
+
+    if (Number.isNaN(rowIndex) || Number.isNaN(colIndex) || !crop) {
+      return res.status(400).json({ error: 'row, col, and crop are required' });
+    }
+
+    const grid = await Grid.findOne({ _id: req.params.id, userId: req.userId });
+    if (!grid) {
+      return res.status(404).json({ error: 'Grid not found' });
+    }
+
+    const cell = grid.cells.find(c => c.position.row === rowIndex && c.position.col === colIndex);
+    if (!cell) {
+      return res.status(404).json({ error: 'Cell not found' });
+    }
+
+    cell.crop = sanitizeCrop(crop);
+    await grid.save();
+    const populated = await populateGrid(grid._id);
+
+    res.json({
+      message: 'Crop updated successfully',
+      grid: populated
+    });
+  } catch (error) {
+    console.error('Update crop error:', error);
+    res.status(500).json({ error: 'Failed to update crop' });
   }
 };
 
@@ -287,6 +359,7 @@ exports.getGridPreview = async (req, res) => {
       return res.status(404).json({ error: 'Grid not found' });
     }
 
+    normalizeGrid(grid);
     // Format grid for preview
     const preview = {
       name: grid.name,

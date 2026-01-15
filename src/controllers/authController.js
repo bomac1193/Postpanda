@@ -100,10 +100,45 @@ exports.getCurrentUser = async (req, res) => {
   }
 };
 
-// Instagram OAuth - Initiate
+// Instagram OAuth - Initiate Login (for signing in)
+exports.instagramAuthLogin = (req, res, next) => {
+  if (!process.env.INSTAGRAM_CLIENT_ID || !process.env.INSTAGRAM_CLIENT_SECRET) {
+    return res.redirect('/?instagram_login=error&message=credentials_missing');
+  }
+  passport.authenticate('instagram-login', {
+    scope: ['user_profile', 'user_media'],
+    session: false
+  })(req, res, next);
+};
+
+// Instagram OAuth - Callback for Login
+exports.instagramLoginCallback = (req, res, next) => {
+  passport.authenticate('instagram-login', { session: false }, async (err, user, info) => {
+    try {
+      if (err || !user) {
+        console.error('Instagram login error:', err || 'No user returned');
+        return res.redirect('/?instagram_login=error');
+      }
+
+      // Generate JWT token
+      const token = generateToken(user._id);
+
+      // Redirect to frontend with token
+      res.redirect(`/?instagram_login=success&token=${token}`);
+    } catch (error) {
+      console.error('Instagram login callback error:', error);
+      res.redirect('/?instagram_login=error');
+    }
+  })(req, res, next);
+};
+
+// Instagram OAuth - Initiate Account Connection (for existing users)
 exports.instagramAuth = (req, res) => {
+  if (!process.env.INSTAGRAM_CLIENT_ID || !process.env.INSTAGRAM_CLIENT_SECRET) {
+    return res.redirect('/?instagram=error&message=credentials_missing');
+  }
   const clientId = process.env.INSTAGRAM_CLIENT_ID;
-  const redirectUri = process.env.INSTAGRAM_REDIRECT_URI || 'http://localhost:3000/api/auth/instagram/callback';
+  const redirectUri = process.env.INSTAGRAM_CONNECT_REDIRECT_URI || 'http://localhost:3000/api/auth/instagram/connect/callback';
   const scope = 'user_profile,user_media';
 
   const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
@@ -276,10 +311,15 @@ exports.getSocialStatus = async (req, res) => {
 };
 
 // Google OAuth - Initiate (handled by passport)
-exports.googleAuth = passport.authenticate('google', {
-  scope: ['profile', 'email'],
-  session: false
-});
+exports.googleAuth = (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.redirect('/?google=error&message=credentials_missing');
+  }
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false
+  })(req, res, next);
+};
 
 // Google OAuth - Callback
 exports.googleCallback = (req, res, next) => {

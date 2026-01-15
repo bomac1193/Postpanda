@@ -15,6 +15,7 @@ const gridRoutes = require('./routes/grid');
 const aiRoutes = require('./routes/ai');
 const alchemyRoutes = require('./routes/alchemy');
 const collectionRoutes = require('./routes/collection');
+const haloRoutes = require('./routes/halo');
 const postingRoutes = require('./routes/posting');
 const schedulingService = require('./services/schedulingService');
 
@@ -77,6 +78,7 @@ app.use('/api/grid', gridRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/alchemy', alchemyRoutes);
 app.use('/api/collection', collectionRoutes);
+app.use('/api/halo', haloRoutes);
 app.use('/api/post', postingRoutes);
 
 // Health check
@@ -90,14 +92,14 @@ app.get('/', (req, res) => {
 });
 
 // Serve the minimalist planner if the Vite build exists
-const alchemyDistPath = path.join(__dirname, '../client/dist');
+const alchemyDistPath = path.join(__dirname, '../public/alchemy');
 if (fs.existsSync(alchemyDistPath)) {
   app.use('/alchemy', express.static(alchemyDistPath));
   app.get('/alchemy/*', (req, res) => {
     res.sendFile(path.join(alchemyDistPath, 'index.html'));
   });
 } else {
-  console.warn('⚠️  Alchemy client build missing. Run `npm run mini:build` to generate it.');
+  console.warn('⚠️  Alchemy client build missing. Run `npm run mini:publish` to generate it.');
 }
 
 // Error handling middleware

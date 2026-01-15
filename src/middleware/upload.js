@@ -30,7 +30,9 @@ const fileFilter = (req, file, cb) => {
   // Allowed file types
   const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
   const allowedVideoTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'];
-  const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+  const allowedLutTypes = ['application/octet-stream', 'text/plain', 'application/x-cube'];
+  const allowedScheduleTypes = ['text/csv', 'text/calendar', 'application/json'];
+  const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes, ...allowedLutTypes, ...allowedScheduleTypes];
 
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);

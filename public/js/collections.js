@@ -10,7 +10,45 @@ class CollectionsManager {
     this.draggedElement = null;
     this.draggedContentId = null;
     this.collections = [];
+    this.grids = [];
     this.init();
+  }
+
+  normalizeCollection(collection) {
+    if (!collection) return null;
+
+    const stats = {
+      totalItems: 0,
+      postedItems: 0,
+      failedItems: 0,
+      lastPostedAt: null,
+      nextPostAt: null,
+      ...(collection.stats || {})
+    };
+
+    const scheduling = {
+      enabled: false,
+      interval: 'daily',
+      autoPost: false,
+      postingTimes: [],
+      ...(collection.scheduling || {})
+    };
+    scheduling.postingTimes = scheduling.postingTimes || [];
+
+    return {
+      ...collection,
+      stats,
+      scheduling,
+      completionPercentage: typeof collection.completionPercentage === 'number'
+        ? collection.completionPercentage
+        : this.calculateCompletionPercentage(stats)
+    };
+  }
+
+  calculateCompletionPercentage(stats) {
+    if (!stats || !stats.totalItems) return 0;
+    const posted = typeof stats.postedItems === 'number' ? stats.postedItems : 0;
+    return Math.max(0, Math.min(100, Math.round((posted / stats.totalItems) * 100)));
   }
 
   init() {
@@ -39,17 +77,31 @@ class CollectionsManager {
    */
   async loadCollections() {
     try {
-      const response = await fetch(`${this.app.apiBase}/collection`, {
-        headers: { 'Authorization': `Bearer ${this.app.token}` }
-      });
+      const headers = { 'Authorization': `Bearer ${this.app.token}` };
+      const [collectionsRes, gridsRes] = await Promise.all([
+        fetch(`${this.app.apiBase}/collection`, { headers }),
+        fetch(`${this.app.apiBase}/grid`, { headers })
+      ]);
 
-      if (!response.ok) throw new Error('Failed to load collections');
+      if (!collectionsRes.ok) throw new Error('Failed to load collections');
+      if (!gridsRes.ok) throw new Error('Failed to load grids');
 
-      const data = await response.json();
-      this.collections = data.collections;
+      const [collectionData, gridData] = await Promise.all([
+        collectionsRes.json(),
+        gridsRes.json()
+      ]);
+
+      this.collections = (collectionData.collections || []).map(collection => this.normalizeCollection(collection));
+      if (this.currentCollection?._id) {
+        const refreshed = this.collections.find(c => c._id === this.currentCollection._id);
+        this.currentCollection = refreshed || this.currentCollection;
+      }
+      this.grids = gridData.grids || [];
 
       this.renderCollectionsList();
+      this.renderCollectionsGallery();
       this.updateCollectionSelector();
+      this.renderSavedGrids();
 
       // Load stats
       this.loadCollectionStats();
@@ -57,6 +109,38 @@ class CollectionsManager {
       console.error('Load collections error:', error);
       this.app.showError('Failed to load collections');
     }
+  }
+
+  renderSavedGrids() {
+    const container = document.getElementById('savedGridsContainer');
+    if (!container) return;
+
+    if (!this.grids.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <p>No grids have been saved yet.</p>
+          <button class="btn btn-primary" onclick="collectionsManager.app.switchView('grid')">
+            Create Your First Grid
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = this.grids.map(grid => `
+      <div class="grid-collection-card">
+        <div class="grid-collection-details">
+          <strong>${grid.name}</strong>
+          <span class="grid-collection-meta">
+            ${grid.columns}×${grid.totalRows} • ${grid.platform} • Updated ${this.formatDate(grid.updatedAt)}
+          </span>
+        </div>
+        <div class="grid-collection-actions">
+          <button class="btn btn-sm" onclick="collectionsManager.openGrid('${grid._id}')">Open</button>
+          <button class="btn btn-sm btn-danger" onclick="collectionsManager.deleteGrid('${grid._id}')">Delete</button>
+        </div>
+      </div>
+    `).join('');
   }
 
   /**
@@ -78,33 +162,80 @@ class CollectionsManager {
       return;
     }
 
-    container.innerHTML = this.collections.map(collection => `
-      <div class="collection-card" data-collection-id="${collection._id}">
-        <div class="collection-header">
-          <h4>${collection.name}</h4>
-          <span class="badge ${this.getStatusBadgeClass(collection.status)}">${collection.status}</span>
-        </div>
-        <div class="collection-info">
-          <span class="platform-badge">${collection.platform}</span>
-          <span class="item-count">${collection.stats.postedItems}/${collection.stats.totalItems} posted</span>
-        </div>
-        <div class="collection-progress">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: ${collection.completionPercentage || 0}%"></div>
+    container.innerHTML = this.collections.map(collection => {
+      const stats = collection.stats || { totalItems: 0, postedItems: 0, nextPostAt: null };
+      const completion = this.calculateCompletionPercentage(stats);
+      const scheduling = collection.scheduling || { enabled: false };
+      return `
+        <div class="collection-card" data-collection-id="${collection._id}">
+          <div class="collection-header">
+            <h4>${collection.name}</h4>
+            <span class="badge ${this.getStatusBadgeClass(collection.status)}">${collection.status}</span>
+          </div>
+          <div class="collection-info">
+            <span class="platform-badge">${collection.platform}</span>
+            <span class="item-count">${stats.postedItems}/${stats.totalItems} posted</span>
+          </div>
+          <div class="collection-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${completion}%"></div>
+            </div>
+          </div>
+          ${scheduling.enabled ? `
+            <div class="collection-schedule">
+              <i class="icon-clock"></i>
+              <span>Next post: ${this.formatDate(stats.nextPostAt)}</span>
+            </div>
+          ` : ''}
+          <div class="collection-actions">
+            <button onclick="collectionsManager.loadCollection('${collection._id}')" class="btn btn-sm">View</button>
+            <button onclick="collectionsManager.editCollection('${collection._id}')" class="btn btn-sm">Edit</button>
+            <button onclick="collectionsManager.deleteCollection('${collection._id}')" class="btn btn-sm btn-danger">Delete</button>
           </div>
         </div>
-        ${collection.scheduling.enabled ? `
-          <div class="collection-schedule">
-            <i class="icon-clock"></i>
-            <span>Next post: ${this.formatDate(collection.stats.nextPostAt)}</span>
-          </div>
-        ` : ''}
-        <div class="collection-actions">
-          <button onclick="collectionsManager.loadCollection('${collection._id}')" class="btn btn-sm">View</button>
-          <button onclick="collectionsManager.editCollection('${collection._id}')" class="btn btn-sm">Edit</button>
+      `;
+    }).join('');
+  }
+
+  renderCollectionsGallery() {
+    const gallery = document.getElementById('collectionsGallery');
+    if (!gallery) return;
+
+    if (!this.collections.length) {
+      gallery.innerHTML = `
+        <div class="empty-state">
+          <p>No collections yet</p>
+          <button onclick="collectionsManager.showCreateCollectionModal()" class="btn btn-primary">
+            Create Collection
+          </button>
         </div>
-      </div>
-    `).join('');
+      `;
+      return;
+    }
+
+    gallery.innerHTML = this.collections.map(collection => {
+      const hero = collection.coverImage ||
+        collection.preview?.thumbnail ||
+        collection.preview?.recentMedia?.[0]?.thumbnailUrl ||
+        '';
+      return `
+        <div class="collection-gallery-card">
+          <div class="collection-gallery-media${hero ? '' : ' placeholder'}">
+            ${hero ? `<img src="${hero}" alt="${collection.name} cover">` : '<span>No preview</span>'}
+          </div>
+          <div class="collection-gallery-body">
+            <div style="display:flex; justify-content: space-between; align-items: center;">
+              <h4 style="margin:0;">${collection.name}</h4>
+              <button class="btn btn-sm btn-danger delete-btn" onclick="collectionsManager.deleteCollection('${collection._id}')">Delete</button>
+            </div>
+            <p class="text-muted" style="margin:0;">${collection.description || 'No description'}</p>
+            <div class="collection-gallery-actions">
+              <button class="btn btn-sm" onclick="collectionsManager.loadCollection('${collection._id}')">Manage</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   /**
@@ -116,9 +247,10 @@ class CollectionsManager {
 
     selector.innerHTML = `
       <option value="">Select Collection...</option>
-      ${this.collections.map(c => `
-        <option value="${c._id}">${c.name} (${c.stats.totalItems} items)</option>
-      `).join('')}
+      ${this.collections.map(c => {
+        const totalItems = c.stats?.totalItems ?? 0;
+        return `<option value="${c._id}">${c.name} (${totalItems} items)</option>`;
+      }).join('')}
     `;
   }
 
@@ -136,7 +268,7 @@ class CollectionsManager {
       if (!response.ok) throw new Error('Failed to load collection');
 
       const data = await response.json();
-      this.currentCollection = data.collection;
+      this.currentCollection = this.normalizeCollection(data.collection);
 
       this.renderCollectionGrid();
       this.updateCollectionDetails();
@@ -327,7 +459,7 @@ class CollectionsManager {
       }
 
       const data = await response.json();
-      this.currentCollection = data.collection;
+      this.currentCollection = this.normalizeCollection(data.collection);
 
       this.renderCollectionGrid();
       this.app.showNotification('Content added to collection', 'success');
@@ -361,7 +493,7 @@ class CollectionsManager {
       if (!response.ok) throw new Error('Failed to remove content');
 
       const data = await response.json();
-      this.currentCollection = data.collection;
+      this.currentCollection = this.normalizeCollection(data.collection);
 
       this.renderCollectionGrid();
       this.app.showSuccess('Content removed from collection');
@@ -501,7 +633,7 @@ class CollectionsManager {
       if (!response.ok) throw new Error('Failed to schedule collection');
 
       const data = await response.json();
-      this.currentCollection = data.collection;
+      this.currentCollection = this.normalizeCollection(data.collection);
 
       this.app.showSuccess('Collection scheduled successfully');
       this.hideScheduleModal();
@@ -570,13 +702,17 @@ class CollectionsManager {
   /**
    * Delete collection
    */
-  async deleteCollection() {
-    if (!this.currentCollection) return;
+  async deleteCollection(collectionId = null) {
+    const targetId = collectionId || this.currentCollection?._id;
+    if (!targetId) return;
 
-    if (!confirm(`Delete collection "${this.currentCollection.name}"? This cannot be undone.`)) return;
+    const target = this.collections.find(c => c._id === targetId) || this.currentCollection;
+    const targetName = target?.name || 'this collection';
+
+    if (!confirm(`Delete collection "${targetName}"? This cannot be undone.`)) return;
 
     try {
-      const response = await fetch(`${this.app.apiBase}/collection/${this.currentCollection._id}`, {
+      const response = await fetch(`${this.app.apiBase}/collection/${targetId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${this.app.token}` }
       });
@@ -584,12 +720,52 @@ class CollectionsManager {
       if (!response.ok) throw new Error('Failed to delete collection');
 
       this.app.showSuccess('Collection deleted successfully');
-      this.currentCollection = null;
-      document.getElementById('collectionGridContainer').innerHTML = '';
+      if (this.currentCollection && this.currentCollection._id === targetId) {
+        this.currentCollection = null;
+        document.getElementById('collectionGridContainer').innerHTML = '<p class="text-muted">Select a collection to manage content</p>';
+        document.getElementById('collectionDetails').innerHTML = '<p class="text-muted">Select a collection to view details</p>';
+      }
       this.loadCollections();
     } catch (error) {
       console.error('Delete collection error:', error);
       this.app.showError('Failed to delete collection');
+    }
+  }
+
+  openGrid(gridId) {
+    if (!gridId || !this.app) return;
+    this.app.switchView('grid');
+    const selector = document.getElementById('gridSelector');
+    if (selector) {
+      selector.value = gridId;
+    }
+    this.app.loadGrid(gridId);
+  }
+
+  async deleteGrid(gridId) {
+    if (!gridId) return;
+    if (!confirm('Delete this grid permanently?')) return;
+
+    try {
+      const response = await fetch(`${this.app.apiBase}/grid/${gridId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${this.app.token}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to delete grid');
+
+      this.app.showSuccess('Grid deleted successfully');
+      if (this.app.currentGrid && this.app.currentGrid._id === gridId) {
+        this.app.currentGrid = null;
+        document.getElementById('instagramGrid').innerHTML = '';
+        const selector = document.getElementById('gridSelector');
+        if (selector) selector.value = '';
+      }
+      this.loadCollections();
+      this.app.loadGrids();
+    } catch (error) {
+      console.error('Delete grid error:', error);
+      this.app.showError('Failed to delete grid');
     }
   }
 
@@ -602,6 +778,9 @@ class CollectionsManager {
     const detailsContainer = document.getElementById('collectionDetails');
     if (!detailsContainer) return;
 
+    const stats = this.currentCollection.stats || { totalItems: 0, postedItems: 0, nextPostAt: null };
+    const scheduling = this.currentCollection.scheduling || { enabled: false };
+
     detailsContainer.innerHTML = `
       <div class="collection-detail-card">
         <h2>${this.currentCollection.name}</h2>
@@ -613,23 +792,23 @@ class CollectionsManager {
           </div>
           <div class="stat">
             <span class="stat-label">Items</span>
-            <span class="stat-value">${this.currentCollection.stats.totalItems}</span>
+            <span class="stat-value">${stats.totalItems}</span>
           </div>
           <div class="stat">
             <span class="stat-label">Posted</span>
-            <span class="stat-value">${this.currentCollection.stats.postedItems}</span>
+            <span class="stat-value">${stats.postedItems}</span>
           </div>
           <div class="stat">
             <span class="stat-label">Status</span>
             <span class="stat-value badge ${this.getStatusBadgeClass(this.currentCollection.status)}">${this.currentCollection.status}</span>
           </div>
         </div>
-        ${this.currentCollection.scheduling.enabled ? `
+        ${scheduling.enabled ? `
           <div class="schedule-info">
             <h4>Schedule Active</h4>
-            <p>Interval: ${this.currentCollection.scheduling.interval}</p>
-            <p>Auto-post: ${this.currentCollection.scheduling.autoPost ? 'Yes' : 'No'}</p>
-            ${this.currentCollection.stats.nextPostAt ? `<p>Next post: ${this.formatDate(this.currentCollection.stats.nextPostAt)}</p>` : ''}
+            <p>Interval: ${scheduling.interval}</p>
+            <p>Auto-post: ${scheduling.autoPost ? 'Yes' : 'No'}</p>
+            ${stats.nextPostAt ? `<p>Next post: ${this.formatDate(stats.nextPostAt)}</p>` : ''}
           </div>
         ` : ''}
       </div>
@@ -658,23 +837,31 @@ class CollectionsManager {
     const container = document.getElementById('collectionStatsContainer');
     if (!container) return;
 
+    const safeStats = {
+      totalCollections: 0,
+      activeCollections: 0,
+      scheduledCollections: 0,
+      completedCollections: 0,
+      ...(stats || {})
+    };
+
     container.innerHTML = `
       <div class="stats-grid">
         <div class="stat-card">
           <h4>Total Collections</h4>
-          <p class="stat-number">${stats.totalCollections || 0}</p>
+          <p class="stat-number">${safeStats.totalCollections}</p>
         </div>
         <div class="stat-card">
           <h4>Active</h4>
-          <p class="stat-number">${stats.activeCollections || 0}</p>
+          <p class="stat-number">${safeStats.activeCollections}</p>
         </div>
         <div class="stat-card">
           <h4>Scheduled</h4>
-          <p class="stat-number">${stats.scheduledCollections || 0}</p>
+          <p class="stat-number">${safeStats.scheduledCollections}</p>
         </div>
         <div class="stat-card">
           <h4>Completed</h4>
-          <p class="stat-number">${stats.completedCollections || 0}</p>
+          <p class="stat-number">${safeStats.completedCollections}</p>
         </div>
       </div>
     `;

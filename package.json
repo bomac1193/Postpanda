@@ -10,6 +10,7 @@
     "mini:server": "npm run dev",
     "mini:client": "npm run dev --prefix client",
     "mini:build": "npm run build --prefix client",
+    "mini:publish": "npm run build --prefix client && rm -rf public/alchemy && cp -R client/dist public/alchemy",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

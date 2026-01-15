@@ -18,6 +18,12 @@ const contentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  originalMediaUrl: {
+    type: String,
+    default: function defaultOriginalUrl() {
+      return this.mediaUrl;
+    }
+  },
   thumbnailUrl: String,
   mediaType: {
     type: String,
@@ -78,7 +84,24 @@ const contentSchema = new mongoose.Schema({
       type: Number,
       min: 0,
       max: 100
-    }
+    },
+    platformRecommendation: String,
+    platformConfidence: {
+      type: Number,
+      min: 0,
+      max: 100
+    },
+    platformReason: String,
+    captionIdeas: [String],
+    hookIdeas: [String],
+    actionItems: [String],
+    similarCreators: [{
+      name: String,
+      handle: String,
+      overlap: String,
+      performanceNote: String
+    }],
+    creatorInsights: mongoose.Schema.Types.Mixed
   },
   // Multiple versions for A/B testing
   versions: [{
