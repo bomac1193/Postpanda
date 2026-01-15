@@ -42,6 +42,9 @@ import {
   GripVertical,
   ChevronUp,
   ChevronDown as ChevronDownIcon,
+  ZoomIn,
+  ZoomOut,
+  Minus,
 } from 'lucide-react';
 
 const GRID_LAYOUTS = [
@@ -92,6 +95,7 @@ function GridPlanner() {
   const [isLocked, setIsLocked] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [activeId, setActiveId] = useState(null);
+  const [gridZoom, setGridZoom] = useState(100); // Zoom percentage (50-150)
 
   // Drag-drop upload state
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
@@ -704,20 +708,24 @@ function GridPlanner() {
               </div>
 
               {/* Grid with Row Controls */}
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragCancel={handleDragCancel}
+              <div
+                className="transition-all duration-200 mx-auto"
+                style={{ maxWidth: `${gridZoom}%` }}
               >
-                <SortableContext
-                  items={gridPosts.map((p) => p.id)}
-                  strategy={rectSortingStrategy}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDragCancel={handleDragCancel}
                 >
-                  <div className="space-y-1">
-                    {getRows().map((row, rowIndex) => (
-                      <div key={rowIndex} className="flex items-center gap-2 group/row">
+                  <SortableContext
+                    items={gridPosts.map((p) => p.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <div className="space-y-1">
+                      {getRows().map((row, rowIndex) => (
+                        <div key={rowIndex} className="flex items-center gap-2 group/row">
                         {/* Row Controls */}
                         <div className="flex flex-col gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
                           <button
@@ -780,25 +788,26 @@ function GridPlanner() {
                   </div>
                 </SortableContext>
 
-                <DragOverlay>
-                  {activePost ? (
-                    <div className="aspect-square bg-dark-600 rounded-lg overflow-hidden opacity-80 ring-2 ring-accent-purple">
-                      {activePost.image ? (
-                        <img
-                          src={activePost.image}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div
-                          className="w-full h-full"
-                          style={{ backgroundColor: activePost.color }}
-                        />
-                      )}
-                    </div>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+                  <DragOverlay>
+                    {activePost ? (
+                      <div className="aspect-square bg-dark-600 rounded-lg overflow-hidden opacity-80 ring-2 ring-accent-purple">
+                        {activePost.image ? (
+                          <img
+                            src={activePost.image}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full"
+                            style={{ backgroundColor: activePost.color }}
+                          />
+                        )}
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              </div>
 
               {gridPosts.length === 0 && (
                 <div className="text-center py-16 border-2 border-dashed border-dark-600 rounded-xl mt-4">
@@ -822,16 +831,62 @@ function GridPlanner() {
           )}
         </div>
 
-        {/* Stats */}
+        {/* Stats & Zoom Slider */}
         <div className="mt-4 flex items-center gap-6 text-sm text-dark-400">
           <span>{gridPosts.length} posts</span>
           <span>{Math.ceil(gridPosts.length / (currentLayout?.cols || 3))} rows</span>
           <span className="text-accent-purple">
             {isLocked ? 'Grid locked' : 'Drag to reorder'}
           </span>
-          <span className="ml-auto text-dark-500">
-            {grids.length} grids from MongoDB
-          </span>
+
+          {/* Zoom Slider */}
+          <div className="ml-auto flex items-center gap-3">
+            <button
+              onClick={() => setGridZoom(Math.max(50, gridZoom - 10))}
+              className="p-1 text-dark-400 hover:text-dark-200 transition-colors"
+              title="Zoom out"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="50"
+                max="150"
+                value={gridZoom}
+                onChange={(e) => setGridZoom(Number(e.target.value))}
+                className="w-24 h-1.5 bg-dark-600 rounded-full appearance-none cursor-pointer
+                  [&::-webkit-slider-thumb]:appearance-none
+                  [&::-webkit-slider-thumb]:w-3
+                  [&::-webkit-slider-thumb]:h-3
+                  [&::-webkit-slider-thumb]:rounded-full
+                  [&::-webkit-slider-thumb]:bg-accent-purple
+                  [&::-webkit-slider-thumb]:cursor-pointer
+                  [&::-webkit-slider-thumb]:hover:bg-accent-purple/80
+                  [&::-moz-range-thumb]:w-3
+                  [&::-moz-range-thumb]:h-3
+                  [&::-moz-range-thumb]:rounded-full
+                  [&::-moz-range-thumb]:bg-accent-purple
+                  [&::-moz-range-thumb]:border-0
+                  [&::-moz-range-thumb]:cursor-pointer"
+              />
+              <span className="text-xs text-dark-500 w-8">{gridZoom}%</span>
+            </div>
+            <button
+              onClick={() => setGridZoom(Math.min(150, gridZoom + 10))}
+              className="p-1 text-dark-400 hover:text-dark-200 transition-colors"
+              title="Zoom in"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setGridZoom(100)}
+              className="px-2 py-0.5 text-xs text-dark-500 hover:text-dark-300 bg-dark-700 rounded transition-colors"
+              title="Reset zoom"
+            >
+              Reset
+            </button>
+          </div>
         </div>
       </div>
 

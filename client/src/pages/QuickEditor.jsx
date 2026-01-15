@@ -57,6 +57,7 @@ function QuickEditor() {
   const containerRef = useRef(null);
   const fabricCanvasRef = useRef(null);
   const imageRef = useRef(null);
+  const lastDimensionsRef = useRef({ width: 0, height: 0 });
 
   const posts = useAppStore((state) => state.posts);
   const updatePost = useAppStore((state) => state.updatePost);
@@ -100,10 +101,18 @@ function QuickEditor() {
 
     fabricCanvasRef.current = canvas;
 
-    // Handle resize
+    // Handle resize - with dimension check to prevent infinite loops
     const handleResize = () => {
       if (!containerRef.current) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
+
+      // Only update if dimensions actually changed (prevents infinite loop)
+      const lastDims = lastDimensionsRef.current;
+      if (Math.abs(width - lastDims.width) < 1 && Math.abs(height - lastDims.height) < 1) {
+        return;
+      }
+
+      lastDimensionsRef.current = { width, height };
       canvas.setDimensions({ width, height });
       canvas.renderAll();
     };
@@ -113,7 +122,8 @@ function QuickEditor() {
       resizeObserver.observe(containerRef.current);
     }
 
-    handleResize();
+    // Initial size with slight delay to ensure container is sized
+    setTimeout(handleResize, 0);
 
     return () => {
       resizeObserver.disconnect();
@@ -374,9 +384,9 @@ function QuickEditor() {
         {/* Canvas Container */}
         <div
           ref={containerRef}
-          className="flex-1 bg-dark-800 rounded-2xl border border-dark-700 overflow-hidden relative"
+          className="flex-1 bg-dark-800 rounded-2xl border border-dark-700 overflow-hidden relative min-h-0"
         >
-          <canvas ref={canvasRef} />
+          <canvas ref={canvasRef} className="absolute inset-0" />
 
           {/* No Image State */}
           {!imageLoaded && (
