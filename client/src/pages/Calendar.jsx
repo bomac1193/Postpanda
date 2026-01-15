@@ -9,9 +9,11 @@ import {
   MoreHorizontal,
   Loader2,
   RefreshCw,
+  X,
+  Image,
 } from 'lucide-react';
 import { useAppStore } from '../stores/useAppStore';
-import { postingApi, collectionApi } from '../lib/api';
+import { postingApi, collectionApi, contentApi } from '../lib/api';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
@@ -25,6 +27,13 @@ function Calendar() {
   const [error, setError] = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('month'); // 'month' | 'week' | 'day'
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [availableContent, setAvailableContent] = useState([]);
+  const [selectedContent, setSelectedContent] = useState(null);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('12:00');
+  const [selectedPlatforms, setSelectedPlatforms] = useState(['instagram']);
+  const [scheduling, setScheduling] = useState(false);
 
   // Fetch scheduled posts from backend
   const fetchScheduledPosts = useCallback(async () => {
@@ -49,6 +58,55 @@ function Calendar() {
   useEffect(() => {
     fetchScheduledPosts();
   }, [fetchScheduledPosts]);
+
+  // Fetch available content for scheduling
+  const fetchAvailableContent = useCallback(async () => {
+    try {
+      const data = await contentApi.getAll();
+      const content = Array.isArray(data) ? data : data.content || [];
+      setAvailableContent(content);
+    } catch (err) {
+      console.error('Failed to fetch content:', err);
+      setAvailableContent([]);
+    }
+  }, []);
+
+  // Handle opening schedule modal
+  const handleOpenScheduleModal = useCallback(() => {
+    fetchAvailableContent();
+    // Default to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setScheduleDate(tomorrow.toISOString().split('T')[0]);
+    setScheduleTime('12:00');
+    setSelectedContent(null);
+    setSelectedPlatforms(['instagram']);
+    setShowScheduleModal(true);
+  }, [fetchAvailableContent]);
+
+  // Handle scheduling a post
+  const handleSchedulePost = useCallback(async () => {
+    if (!selectedContent || !scheduleDate || !scheduleTime) return;
+
+    setScheduling(true);
+    try {
+      const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+      await postingApi.schedulePost(selectedContent._id || selectedContent.id, selectedPlatforms, scheduledAt.toISOString());
+      setShowScheduleModal(false);
+      fetchScheduledPosts();
+    } catch (err) {
+      console.error('Failed to schedule post:', err);
+      alert('Failed to schedule post. Please try again.');
+    } finally {
+      setScheduling(false);
+    }
+  }, [selectedContent, scheduleDate, scheduleTime, selectedPlatforms, fetchScheduledPosts]);
+
+  const togglePlatform = (platform) => {
+    setSelectedPlatforms((prev) =>
+      prev.includes(platform) ? prev.filter((p) => p !== platform) : [...prev, platform]
+    );
+  };
 
   const { year, month, daysInMonth, firstDayOfMonth, today } = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -170,7 +228,7 @@ function Calendar() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
-          <button className="btn-primary">
+          <button onClick={handleOpenScheduleModal} className="btn-primary">
             <Plus className="w-4 h-4" />
             Schedule Post
           </button>
@@ -288,6 +346,141 @@ function Calendar() {
           Data from MongoDB
         </span>
       </div>
+
+      {/* Schedule Post Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-2xl border border-dark-700 w-full max-w-lg mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-dark-700">
+              <h3 className="text-lg font-semibold text-dark-100">Schedule Post</h3>
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="btn-icon"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-4 space-y-4">
+              {/* Select Content */}
+              <div>
+                <label className="block text-sm font-medium text-dark-200 mb-2">
+                  Select Content
+                </label>
+                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-auto">
+                  {availableContent.length === 0 ? (
+                    <p className="col-span-3 text-center text-dark-400 py-4">
+                      No content available. Upload content first.
+                    </p>
+                  ) : (
+                    availableContent.map((content) => (
+                      <button
+                        key={content._id || content.id}
+                        onClick={() => setSelectedContent(content)}
+                        className={`aspect-square rounded-lg overflow-hidden border-2 transition-colors ${
+                          selectedContent?._id === content._id || selectedContent?.id === content.id
+                            ? 'border-accent-purple'
+                            : 'border-transparent hover:border-dark-500'
+                        }`}
+                      >
+                        {content.mediaUrl || content.image ? (
+                          <img
+                            src={content.mediaUrl || content.image}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-dark-700 flex items-center justify-center">
+                            <Image className="w-8 h-8 text-dark-500" />
+                          </div>
+                        )}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-dark-200 mb-2">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    className="input w-full"
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-dark-200 mb-2">
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    className="input w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Platforms */}
+              <div>
+                <label className="block text-sm font-medium text-dark-200 mb-2">
+                  Platforms
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {['instagram', 'tiktok', 'twitter', 'facebook'].map((platform) => (
+                    <button
+                      key={platform}
+                      onClick={() => togglePlatform(platform)}
+                      className={`px-3 py-1.5 rounded-lg text-sm capitalize transition-colors ${
+                        selectedPlatforms.includes(platform)
+                          ? 'bg-accent-purple text-white'
+                          : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
+                      }`}
+                    >
+                      {platform}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-dark-700 flex gap-2">
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="flex-1 btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSchedulePost}
+                disabled={!selectedContent || !scheduleDate || !scheduleTime || scheduling}
+                className="flex-1 btn-primary disabled:opacity-50"
+              >
+                {scheduling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Scheduling...
+                  </>
+                ) : (
+                  <>
+                    <CalendarIcon className="w-4 h-4" />
+                    Schedule
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

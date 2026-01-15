@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAppStore } from '../stores/useAppStore';
+import { platformApi } from '../lib/api';
 import {
   Instagram,
   Youtube,
@@ -13,6 +14,7 @@ import {
   Trash2,
   ExternalLink,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 
 // Platform configs with their colors and features
@@ -106,6 +108,8 @@ function Connections() {
   const connectPlatform = useAppStore((state) => state.connectPlatform);
   const disconnectPlatform = useAppStore((state) => state.disconnectPlatform);
   const [connecting, setConnecting] = useState(null);
+  const [refreshing, setRefreshing] = useState(null);
+  const [refreshSuccess, setRefreshSuccess] = useState(null);
 
   const handleConnect = async (platform) => {
     if (platform.comingSoon) return;
@@ -123,6 +127,21 @@ function Connections() {
 
   const handleDisconnect = async (platformId) => {
     disconnectPlatform(platformId);
+  };
+
+  const handleRefresh = async (platformId) => {
+    setRefreshing(platformId);
+    setRefreshSuccess(null);
+    try {
+      await platformApi.refreshToken(platformId);
+      setRefreshSuccess(platformId);
+      setTimeout(() => setRefreshSuccess(null), 2000);
+    } catch (error) {
+      console.error('Failed to refresh token:', error);
+      alert(`Failed to refresh ${platformId} token. You may need to reconnect.`);
+    } finally {
+      setRefreshing(null);
+    }
   };
 
   const connectedCount = Object.values(connectedPlatforms).filter(
@@ -219,9 +238,27 @@ function Connections() {
                   <div className="flex items-center gap-2">
                     {isConnected ? (
                       <>
-                        <button className="btn-secondary text-sm py-1.5">
-                          <RefreshCw className="w-3 h-3" />
-                          Refresh
+                        <button
+                          onClick={() => handleRefresh(platform.id)}
+                          disabled={refreshing === platform.id}
+                          className="btn-secondary text-sm py-1.5"
+                        >
+                          {refreshing === platform.id ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Refreshing...
+                            </>
+                          ) : refreshSuccess === platform.id ? (
+                            <>
+                              <Check className="w-3 h-3 text-green-400" />
+                              Refreshed!
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-3 h-3" />
+                              Refresh
+                            </>
+                          )}
                         </button>
                         <button
                           onClick={() => handleDisconnect(platform.id)}

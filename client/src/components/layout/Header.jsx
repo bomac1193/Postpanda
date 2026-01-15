@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/useAppStore';
 import {
   Bell,
@@ -22,6 +22,7 @@ const pageTitles = {
 
 function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
   const theme = useAppStore((state) => state.theme);
   const toggleTheme = useAppStore((state) => state.toggleTheme);
   const user = useAppStore((state) => state.user);
@@ -85,13 +86,17 @@ function Header() {
         </button>
 
         {/* User Menu */}
-        <button className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-dark-700 transition-colors">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-purple to-accent-blue flex items-center justify-center">
+        <button
+          onClick={() => navigate('/settings')}
+          className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-dark-700 transition-colors"
+          title="Profile Settings"
+        >
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-purple to-accent-blue flex items-center justify-center overflow-hidden">
             {user?.avatar ? (
               <img
                 src={user.avatar}
-                alt={user.name}
-                className="w-full h-full rounded-full object-cover"
+                alt={user.name || 'Profile'}
+                className="w-full h-full object-cover"
               />
             ) : (
               <User className="w-4 h-4 text-white" />

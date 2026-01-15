@@ -45,6 +45,10 @@ import {
   ZoomIn,
   ZoomOut,
   Minus,
+  Pencil,
+  Check,
+  X,
+  MoreVertical,
 } from 'lucide-react';
 
 const GRID_LAYOUTS = [
@@ -69,6 +73,11 @@ function GridPlanner() {
   const [showGridSelector, setShowGridSelector] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
   const [user, setUser] = useState(null);
+
+  // Grid editing state
+  const [editingGridId, setEditingGridId] = useState(null);
+  const [editingName, setEditingName] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
   // Check authentication on mount
   useEffect(() => {
@@ -182,6 +191,65 @@ function GridPlanner() {
       setShowGridSelector(false);
     } catch (err) {
       console.error('Failed to create grid:', err);
+    }
+  };
+
+  // Start editing a grid name
+  const handleStartRename = (e, grid) => {
+    e.stopPropagation();
+    setEditingGridId(grid._id);
+    setEditingName(grid.name);
+  };
+
+  // Save the renamed grid
+  const handleSaveRename = async (e, gridId) => {
+    e.stopPropagation();
+    if (!editingName.trim()) {
+      setEditingGridId(null);
+      return;
+    }
+
+    try {
+      await gridApi.update(gridId, { name: editingName.trim() });
+      setGrids(grids.map(g =>
+        g._id === gridId ? { ...g, name: editingName.trim() } : g
+      ));
+      setEditingGridId(null);
+    } catch (err) {
+      console.error('Failed to rename grid:', err);
+    }
+  };
+
+  // Cancel editing
+  const handleCancelRename = (e) => {
+    e.stopPropagation();
+    setEditingGridId(null);
+    setEditingName('');
+  };
+
+  // Delete a grid
+  const handleDeleteGrid = async (e, gridId) => {
+    e.stopPropagation();
+
+    try {
+      await gridApi.delete(gridId);
+      const updatedGrids = grids.filter(g => g._id !== gridId);
+      setGrids(updatedGrids);
+
+      // If we deleted the current grid, switch to another one
+      if (currentGridId === gridId) {
+        if (updatedGrids.length > 0) {
+          setCurrentGridId(updatedGrids[0]._id);
+          await loadGridContent(updatedGrids[0]);
+        } else {
+          setCurrentGridId(null);
+          setGridPosts([]);
+        }
+      }
+
+      setShowDeleteConfirm(null);
+    } catch (err) {
+      console.error('Failed to delete grid:', err);
     }
   };
 
@@ -527,30 +595,109 @@ function GridPlanner() {
               </button>
 
               {showGridSelector && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-dark-700 rounded-lg shadow-xl border border-dark-600 z-20">
+                <div className="absolute top-full left-0 mt-2 w-72 bg-dark-700 rounded-lg shadow-xl border border-dark-600 z-20">
                   <div className="p-2 border-b border-dark-600">
-                    <p className="text-xs text-dark-400 uppercase tracking-wide">Your Grids ({grids.length})</p>
+                    <p className="text-xs text-dark-400 uppercase tracking-wide">Your Collections ({grids.length})</p>
                   </div>
                   <div className="max-h-64 overflow-auto">
                     {grids.map((grid) => (
-                      <button
+                      <div
                         key={grid._id}
-                        onClick={() => handleSelectGrid(grid)}
-                        className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors ${
+                        className={`group relative ${
                           currentGridId === grid._id
-                            ? 'bg-accent-purple/20 text-accent-purple'
-                            : 'text-dark-200 hover:bg-dark-600'
+                            ? 'bg-accent-purple/20'
+                            : 'hover:bg-dark-600'
                         }`}
                       >
-                        <Grid3X3 className="w-4 h-4" />
-                        <span className="flex-1 truncate">{grid.name}</span>
-                        <span className="text-xs text-dark-500">
-                          {grid.cells?.filter(c => !c.isEmpty).length || 0} items
-                        </span>
-                      </button>
+                        {/* Editing Mode */}
+                        {editingGridId === grid._id ? (
+                          <div className="px-3 py-2 flex items-center gap-2">
+                            <Grid3X3 className="w-4 h-4 text-dark-400 flex-shrink-0" />
+                            <input
+                              type="text"
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveRename(e, grid._id);
+                                if (e.key === 'Escape') handleCancelRename(e);
+                              }}
+                              className="flex-1 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-dark-100 focus:outline-none focus:border-accent-purple"
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <button
+                              onClick={(e) => handleSaveRename(e, grid._id)}
+                              className="p-1 text-green-400 hover:bg-dark-500 rounded"
+                              title="Save"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={handleCancelRename}
+                              className="p-1 text-dark-400 hover:bg-dark-500 rounded"
+                              title="Cancel"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : showDeleteConfirm === grid._id ? (
+                          /* Delete Confirmation */
+                          <div className="px-3 py-2">
+                            <p className="text-sm text-dark-200 mb-2">Delete "{grid.name}"?</p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={(e) => handleDeleteGrid(e, grid._id)}
+                                className="flex-1 px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(null); }}
+                                className="flex-1 px-2 py-1 text-xs bg-dark-600 text-dark-300 rounded hover:bg-dark-500"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Normal View */
+                          <button
+                            onClick={() => handleSelectGrid(grid)}
+                            className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors ${
+                              currentGridId === grid._id
+                                ? 'text-accent-purple'
+                                : 'text-dark-200'
+                            }`}
+                          >
+                            <Grid3X3 className="w-4 h-4 flex-shrink-0" />
+                            <span className="flex-1 truncate">{grid.name}</span>
+                            <span className="text-xs text-dark-500 mr-1">
+                              {grid.cells?.filter(c => !c.isEmpty).length || 0}
+                            </span>
+
+                            {/* Action Buttons - show on hover */}
+                            <div className="hidden group-hover:flex items-center gap-1">
+                              <button
+                                onClick={(e) => handleStartRename(e, grid)}
+                                className="p-1 text-dark-400 hover:text-accent-purple hover:bg-dark-500 rounded"
+                                title="Rename"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(grid._id); }}
+                                className="p-1 text-dark-400 hover:text-red-400 hover:bg-dark-500 rounded"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </button>
+                        )}
+                      </div>
                     ))}
                     {grids.length === 0 && (
-                      <p className="px-3 py-4 text-sm text-dark-400 text-center">No grids yet</p>
+                      <p className="px-3 py-4 text-sm text-dark-400 text-center">No collections yet</p>
                     )}
                   </div>
                   <div className="p-2 border-t border-dark-600">
@@ -559,17 +706,99 @@ function GridPlanner() {
                       className="w-full px-3 py-2 text-sm text-accent-purple hover:bg-dark-600 rounded-md flex items-center gap-2"
                     >
                       <FolderPlus className="w-4 h-4" />
-                      Create New Grid
+                      Create New Collection
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Refresh */}
-            <button onClick={fetchGrids} className="btn-icon" title="Refresh">
-              <RefreshCw className="w-4 h-4" />
-            </button>
+            {/* Collection Actions */}
+            <div className="flex items-center gap-1">
+              <button onClick={fetchGrids} className="btn-icon" title="Refresh">
+                <RefreshCw className="w-4 h-4" />
+              </button>
+
+              {currentGrid && (
+                <>
+                  <button
+                    onClick={(e) => handleStartRename(e, currentGrid)}
+                    className="btn-icon"
+                    title="Rename Collection"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(currentGrid._id); }}
+                    className="btn-icon hover:text-red-400"
+                    title="Delete Collection"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Inline Rename Modal */}
+            {editingGridId && !showGridSelector && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleCancelRename}>
+                <div className="bg-dark-800 rounded-xl p-4 w-80 border border-dark-600" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="text-sm font-medium text-dark-200 mb-3">Rename Collection</h3>
+                  <input
+                    type="text"
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveRename(e, editingGridId);
+                      if (e.key === 'Escape') handleCancelRename(e);
+                    }}
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-dark-100 focus:outline-none focus:border-accent-purple mb-3"
+                    autoFocus
+                    placeholder="Collection name"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCancelRename}
+                      className="flex-1 btn-secondary"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={(e) => handleSaveRename(e, editingGridId)}
+                      className="flex-1 btn-primary"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && !showGridSelector && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowDeleteConfirm(null)}>
+                <div className="bg-dark-800 rounded-xl p-4 w-80 border border-dark-600" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="text-sm font-medium text-dark-200 mb-2">Delete Collection</h3>
+                  <p className="text-dark-400 text-sm mb-4">
+                    Are you sure you want to delete "{grids.find(g => g._id === showDeleteConfirm)?.name}"? This cannot be undone.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowDeleteConfirm(null)}
+                      className="flex-1 btn-secondary"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteGrid(e, showDeleteConfirm)}
+                      className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Layout Selector */}
             <div className="flex items-center gap-1 p-1 bg-dark-800 rounded-lg">

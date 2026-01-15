@@ -63,6 +63,11 @@ export const authApi = {
     const { data } = await api.get('/api/auth/google');
     return data.url;
   },
+
+  async updateProfile(profileData) {
+    const { data } = await api.put('/api/auth/profile', profileData);
+    return data;
+  },
 };
 
 // Content API
@@ -125,6 +130,11 @@ export const gridApi = {
 
   async update(id, updates) {
     const { data } = await api.put(`/api/grid/${id}`, updates);
+    return data;
+  },
+
+  async delete(id) {
+    const { data } = await api.delete(`/api/grid/${id}`);
     return data;
   },
 

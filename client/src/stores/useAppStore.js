@@ -149,6 +149,17 @@ export const useAppStore = create(
         posts: state.posts,
         // gridPosts removed - should always come from MongoDB to avoid stale data
         sidebarCollapsed: state.sidebarCollapsed,
+        // User profile data for persistence
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
+      // Custom merge to ensure persisted data takes precedence
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...persistedState,
+        // Ensure user data is preserved if it exists in persisted state
+        user: persistedState?.user || currentState.user,
+        isAuthenticated: persistedState?.isAuthenticated || currentState.isAuthenticated,
       }),
     }
   )
