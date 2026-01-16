@@ -25,6 +25,9 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+// Remap zoom: slider value to actual scale (quadratic for zoom > 1)
+const getActualZoom = (val) => val <= 1 ? val : val * val;
+
 const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'appearance', label: 'Appearance', icon: Palette },
@@ -67,6 +70,7 @@ function Settings() {
     name: user?.name || '',
     email: user?.email || '',
     bio: user?.bio || '',
+    brandName: user?.brandName || '',
     timezone: 'America/New_York',
     defaultPostTime: '09:00',
     autoSaveDrafts: true,
@@ -99,6 +103,7 @@ function Settings() {
 
   // Avatar state
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || null);
+  const [avatarChanged, setAvatarChanged] = useState(false); // Track if new avatar was uploaded
 
   // Sync form data when user state is hydrated from localStorage
   useEffect(() => {
@@ -108,6 +113,7 @@ function Settings() {
         name: user.name || prev.name,
         email: user.email || prev.email,
         bio: user.bio || prev.bio,
+        brandName: user.brandName || prev.brandName,
       }));
       setAvatarPreview(user.avatar || null);
     }
@@ -134,6 +140,7 @@ function Settings() {
     const reader = new FileReader();
     reader.onload = (event) => {
       setAvatarPreview(event.target?.result);
+      setAvatarChanged(true); // Mark that a new avatar was uploaded
     };
     reader.readAsDataURL(file);
   };
@@ -149,7 +156,10 @@ function Settings() {
         name: formData.name,
         email: formData.email,
         bio: formData.bio,
-        avatar: avatarPreview
+        brandName: formData.brandName,
+        avatar: avatarPreview,
+        // Reset position/zoom if new avatar was uploaded via Settings
+        ...(avatarChanged ? { avatarPosition: { x: 0, y: 0 }, avatarZoom: 1 } : {})
       };
 
       // Try to save to backend if authenticated
@@ -159,6 +169,7 @@ function Settings() {
           const result = await authApi.updateProfile({
             name: formData.name,
             bio: formData.bio,
+            brandName: formData.brandName,
             avatar: avatarPreview
           });
           // Update user in store with data from server
@@ -178,6 +189,7 @@ function Settings() {
       }
 
       setSaveStatus('saved');
+      setAvatarChanged(false); // Reset flag after save
       setTimeout(() => setSaveStatus(null), 2000);
     } catch (err) {
       console.error('Save error:', err);
@@ -274,11 +286,26 @@ function Settings() {
               <h2 className="text-lg font-medium text-dark-100">Profile Settings</h2>
 
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-accent-purple to-accent-pink flex items-center justify-center overflow-hidden">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-accent-purple to-accent-pink overflow-hidden relative">
                   {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                    <img
+                      src={avatarPreview}
+                      alt="Avatar"
+                      className="absolute pointer-events-none"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        left: '50%',
+                        top: '50%',
+                        transformOrigin: 'center center',
+                        transform: `translate(-50%, -50%) translate(${(user?.avatarPosition?.x || 0) * 0.3}px, ${(user?.avatarPosition?.y || 0) * 0.3}px) scale(${getActualZoom(user?.avatarZoom || 1)})`,
+                      }}
+                    />
                   ) : (
-                    <User className="w-8 h-8 text-white" />
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="w-8 h-8 text-white" />
+                    </div>
                   )}
                 </div>
                 <div>
@@ -331,6 +358,18 @@ function Settings() {
                   className="input min-h-[100px]"
                   placeholder="Tell us about yourself..."
                 />
+              </div>
+
+              <div>
+                <label className="input-label">Brand Name</label>
+                <input
+                  type="text"
+                  value={formData.brandName}
+                  onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
+                  className="input"
+                  placeholder="Your Brand"
+                />
+                <p className="text-xs text-dark-500 mt-1">This name will be displayed in the grid preview</p>
               </div>
             </div>
           )}

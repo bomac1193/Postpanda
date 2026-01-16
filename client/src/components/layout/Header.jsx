@@ -10,6 +10,9 @@ import {
   Plus,
 } from 'lucide-react';
 
+// Remap zoom: slider value to actual scale (quadratic for zoom > 1)
+const getActualZoom = (val) => val <= 1 ? val : val * val;
+
 const pageTitles = {
   '/grid': 'Grid Planner',
   '/editor': 'Quick Editor',
@@ -91,15 +94,26 @@ function Header() {
           className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-dark-700 transition-colors"
           title="Profile Settings"
         >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-purple to-accent-blue flex items-center justify-center overflow-hidden">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-purple to-accent-blue overflow-hidden relative">
             {user?.avatar ? (
               <img
                 src={user.avatar}
                 alt={user.name || 'Profile'}
-                className="w-full h-full object-cover"
+                className="absolute pointer-events-none"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  left: '50%',
+                  top: '50%',
+                  transformOrigin: 'center center',
+                  transform: `translate(-50%, -50%) translate(${(user.avatarPosition?.x || 0) * 0.12}px, ${(user.avatarPosition?.y || 0) * 0.12}px) scale(${getActualZoom(user.avatarZoom || 1)})`,
+                }}
               />
             ) : (
-              <User className="w-4 h-4 text-white" />
+              <div className="w-full h-full flex items-center justify-center">
+                <User className="w-4 h-4 text-white" />
+              </div>
             )}
           </div>
         </button>

@@ -243,6 +243,9 @@ function PostDetails({ post }) {
     );
   }
 
+  // Get the correct post ID (works for both local and MongoDB posts)
+  const postId = post.id || post._id;
+
   // Update local state immediately for responsive typing
   const handleCaptionChange = (value) => {
     setCaption(value);
@@ -250,7 +253,9 @@ function PostDetails({ post }) {
 
   // Save to store only on blur to prevent re-render issues
   const handleCaptionBlur = () => {
-    updatePost(post.id, { caption });
+    if (postId) {
+      updatePost(postId, { caption });
+    }
   };
 
   const handleHashtagsChange = (value) => {
@@ -263,18 +268,23 @@ function PostDetails({ post }) {
       .split(/[\s,#]+/)
       .filter((tag) => tag.length > 0)
       .map((tag) => (tag.startsWith('#') ? tag : `#${tag}`));
-    updatePost(post.id, { hashtags: tags });
+    if (postId) {
+      updatePost(postId, { hashtags: tags });
+    }
   };
 
-  // Generate caption with AI
+  // Generate caption with AI - completely replaces existing caption
   const handleGenerateCaption = async () => {
     setGeneratingCaption(true);
     try {
-      const captions = await aiApi.generateCaption(caption || 'social media post', 'casual');
+      // Use a generic prompt to generate fresh caption (not based on existing)
+      const captions = await aiApi.generateCaption('engaging social media post', 'casual');
       if (captions && captions.length > 0) {
         const newCaption = captions[0];
         setCaption(newCaption);
-        updatePost(post.id, { caption: newCaption });
+        if (postId) {
+          updatePost(postId, { caption: newCaption });
+        }
       }
     } catch (error) {
       console.error('Failed to generate caption:', error);
@@ -284,10 +294,16 @@ function PostDetails({ post }) {
         "Living my best life 🌟 What do you think?",
         "Good vibes only ✌️ Drop a comment below!",
         "Sharing a moment with you all 📸 #blessed",
+        "Making memories one post at a time 📷",
+        "This is your sign to do something amazing today ✨",
+        "Caught in the moment 🌈",
+        "Creating my own sunshine ☀️",
       ];
       const newCaption = fallbackCaptions[Math.floor(Math.random() * fallbackCaptions.length)];
       setCaption(newCaption);
-      updatePost(post.id, { caption: newCaption });
+      if (postId) {
+        updatePost(postId, { caption: newCaption });
+      }
     } finally {
       setGeneratingCaption(false);
     }
@@ -1049,8 +1065,8 @@ function PostDetails({ post }) {
     </div>
   );
 
-  // Details Tab Content
-  const DetailsContent = () => (
+  // Details Tab Content (stored as JSX, not a component, to prevent focus loss)
+  const detailsContent = (
     <>
       {/* Preview Image / Quick Edit Area */}
       <div className={`bg-dark-700 relative flex-shrink-0 ${isQuickEditing ? 'aspect-auto' : 'aspect-square'}`}>
@@ -1561,7 +1577,7 @@ function PostDetails({ post }) {
 
       {/* Tab Content */}
       <div className="flex-1 overflow-auto flex flex-col">
-        {activeTab === 'details' && <DetailsContent />}
+        {activeTab === 'details' && detailsContent}
         {activeTab === 'instagram' && (
           <div className="p-4">
             <p className="text-xs text-dark-400 mb-3 text-center">Preview how your post will look on Instagram</p>
