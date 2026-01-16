@@ -492,6 +492,10 @@ function GridPlanner() {
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
+    // Ignore internal PostPilot item drags (from preview grid)
+    if (e.dataTransfer?.types?.includes('application/postpilot-item')) {
+      return;
+    }
     if (e.dataTransfer?.types?.includes('Files')) {
       setIsDraggingFiles(true);
     }
@@ -509,6 +513,10 @@ function GridPlanner() {
   const handleDragEnter = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
+    // Ignore internal PostPilot item drags (from preview grid)
+    if (e.dataTransfer?.types?.includes('application/postpilot-item')) {
+      return;
+    }
     if (e.dataTransfer?.types?.includes('Files')) {
       setIsDraggingFiles(true);
     }

@@ -564,25 +564,23 @@ function GridPreview({ posts, layout }) {
       </div>
 
       {/* Grid with Row Drag (via grip handle) and Item Drag (for replace/carousel) */}
+      {/* This wrapper prevents ALL drag events from bubbling to parent file drop zone */}
       <div
         onDragOver={(e) => {
-          // Only prevent default for our internal item drags
-          if (e.dataTransfer.types.includes('application/postpilot-item')) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
+          e.preventDefault();
+          e.stopPropagation();
         }}
         onDragEnter={(e) => {
-          if (e.dataTransfer.types.includes('application/postpilot-item')) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
         }}
         onDrop={(e) => {
-          if (e.dataTransfer.types.includes('application/postpilot-item')) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
+          e.preventDefault();
+          e.stopPropagation();
         }}
       >
         {/* Row Drag and Drop */}
