@@ -64,10 +64,11 @@ function SortableRow({ rowId, rowIndex, children }) {
   );
 }
 
-// Draggable grid item with drop zone
-function DraggableGridItem({ post, postId, activeItemId, onDragStart, onDragEnd }) {
+// Draggable grid item with drop zone (handles both internal drags AND file drops from explorer)
+function DraggableGridItem({ post, postId, activeItemId, onDragStart, onDragEnd, onFileDrop }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isOver, setIsOver] = useState(false);
+  const [isFileOver, setIsFileOver] = useState(false);
   const itemRef = useRef(null);
 
   // Get all images for this post (for carousel support)
@@ -110,24 +111,50 @@ function DraggableGridItem({ post, postId, activeItemId, onDragStart, onDragEnd 
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Check if it's an internal item drag
     if (e.dataTransfer.types.includes('application/postpilot-item')) {
       e.dataTransfer.dropEffect = 'move';
       setIsOver(true);
+      setIsFileOver(false);
+    }
+    // Check if it's a file drag from outside (Windows Explorer)
+    else if (e.dataTransfer.types.includes('Files')) {
+      e.dataTransfer.dropEffect = 'copy';
+      setIsFileOver(true);
+      setIsOver(false);
+      // Set flag to prevent parent overlay
+      setInternalDragActive(true);
     }
   };
 
   const handleDragLeave = (e) => {
     e.stopPropagation();
     setIsOver(false);
+    setIsFileOver(false);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsOver(false);
+    setIsFileOver(false);
+
+    // Clear the flag
+    setInternalDragActive(false);
+
+    // Check for internal item drag first
     const sourceId = e.dataTransfer.getData('application/postpilot-item');
     if (sourceId && sourceId !== postId) {
       onDragEnd?.(sourceId, postId);
+      return;
+    }
+
+    // Check for file drop from Windows Explorer
+    const files = Array.from(e.dataTransfer.files || []);
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length > 0 && onFileDrop) {
+      onFileDrop(postId, post, imageFiles);
     }
   };
 
@@ -142,7 +169,7 @@ function DraggableGridItem({ post, postId, activeItemId, onDragStart, onDragEnd 
       onDrop={handleDrop}
       className={`aspect-square bg-dark-700 overflow-hidden cursor-grab active:cursor-grabbing relative select-none ${
         isDragging ? 'opacity-40' : ''
-      } ${isOver ? 'ring-2 ring-accent-purple ring-inset scale-105 transition-transform' : ''}`}
+      } ${isOver ? 'ring-2 ring-accent-purple ring-inset scale-105 transition-transform' : ''} ${isFileOver ? 'ring-2 ring-green-500 ring-inset scale-105 transition-transform' : ''}`}
     >
       {images.length > 0 ? (
         <>
@@ -167,6 +194,15 @@ function DraggableGridItem({ post, postId, activeItemId, onDragStart, onDragEnd 
         />
       ) : (
         <div className="w-full h-full bg-dark-600" />
+      )}
+
+      {/* File drop indicator */}
+      {isFileOver && (
+        <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+          <div className="bg-dark-900/80 rounded-lg px-2 py-1">
+            <span className="text-xs text-white font-medium">Drop here</span>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -314,6 +350,107 @@ function GridPreview({ posts, layout }) {
     setShowDropModal(false);
     setDropSource(null);
     setDropTarget(null);
+    setDroppedFiles(null);
+  };
+
+  // State for file drops from Windows Explorer
+  const [droppedFiles, setDroppedFiles] = useState(null);
+
+  // Handle file drop from Windows Explorer onto a grid item
+  const handleFileDrop = async (targetPostId, targetPost, files) => {
+    // Convert files to data URLs
+    const imagePromises = files.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(file);
+      });
+    });
+
+    const imageDataUrls = await Promise.all(imagePromises);
+
+    // Create a fake "source" post representing the dropped files
+    const fakeSource = {
+      id: 'file-drop',
+      images: imageDataUrls,
+      image: imageDataUrls[0],
+    };
+
+    setDropSource(fakeSource);
+    setDropTarget(targetPost);
+    setDroppedFiles(imageDataUrls);
+    setShowDropModal(true);
+  };
+
+  // Modified replace handler to handle file drops
+  const handleReplaceWithCheck = () => {
+    if (!dropSource || !dropTarget) return;
+
+    const targetId = dropTarget.id || dropTarget._id;
+
+    // Check if this is a file drop (source id is 'file-drop')
+    if (dropSource.id === 'file-drop') {
+      // Replace target with dropped file
+      const newPosts = posts.map(p => {
+        const postId = p.id || p._id;
+        if (postId === targetId) {
+          return {
+            ...p,
+            image: dropSource.images[0],
+            images: dropSource.images.length > 1 ? dropSource.images : undefined,
+          };
+        }
+        return p;
+      });
+      setGridPosts(newPosts);
+    } else {
+      // Original behavior for internal drags
+      handleReplace();
+      return;
+    }
+
+    setShowDropModal(false);
+    setDropSource(null);
+    setDropTarget(null);
+    setDroppedFiles(null);
+  };
+
+  // Modified carousel handler to handle file drops
+  const handleCreateCarouselWithCheck = () => {
+    if (!dropSource || !dropTarget) return;
+
+    const targetId = dropTarget.id || dropTarget._id;
+
+    // Collect all images
+    const sourceImages = dropSource.images || (dropSource.image ? [dropSource.image] : []);
+    const targetImages = dropTarget.images || (dropTarget.image ? [dropTarget.image] : []);
+    const combinedImages = [...targetImages, ...sourceImages];
+
+    // Check if this is a file drop
+    if (dropSource.id === 'file-drop') {
+      // Add to carousel without removing any post
+      const newPosts = posts.map(p => {
+        const postId = p.id || p._id;
+        if (postId === targetId) {
+          return {
+            ...p,
+            image: combinedImages[0],
+            images: combinedImages,
+          };
+        }
+        return p;
+      });
+      setGridPosts(newPosts);
+    } else {
+      // Original behavior for internal drags
+      handleCreateCarousel();
+      return;
+    }
+
+    setShowDropModal(false);
+    setDropSource(null);
+    setDropTarget(null);
+    setDroppedFiles(null);
   };
 
   // Avatar editor state
@@ -617,6 +754,7 @@ function GridPreview({ posts, layout }) {
                         postId={post.id || post._id}
                         onDragStart={handleItemDragStart}
                         onDragEnd={handleItemDrop}
+                        onFileDrop={handleFileDrop}
                       />
                     ))}
                   </div>
@@ -923,7 +1061,7 @@ function GridPreview({ posts, layout }) {
                     />
                   )}
                 </div>
-                <p className="text-xs text-dark-400">Dragged</p>
+                <p className="text-xs text-dark-400">{dropSource?.id === 'file-drop' ? 'New Image' : 'Dragged'}</p>
               </div>
               <div className="text-dark-500">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -960,14 +1098,14 @@ function GridPreview({ posts, layout }) {
             {/* Action Buttons */}
             <div className="space-y-3">
               <button
-                onClick={handleReplace}
+                onClick={handleReplaceWithCheck}
                 className="w-full flex items-center justify-center gap-3 py-3 bg-dark-700 hover:bg-dark-600 text-dark-100 rounded-lg transition-colors"
               >
                 <Replace className="w-5 h-5" />
                 <span className="font-medium">Replace Image</span>
               </button>
               <button
-                onClick={handleCreateCarousel}
+                onClick={handleCreateCarouselWithCheck}
                 className="w-full flex items-center justify-center gap-3 py-3 bg-accent-purple hover:bg-accent-purple/80 text-white rounded-lg transition-colors"
               >
                 <Layers className="w-5 h-5" />
