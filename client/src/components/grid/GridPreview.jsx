@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { User, Upload, ZoomIn, ZoomOut, X, Check, Camera, RotateCcw, Save, GripVertical, Replace, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
+import { User, Upload, ZoomIn, ZoomOut, X, Check, Camera, RotateCcw, Save, GripVertical, Replace, Layers } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -7,8 +7,6 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-  useDraggable,
-  useDroppable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -65,33 +63,77 @@ function SortableRow({ rowId, rowIndex, children }) {
   );
 }
 
-// Draggable and droppable grid item
-function DraggableGridItem({ post, postId, isBeingDraggedOver, activeItemId }) {
-  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
-    id: `item-${postId}`,
-    data: { post, postId },
-  });
-
-  const { setNodeRef: setDropRef, isOver } = useDroppable({
-    id: `drop-${postId}`,
-    data: { post, postId },
-  });
+// Draggable grid item with drop zone
+function DraggableGridItem({ post, postId, activeItemId, onDragStart, onDragEnd }) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isOver, setIsOver] = useState(false);
+  const itemRef = useRef(null);
 
   // Get all images for this post (for carousel support)
   const images = post.images || (post.image ? [post.image] : []);
   const isCarousel = images.length > 1;
 
+  const handleDragStart = (e) => {
+    e.stopPropagation();
+    setIsDragging(true);
+    e.dataTransfer.setData('application/postpilot-item', postId);
+    e.dataTransfer.effectAllowed = 'move';
+
+    // Create a custom drag image
+    const dragImage = e.target.cloneNode(true);
+    dragImage.style.width = '80px';
+    dragImage.style.height = '80px';
+    dragImage.style.borderRadius = '8px';
+    dragImage.style.opacity = '0.9';
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, 40, 40);
+    setTimeout(() => document.body.removeChild(dragImage), 0);
+
+    onDragStart?.(postId, post);
+  };
+
+  const handleDragEnd = (e) => {
+    e.stopPropagation();
+    setIsDragging(false);
+    onDragEnd?.();
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('application/postpilot-item')) {
+      e.dataTransfer.dropEffect = 'move';
+      setIsOver(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.stopPropagation();
+    setIsOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsOver(false);
+    const sourceId = e.dataTransfer.getData('application/postpilot-item');
+    if (sourceId && sourceId !== postId) {
+      onDragEnd?.(sourceId, postId);
+    }
+  };
+
   return (
     <div
-      ref={(node) => {
-        setDragRef(node);
-        setDropRef(node);
-      }}
-      {...attributes}
-      {...listeners}
-      className={`aspect-square bg-dark-700 overflow-hidden cursor-grab active:cursor-grabbing relative ${
-        isDragging ? 'opacity-50 z-10' : ''
-      } ${isOver && activeItemId !== `item-${postId}` ? 'ring-2 ring-accent-purple ring-inset' : ''}`}
+      ref={itemRef}
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`aspect-square bg-dark-700 overflow-hidden cursor-grab active:cursor-grabbing relative select-none ${
+        isDragging ? 'opacity-40' : ''
+      } ${isOver ? 'ring-2 ring-accent-purple ring-inset scale-105 transition-transform' : ''}`}
     >
       {images.length > 0 ? (
         <>
@@ -175,36 +217,18 @@ function GridPreview({ posts, layout }) {
   const activeRow = activeRowIndex !== null ? rows[activeRowIndex] : null;
 
   // Item drag and drop state (for replace/carousel)
-  const [activeItemId, setActiveItemId] = useState(null);
   const [showDropModal, setShowDropModal] = useState(false);
   const [dropSource, setDropSource] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
 
-  const itemSensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
-
-  // Handle item drag start
-  const handleItemDragStart = (event) => {
-    setActiveItemId(event.active.id);
+  // Handle item drag start (just for tracking)
+  const handleItemDragStart = (postId, post) => {
+    // Could track dragging state here if needed
   };
 
-  // Handle item drag end
-  const handleItemDragEnd = (event) => {
-    const { active, over } = event;
-    setActiveItemId(null);
-
-    if (!over || active.id === over.id) return;
-
-    // Extract post IDs from the draggable/droppable IDs
-    const sourceId = active.id.replace('item-', '');
-    const targetId = over.id.replace('drop-', '');
-
-    if (sourceId === targetId) return;
+  // Handle item drop onto another item
+  const handleItemDrop = (sourceId, targetId) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
 
     const sourcePost = posts.find(p => (p.id || p._id) === sourceId);
     const targetPost = posts.find(p => (p.id || p._id) === targetId);
@@ -282,10 +306,6 @@ function GridPreview({ posts, layout }) {
     setDropSource(null);
     setDropTarget(null);
   };
-
-  // Get active item for drag overlay
-  const activeItemPostId = activeItemId ? activeItemId.replace('item-', '') : null;
-  const activeItemPost = activeItemPostId ? posts.find(p => (p.id || p._id) === activeItemPostId) : null;
 
   // Avatar editor state
   const [showAvatarModal, setShowAvatarModal] = useState(false);
@@ -543,20 +563,29 @@ function GridPreview({ posts, layout }) {
         </button>
       </div>
 
-      {/* Grid with Item Drag and Drop (for replace/carousel) */}
-      {/* Prevent native drag events from bubbling to parent file drop zone */}
+      {/* Grid with Row Drag (via grip handle) and Item Drag (for replace/carousel) */}
       <div
-        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-        onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
-        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        onDragOver={(e) => {
+          // Only prevent default for our internal item drags
+          if (e.dataTransfer.types.includes('application/postpilot-item')) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        onDragEnter={(e) => {
+          if (e.dataTransfer.types.includes('application/postpilot-item')) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+        onDrop={(e) => {
+          if (e.dataTransfer.types.includes('application/postpilot-item')) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
       >
-      <DndContext
-        sensors={itemSensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleItemDragStart}
-        onDragEnd={handleItemDragEnd}
-      >
-        {/* Row Drag and Drop (nested for row reordering via grip handle) */}
+        {/* Row Drag and Drop */}
         <DndContext
           sensors={rowSensors}
           collisionDetection={closestCenter}
@@ -579,7 +608,8 @@ function GridPreview({ posts, layout }) {
                         key={post.id || post._id}
                         post={post}
                         postId={post.id || post._id}
-                        activeItemId={activeItemId}
+                        onDragStart={handleItemDragStart}
+                        onDragEnd={handleItemDrop}
                       />
                     ))}
                   </div>
@@ -636,35 +666,6 @@ function GridPreview({ posts, layout }) {
             ) : null}
           </DragOverlay>
         </DndContext>
-
-        {/* Item Drag Overlay */}
-        <DragOverlay>
-          {activeItemPost ? (
-            <div className="aspect-square w-24 bg-dark-700 overflow-hidden shadow-2xl rounded-lg opacity-90 relative">
-              {(activeItemPost.images?.[0] || activeItemPost.image) ? (
-                <>
-                  <img
-                    src={activeItemPost.images?.[0] || activeItemPost.image}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
-                  {activeItemPost.images?.length > 1 && (
-                    <div className="absolute top-1 right-1 bg-dark-900/70 rounded px-1 py-0.5 flex items-center gap-0.5">
-                      <Layers className="w-2.5 h-2.5 text-white" />
-                      <span className="text-[10px] text-white font-medium">{activeItemPost.images.length}</span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div
-                  className="w-full h-full"
-                  style={{ backgroundColor: activeItemPost.color || '#3f3f46' }}
-                />
-              )}
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
       </div>
 
       {/* Empty State */}
