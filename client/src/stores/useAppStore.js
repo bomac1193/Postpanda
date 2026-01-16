@@ -137,7 +137,9 @@ export const useAppStore = create(
           reelOrder: [reelId, ...state.reelOrder]
         };
       }),
-      updateReelOrder: (reels) => set({
+      // Update reels AND order together (for manual reordering - bypasses sorting)
+      reorderReels: (reels) => set({
+        reels: reels,
         reelOrder: reels.map(r => r._id || r.id)
       }),
 
