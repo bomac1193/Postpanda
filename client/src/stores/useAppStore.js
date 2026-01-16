@@ -31,6 +31,7 @@ export const useAppStore = create(
 
       // Reels
       reels: [],
+      reelOrder: [], // Persisted array of reel IDs for custom ordering
 
       // Platform connections
       connectedPlatforms: {
@@ -114,8 +115,31 @@ export const useAppStore = create(
       clearHistory: () => set({ editorHistory: [], historyIndex: -1 }),
 
       // Reels actions
-      setReels: (reels) => set({ reels }),
-      addReel: (reel) => set((state) => ({ reels: [reel, ...state.reels] })),
+      setReels: (reels) => set((state) => {
+        // Sort reels according to saved order if available
+        if (state.reelOrder && state.reelOrder.length > 0) {
+          const orderMap = new Map(state.reelOrder.map((id, index) => [id, index]));
+          const sortedReels = [...reels].sort((a, b) => {
+            const aId = a._id || a.id;
+            const bId = b._id || b.id;
+            const aOrder = orderMap.has(aId) ? orderMap.get(aId) : Infinity;
+            const bOrder = orderMap.has(bId) ? orderMap.get(bId) : Infinity;
+            return aOrder - bOrder;
+          });
+          return { reels: sortedReels };
+        }
+        return { reels };
+      }),
+      addReel: (reel) => set((state) => {
+        const reelId = reel._id || reel.id;
+        return {
+          reels: [reel, ...state.reels],
+          reelOrder: [reelId, ...state.reelOrder]
+        };
+      }),
+      updateReelOrder: (reels) => set({
+        reelOrder: reels.map(r => r._id || r.id)
+      }),
 
       // Calendar actions
       setScheduledPosts: (posts) => set({ scheduledPosts: posts }),
@@ -161,6 +185,8 @@ export const useAppStore = create(
         // User profile data for persistence
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+        // Reel order for custom sorting
+        reelOrder: state.reelOrder,
       }),
       // Custom merge to ensure persisted data takes precedence
       merge: (persistedState, currentState) => ({

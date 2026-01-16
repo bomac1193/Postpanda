@@ -547,6 +547,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost }) {
   const reels = useAppStore((state) => state.reels);
   const setReels = useAppStore((state) => state.setReels);
   const addReel = useAppStore((state) => state.addReel);
+  const updateReelOrder = useAppStore((state) => state.updateReelOrder);
   const [isVideoDragOver, setIsVideoDragOver] = useState(false);
   const [uploadingReel, setUploadingReel] = useState(false);
   const videoDragCounterRef = useRef(0);
@@ -784,6 +785,8 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost }) {
     const newReels = [...reels];
     [newReels[sourceIndex], newReels[targetIndex]] = [newReels[targetIndex], newReels[sourceIndex]];
     setReels(newReels);
+    // Persist the new order
+    updateReelOrder(newReels);
   };
 
   // Handle opening thumbnail selector from editor
@@ -862,7 +865,8 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost }) {
     const newReelRows = arrayMove(reelRows, oldRowIndex, newRowIndex);
     const newReels = newReelRows.flat();
     setReels(newReels);
-    // Note: You might want to persist this order to the backend
+    // Persist the new order
+    updateReelOrder(newReels);
   };
 
   // Handle saving thumbnail
