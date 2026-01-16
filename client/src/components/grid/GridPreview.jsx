@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { User, Upload, ZoomIn, ZoomOut, X, Check, Camera, RotateCcw, Save, GripVertical, Replace, Layers } from 'lucide-react';
+import { setInternalDragActive } from '../../utils/dragState';
 import {
   DndContext,
   closestCenter,
@@ -75,6 +76,10 @@ function DraggableGridItem({ post, postId, activeItemId, onDragStart, onDragEnd 
 
   const handleDragStart = (e) => {
     e.stopPropagation();
+
+    // Set global flag IMMEDIATELY to prevent file drop overlay
+    setInternalDragActive(true);
+
     setIsDragging(true);
     e.dataTransfer.setData('application/postpilot-item', postId);
     e.dataTransfer.effectAllowed = 'move';
@@ -95,6 +100,10 @@ function DraggableGridItem({ post, postId, activeItemId, onDragStart, onDragEnd 
   const handleDragEnd = (e) => {
     e.stopPropagation();
     setIsDragging(false);
+
+    // Clear global flag
+    setInternalDragActive(false);
+
     onDragEnd?.();
   };
 

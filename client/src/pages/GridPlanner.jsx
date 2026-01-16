@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isInternalDragActive } from '../utils/dragState';
 import {
   DndContext,
   closestCenter,
@@ -490,12 +491,14 @@ function GridPlanner() {
 
   // Drag event handlers
   const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Ignore internal PostPilot item drags (from preview grid)
-    if (e.dataTransfer?.types?.includes('application/postpilot-item')) {
+    // Check global flag first - ignore internal preview drags
+    if (isInternalDragActive()) {
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
+    e.preventDefault();
+    e.stopPropagation();
     if (e.dataTransfer?.types?.includes('Files')) {
       setIsDraggingFiles(true);
     }
@@ -511,12 +514,14 @@ function GridPlanner() {
   }, []);
 
   const handleDragEnter = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Ignore internal PostPilot item drags (from preview grid)
-    if (e.dataTransfer?.types?.includes('application/postpilot-item')) {
+    // Check global flag first - ignore internal preview drags
+    if (isInternalDragActive()) {
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
+    e.preventDefault();
+    e.stopPropagation();
     if (e.dataTransfer?.types?.includes('Files')) {
       setIsDraggingFiles(true);
     }
