@@ -21,6 +21,7 @@ import { useAppStore } from '../stores/useAppStore';
 import { gridApi, contentApi, authApi } from '../lib/api';
 import GridItem from '../components/grid/GridItem';
 import GridPreview from '../components/grid/GridPreview';
+import TikTokPreview from '../components/grid/TikTokPreview';
 import PostDetails from '../components/grid/PostDetails';
 import {
   Grid3X3,
@@ -52,7 +53,17 @@ import {
   Check,
   X,
   MoreVertical,
+  Music2,
 } from 'lucide-react';
+
+// TikTok icon component
+function TikTokIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
+    </svg>
+  );
+}
 
 const GRID_LAYOUTS = [
   { id: '3x3', label: '3x3', cols: 3, icon: Grid3X3 },
@@ -109,6 +120,8 @@ function GridPlanner() {
   const [activeId, setActiveId] = useState(null);
   const [gridZoom, setGridZoom] = useState(100); // Zoom percentage (50-150)
   const [showRowHandles, setShowRowHandles] = useState(true); // Toggle for row drag handles in preview
+  const [selectedPlatform, setSelectedPlatform] = useState('instagram'); // 'instagram' | 'tiktok'
+  const [showPlatformSelector, setShowPlatformSelector] = useState(false);
 
   // Drag-drop upload state
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
@@ -959,6 +972,55 @@ function GridPlanner() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Platform Selector */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPlatformSelector(!showPlatformSelector)}
+                className="flex items-center gap-2 px-3 py-2 bg-dark-800 rounded-lg text-dark-200 hover:bg-dark-700 transition-colors border border-dark-600"
+              >
+                {selectedPlatform === 'instagram' ? (
+                  <Instagram className="w-4 h-4 text-pink-500" />
+                ) : (
+                  <TikTokIcon className="w-4 h-4" />
+                )}
+                <span className="text-sm capitalize">{selectedPlatform}</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showPlatformSelector ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showPlatformSelector && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-dark-700 rounded-lg shadow-xl border border-dark-600 z-20 overflow-hidden">
+                  <button
+                    onClick={() => { setSelectedPlatform('instagram'); setShowPlatformSelector(false); }}
+                    className={`w-full px-4 py-3 text-left text-sm flex items-center gap-3 transition-colors ${
+                      selectedPlatform === 'instagram'
+                        ? 'bg-accent-purple/20 text-accent-purple'
+                        : 'text-dark-200 hover:bg-dark-600'
+                    }`}
+                  >
+                    <Instagram className="w-5 h-5 text-pink-500" />
+                    <div>
+                      <span className="font-medium">Instagram</span>
+                      <p className="text-xs text-dark-400">Posts, Reels, Stories</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => { setSelectedPlatform('tiktok'); setShowPlatformSelector(false); }}
+                    className={`w-full px-4 py-3 text-left text-sm flex items-center gap-3 transition-colors ${
+                      selectedPlatform === 'tiktok'
+                        ? 'bg-accent-purple/20 text-accent-purple'
+                        : 'text-dark-200 hover:bg-dark-600'
+                    }`}
+                  >
+                    <TikTokIcon className="w-5 h-5" />
+                    <div>
+                      <span className="font-medium">TikTok</span>
+                      <p className="text-xs text-dark-400">Videos, Sounds</p>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Preview Toggle */}
             <button
               onClick={() => setShowPreview(!showPreview)}
@@ -1040,17 +1102,33 @@ function GridPlanner() {
         {/* Grid */}
         <div className="flex-1 overflow-auto">
           {showPreview ? (
-            <GridPreview posts={gridPosts} layout={currentLayout} showRowHandles={showRowHandles} onDeletePost={handleDeletePost} />
+            selectedPlatform === 'tiktok' ? (
+              <TikTokPreview showRowHandles={showRowHandles} />
+            ) : (
+              <GridPreview posts={gridPosts} layout={currentLayout} showRowHandles={showRowHandles} onDeletePost={handleDeletePost} />
+            )
           ) : (
             <div className="bg-dark-800 rounded-2xl p-6 border border-dark-700">
-              {/* Instagram Header Mock */}
+              {/* Platform Header Mock */}
               <div className="flex items-center gap-3 mb-4 pb-4 border-b border-dark-700">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-purple to-accent-pink" />
+                <div className={`w-10 h-10 rounded-full ${
+                  selectedPlatform === 'tiktok'
+                    ? 'bg-gradient-to-br from-cyan-400 to-pink-500'
+                    : 'bg-gradient-to-br from-accent-purple to-accent-pink'
+                }`} />
                 <div>
-                  <p className="text-sm font-medium text-dark-100">your_username</p>
-                  <p className="text-xs text-dark-400">Instagram Preview</p>
+                  <p className="text-sm font-medium text-dark-100">
+                    {selectedPlatform === 'tiktok' ? '@your_username' : 'your_username'}
+                  </p>
+                  <p className="text-xs text-dark-400">
+                    {selectedPlatform === 'tiktok' ? 'TikTok Preview' : 'Instagram Preview'}
+                  </p>
                 </div>
-                <Instagram className="w-5 h-5 text-dark-400 ml-auto" />
+                {selectedPlatform === 'tiktok' ? (
+                  <TikTokIcon className="w-5 h-5 text-dark-400 ml-auto" />
+                ) : (
+                  <Instagram className="w-5 h-5 text-dark-400 ml-auto" />
+                )}
               </div>
 
               {/* Grid with Row Controls */}
