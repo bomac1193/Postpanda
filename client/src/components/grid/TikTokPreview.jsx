@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { User, Settings, Share2, Plus, Play, Heart, MessageCircle, Bookmark, MoreHorizontal, GripVertical, Music2 } from 'lucide-react';
+import { User, Settings, Share2, Plus, Play, Heart, MessageCircle, Bookmark, MoreHorizontal, GripVertical, Music2, X, Check, Loader2 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { contentApi } from '../../lib/api';
 import api from '../../lib/api';
@@ -197,6 +197,7 @@ function SortableTikTokRow({ rowId, children, showHandle = true }) {
 
 function TikTokPreview({ showRowHandles = true }) {
   const user = useAppStore((state) => state.user);
+  const setUser = useAppStore((state) => state.setUser);
 
   // TikTok videos state (reuse reels)
   const reels = useAppStore((state) => state.reels);
@@ -218,6 +219,12 @@ function TikTokPreview({ showRowHandles = true }) {
   const [showVideoEditor, setShowVideoEditor] = useState(false);
   const [showThumbnailSelector, setShowThumbnailSelector] = useState(false);
   const [pendingVideoUpload, setPendingVideoUpload] = useState(null);
+
+  // Edit profile state
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editUsername, setEditUsername] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Row drag state
   const [rowDragActiveId, setRowDragActiveId] = useState(null);
@@ -422,6 +429,43 @@ function TikTokPreview({ showRowHandles = true }) {
     }
   };
 
+  // Edit profile handlers
+  const handleEditProfile = () => {
+    setEditUsername(user?.username || user?.brandName || '');
+    setEditBio(user?.bio || '');
+    setShowEditProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    try {
+      const updates = {
+        username: editUsername,
+        bio: editBio,
+      };
+
+      await api.put('/api/users/profile', updates);
+
+      setUser({
+        ...user,
+        username: editUsername,
+        bio: editBio,
+      });
+
+      setShowEditProfile(false);
+    } catch (err) {
+      console.error('Failed to save profile:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEditProfile = () => {
+    setShowEditProfile(false);
+    setEditUsername('');
+    setEditBio('');
+  };
+
   return (
     <div className="max-w-md mx-auto bg-dark-800 rounded-2xl overflow-hidden border border-dark-700">
       {/* TikTok Profile Header */}
@@ -465,7 +509,10 @@ function TikTokPreview({ showRowHandles = true }) {
         </div>
 
         {/* Action Button */}
-        <button className="w-full mt-4 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-200 text-sm font-medium rounded-lg transition-colors">
+        <button
+          onClick={handleEditProfile}
+          className="w-full mt-4 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-200 text-sm font-medium rounded-lg transition-colors"
+        >
           Edit Profile
         </button>
       </div>
@@ -648,6 +695,95 @@ function TikTokPreview({ showRowHandles = true }) {
             setShowVideoPlayer(true);
           }}
         />
+      )}
+
+      {/* Edit Profile Modal */}
+      {showEditProfile && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-2xl w-full max-w-md overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-dark-700">
+              <button
+                onClick={handleCancelEditProfile}
+                className="text-dark-400 hover:text-dark-200"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <h2 className="text-lg font-semibold text-dark-100">Edit Profile</h2>
+              <button
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                className="text-cyan-400 hover:text-cyan-300 disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <Check className="w-6 h-6" />
+                )}
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 space-y-4">
+              {/* Profile Picture Preview */}
+              <div className="flex justify-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-400 to-pink-500 p-0.5">
+                  <div className="w-full h-full rounded-full bg-dark-800 flex items-center justify-center overflow-hidden">
+                    {user?.profileImage || user?.avatar ? (
+                      <img src={user.profileImage || user.avatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-10 h-10 text-dark-400" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Username */}
+              <div>
+                <label className="block text-sm text-dark-400 mb-1">Username</label>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  placeholder="your_username"
+                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-dark-100 placeholder-dark-500 focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label className="block text-sm text-dark-400 mb-1">Bio</label>
+                <textarea
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  placeholder="Tell the world about yourself..."
+                  rows={4}
+                  maxLength={80}
+                  className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-dark-100 placeholder-dark-500 focus:outline-none focus:border-cyan-400 resize-none"
+                />
+                <p className="text-xs text-dark-500 mt-1 text-right">{editBio.length}/80</p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-dark-700">
+              <button
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+                className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 disabled:bg-cyan-500/50 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
