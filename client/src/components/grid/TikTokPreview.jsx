@@ -306,25 +306,8 @@ function TikTokPreview({ showRowHandles = true }) {
     }
   };
 
-  // Fetch videos on mount
-  useEffect(() => {
-    const fetchVideos = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      try {
-        const response = await api.get('/api/content', {
-          params: { mediaType: 'video' }
-        });
-        const data = response.data;
-        const videos = data.content || data || [];
-        setReels(videos);
-      } catch (err) {
-        console.error('Failed to fetch videos:', err);
-      }
-    };
-    fetchVideos();
-  }, [setReels]);
+  // Note: Videos are fetched by GridPreview and stored in the shared reels state.
+  // TikTokPreview uses the same reels data for consistency.
 
   // Handlers
   const handleVideoEdit = (video) => {
