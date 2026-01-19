@@ -251,3 +251,20 @@ exports.calculateAestheticScore = async (req, res) => {
     res.status(500).json({ error: 'Failed to calculate aesthetic score' });
   }
 };
+
+// Get optimal timing data
+exports.getOptimalTiming = async (req, res) => {
+  try {
+    const { platform = 'instagram' } = req.body;
+
+    const timingData = await aiService.getOptimalTiming(platform);
+
+    res.json({
+      message: 'Optimal timing data retrieved',
+      ...timingData
+    });
+  } catch (error) {
+    console.error('Get optimal timing error:', error);
+    res.status(500).json({ error: 'Failed to get optimal timing data' });
+  }
+};

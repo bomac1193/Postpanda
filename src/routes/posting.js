@@ -13,6 +13,18 @@ router.use(authenticate);
 // Post single content item
 router.post('/content/:contentId', postingController.postContent);
 
+// Schedule content for future posting
+router.post('/schedule', postingController.schedulePost);
+
+// Get all scheduled posts
+router.get('/scheduled', postingController.getScheduledPosts);
+
+// Update scheduled post
+router.put('/schedule/:scheduleId', postingController.updateScheduledPost);
+
+// Cancel scheduled post
+router.delete('/schedule/:scheduleId', postingController.cancelScheduledPost);
+
 /**
  * Collection posting
  */

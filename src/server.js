@@ -17,6 +17,13 @@ const alchemyRoutes = require('./routes/alchemy');
 const collectionRoutes = require('./routes/collection');
 const haloRoutes = require('./routes/halo');
 const postingRoutes = require('./routes/posting');
+const linkInBioRoutes = require('./routes/linkinbio');
+const brandKitRoutes = require('./routes/brandkit');
+const mediaKitRoutes = require('./routes/mediakit');
+const workspaceRoutes = require('./routes/workspace');
+const approvalRoutes = require('./routes/approval');
+const youtubeRoutes = require('./routes/youtube');
+const rolloutRoutes = require('./routes/rollout');
 const schedulingService = require('./services/schedulingService');
 
 // Connect to MongoDB
@@ -28,7 +35,7 @@ setTimeout(() => {
 }, 5000); // Start after 5 seconds to ensure DB is connected
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 
 // Security middleware
 app.use(helmet({
@@ -44,7 +51,7 @@ app.use('/api/', limiter);
 
 // CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || 'http://localhost:3002',
   credentials: true
 }));
 
@@ -80,6 +87,13 @@ app.use('/api/alchemy', alchemyRoutes);
 app.use('/api/collection', collectionRoutes);
 app.use('/api/halo', haloRoutes);
 app.use('/api/post', postingRoutes);
+app.use('/api/linkinbio', linkInBioRoutes);
+app.use('/api/brandkit', brandKitRoutes);
+app.use('/api/mediakit', mediaKitRoutes);
+app.use('/api/workspace', workspaceRoutes);
+app.use('/api/approval', approvalRoutes);
+app.use('/api/youtube', youtubeRoutes);
+app.use('/api/rollout', rolloutRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

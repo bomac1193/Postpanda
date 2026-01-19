@@ -1,0 +1,513 @@
+/* Brand Kit Panel Styles */
+
+.brandkit-panel {
+  background: var(--color-panel-inner);
+  border-radius: 18px;
+  border: 1px solid var(--color-border);
+  padding: 1.25rem;
+}
+
+.brandkit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.brandkit-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.brandkit-saving {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.brandkit-loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-muted);
+}
+
+.brandkit-error {
+  background: rgba(196, 69, 54, 0.1);
+  color: var(--color-error);
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.brandkit-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.75rem;
+}
+
+.brandkit-tab {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--color-text-secondary);
+}
+
+.brandkit-tab:hover {
+  background: var(--color-secondary);
+}
+
+.brandkit-tab.active {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.brandkit-content {
+  min-height: 200px;
+}
+
+/* Color Palette Editor */
+
+.color-section {
+  margin-bottom: 1.5rem;
+}
+
+.color-section h4 {
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+.color-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.color-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.color-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: var(--color-suggestion-bg);
+  border-radius: 8px;
+}
+
+.color-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.color-picker {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.color-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.color-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.color-value {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  font-family: monospace;
+}
+
+.color-use-btn {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.color-use-btn:hover {
+  background: var(--color-secondary);
+}
+
+.color-add-btn {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.color-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--color-suggestion-bg);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+}
+
+.color-add-form input[type="text"] {
+  flex: 1;
+  min-width: 100px;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.color-picker-small {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.color-hex-input {
+  width: 80px;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: monospace;
+}
+
+.color-add-form button {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+
+.custom-colors-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.custom-color-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--color-suggestion-bg);
+  border-radius: 6px;
+}
+
+.custom-color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+}
+
+.custom-color-name {
+  font-size: 0.75rem;
+}
+
+.custom-color-remove {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0;
+  line-height: 1;
+}
+
+.custom-color-remove:hover {
+  color: var(--color-error);
+}
+
+.no-custom-colors {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+/* Font Selector */
+
+.font-section {
+  margin-bottom: 1.5rem;
+}
+
+.font-section h4 {
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+.font-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.font-role {
+  margin-bottom: 1rem;
+}
+
+.font-role label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.font-role select {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.font-preview {
+  padding: 0.75rem;
+  background: var(--color-suggestion-bg);
+  border-radius: 8px;
+}
+
+.font-preview.heading {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.font-preview.body {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.font-add-btn {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.font-add-form {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--color-suggestion-bg);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+}
+
+.font-add-form input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.font-add-form button {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+
+.font-library {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.font-library-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.font-library-item:hover {
+  background: var(--color-secondary);
+}
+
+.font-library-name {
+  font-size: 0.75rem;
+}
+
+.font-library-preview {
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+/* Logo Manager */
+
+.logo-section {
+  margin-bottom: 1.5rem;
+}
+
+.logo-section h4 {
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+.logo-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.logo-add-btn {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.logo-upload-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--color-suggestion-bg);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+}
+
+.logo-upload-form input[type="text"],
+.logo-upload-form select {
+  padding: 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.logo-upload-form input[type="file"] {
+  flex: 1;
+}
+
+.logo-upload-form button {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+
+.logo-drop-zone {
+  border: 2px dashed var(--color-border-strong);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+}
+
+.logo-drop-zone:hover {
+  border-color: var(--color-accent);
+  background: rgba(178, 150, 116, 0.05);
+}
+
+.logos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.logo-item {
+  background: var(--color-suggestion-bg);
+  border-radius: 12px;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.logo-preview {
+  max-width: 100%;
+  max-height: 80px;
+  object-fit: contain;
+  margin-bottom: 0.5rem;
+  cursor: grab;
+  border-radius: 4px;
+}
+
+.logo-info {
+  margin-bottom: 0.5rem;
+}
+
+.logo-name {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.logo-type {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.logo-actions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.logo-use-btn,
+.logo-delete-btn {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logo-use-btn:hover {
+  background: var(--color-secondary);
+}
+
+.logo-delete-btn:hover {
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  border-color: #f44336;
+}
+
+.no-logos {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+  grid-column: 1 / -1;
+}

@@ -60,6 +60,40 @@ const userSchema = new mongoose.Schema({
     defaultGridSize: { type: Number, default: 3 },
     theme: { type: String, default: 'light' }
   },
+  brandKit: {
+    colors: {
+      primary: { type: String, default: '#000000' },
+      secondary: { type: String, default: '#666666' },
+      accent: { type: String, default: '#b29674' },
+      background: { type: String, default: '#ffffff' },
+      text: { type: String, default: '#000000' },
+      custom: [{
+        id: String,
+        name: String,
+        value: String
+      }]
+    },
+    fonts: {
+      heading: { type: String, default: 'Space Grotesk' },
+      body: { type: String, default: 'Space Grotesk' },
+      custom: [{
+        id: String,
+        name: String
+      }]
+    },
+    logos: [{
+      id: String,
+      name: String,
+      url: String,
+      type: { type: String, enum: ['primary', 'secondary', 'icon', 'wordmark'] }
+    }],
+    templates: [{
+      id: String,
+      name: String,
+      previewUrl: String,
+      settings: mongoose.Schema.Types.Mixed
+    }]
+  },
   createdAt: {
     type: Date,
     default: Date.now

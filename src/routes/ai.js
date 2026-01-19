@@ -15,4 +15,7 @@ router.post('/score/virality', authenticate, aiController.calculateViralityScore
 router.post('/score/engagement', authenticate, aiController.calculateEngagementScore);
 router.post('/score/aesthetic', authenticate, aiController.calculateAestheticScore);
 
+// Timing
+router.post('/optimal-timing', authenticate, aiController.getOptimalTiming);
+
 module.exports = router;

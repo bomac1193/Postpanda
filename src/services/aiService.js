@@ -824,6 +824,191 @@ ${context.campaignNotes ? `- Campaign notes: ${context.campaignNotes}` : ''}`
     const options = alternatives[platform] || alternatives.instagram;
     return options.filter(type => type !== recommendedType);
   }
+
+  /**
+   * Get optimal posting times with heatmap data
+   */
+  async getOptimalTiming(platform = 'instagram') {
+    const platformKey = platform.toLowerCase();
+
+    // Generate heatmap data (7 days x 24 hours)
+    // Higher values indicate better engagement times
+    const heatmapData = this.generateTimingHeatmap(platformKey);
+
+    // Find best posting windows
+    const bestWindows = this.findBestWindows(heatmapData, platformKey);
+
+    // Generate insights
+    const insights = this.generateTimingInsights(platformKey);
+
+    // Get peak hours
+    const peakHours = this.findPeakHours(heatmapData);
+
+    return {
+      platform: platformKey,
+      heatmapData,
+      bestWindows,
+      insights,
+      peakHours,
+    };
+  }
+
+  generateTimingHeatmap(platform) {
+    const basePatterns = {
+      instagram: {
+        weekdayPeak: [9, 10, 11, 12, 13, 19, 20, 21],
+        weekendPeak: [10, 11, 12, 13, 14, 15, 19, 20],
+        lowHours: [0, 1, 2, 3, 4, 5, 6],
+      },
+      tiktok: {
+        weekdayPeak: [7, 8, 9, 12, 15, 19, 20, 21, 22],
+        weekendPeak: [9, 10, 11, 14, 15, 16, 20, 21, 22],
+        lowHours: [0, 1, 2, 3, 4, 5],
+      },
+      twitter: {
+        weekdayPeak: [8, 9, 10, 11, 12, 17, 18],
+        weekendPeak: [9, 10, 11, 12, 19, 20],
+        lowHours: [0, 1, 2, 3, 4, 5, 6],
+      },
+      youtube: {
+        weekdayPeak: [12, 13, 14, 15, 16, 17, 20, 21],
+        weekendPeak: [10, 11, 12, 14, 15, 16, 17, 20, 21],
+        lowHours: [0, 1, 2, 3, 4, 5, 6, 7],
+      },
+      pinterest: {
+        weekdayPeak: [14, 15, 16, 20, 21, 22],
+        weekendPeak: [10, 11, 20, 21, 22],
+        lowHours: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+      },
+    };
+
+    const pattern = basePatterns[platform] || basePatterns.instagram;
+    const heatmap = [];
+
+    for (let day = 0; day < 7; day++) {
+      const dayData = [];
+      const isWeekend = day >= 5;
+      const peakHours = isWeekend ? pattern.weekendPeak : pattern.weekdayPeak;
+
+      for (let hour = 0; hour < 24; hour++) {
+        let baseValue = 30 + Math.random() * 15;
+
+        if (pattern.lowHours.includes(hour)) {
+          baseValue = 5 + Math.random() * 15;
+        } else if (peakHours.includes(hour)) {
+          baseValue = 70 + Math.random() * 30;
+        }
+
+        // Add some variance
+        const variance = (Math.random() - 0.5) * 10;
+        dayData.push(Math.round(Math.max(0, Math.min(100, baseValue + variance))));
+      }
+      heatmap.push(dayData);
+    }
+
+    return heatmap;
+  }
+
+  findBestWindows(heatmapData, platform) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const windows = [];
+
+    // Find top 3 time slots
+    const slots = [];
+    for (let day = 0; day < 7; day++) {
+      for (let hour = 0; hour < 24; hour++) {
+        slots.push({
+          day,
+          hour,
+          value: heatmapData[day][hour],
+        });
+      }
+    }
+
+    slots.sort((a, b) => b.value - a.value);
+    const topSlots = slots.slice(0, 4);
+
+    topSlots.forEach((slot, index) => {
+      const labels = ['Best', 'Second Best', 'Third Best', 'Fourth Best'];
+      const hourLabel = slot.hour === 0 ? '12 AM' :
+        slot.hour < 12 ? `${slot.hour} AM` :
+        slot.hour === 12 ? '12 PM' : `${slot.hour - 12} PM`;
+
+      windows.push({
+        label: labels[index],
+        time: `${days[slot.day]} ${hourLabel}`,
+        engagement: Math.round(slot.value - 50),
+      });
+    });
+
+    return windows;
+  }
+
+  generateTimingInsights(platform) {
+    const platformInsights = {
+      instagram: [
+        'Posting during lunch hours (11AM-1PM) tends to drive higher engagement',
+        'Evening posts (7PM-9PM) perform well as users wind down',
+        'Wednesday tends to be the highest engagement day',
+        'Avoid posting between 3AM-6AM in your target timezone',
+      ],
+      tiktok: [
+        'TikTok users are most active during evening hours (7PM-11PM)',
+        'Early morning posts (7AM-9AM) can catch users during commute',
+        'Weekends see extended engagement windows',
+        'Thursday and Friday tend to have the highest viral potential',
+      ],
+      twitter: [
+        'Morning hours (8AM-10AM) are prime for news and updates',
+        'Lunch break tweets (12PM-1PM) see high engagement',
+        'Avoid late night posting unless targeting international audiences',
+        'Weekday engagement typically outperforms weekends',
+      ],
+      youtube: [
+        'Afternoon uploads (2PM-4PM) allow time for algorithm distribution',
+        'Evening hours (8PM-9PM) are peak viewing times',
+        'Weekend content should be uploaded Friday afternoon',
+        'Consistency in posting schedule improves algorithmic favor',
+      ],
+      pinterest: [
+        'Evening pins (8PM-11PM) perform best as users browse for inspiration',
+        'Weekend afternoons see increased activity',
+        'Saturday is the highest engagement day',
+        'Seasonal content should be pinned 45 days in advance',
+      ],
+    };
+
+    return platformInsights[platform] || platformInsights.instagram;
+  }
+
+  findPeakHours(heatmapData) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const peakHours = [];
+
+    for (let day = 0; day < 7; day++) {
+      let maxHour = 0;
+      let maxValue = 0;
+
+      for (let hour = 0; hour < 24; hour++) {
+        if (heatmapData[day][hour] > maxValue) {
+          maxValue = heatmapData[day][hour];
+          maxHour = hour;
+        }
+      }
+
+      const hourLabel = maxHour === 0 ? '12 AM' :
+        maxHour < 12 ? `${maxHour} AM` :
+        maxHour === 12 ? '12 PM' : `${maxHour - 12} PM`;
+
+      peakHours.push({
+        day: days[day],
+        time: hourLabel,
+        score: maxValue,
+      });
+    }
+
+    return peakHours;
+  }
 }
 
 module.exports = new AIService();

@@ -1,7 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import GridPlanner from './components/GridPlanner';
 import PostEditor from './components/PostEditor';
 import ContentIdeasPanel from './components/ContentIdeasPanel';
+import { Sidebar } from './components/layout';
+import Calendar from './pages/Calendar';
+import LinkInBio from './pages/LinkInBio';
+import MediaKit from './pages/MediaKit';
+import Workspaces from './pages/Workspaces';
+import RolloutPlanner from './pages/RolloutPlanner';
 import './App.css';
 
 const STORAGE_KEY = 'minimal-grid-posts';
@@ -53,7 +61,7 @@ function fileToDataUrl(file) {
   });
 }
 
-function App() {
+function GridPage() {
   const [posts, setPosts] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [newCaption, setNewCaption] = useState('');
@@ -177,13 +185,11 @@ function App() {
   };
 
   return (
-    <div className="app-shell">
-      <header>
-        <div>
-          <h1>Post Alchemy Lab</h1>
-          <p className="subtitle">Draft a grid. Summon your captions.</p>
-        </div>
-      </header>
+    <>
+      <div className="page-header">
+        <h1>Post Alchemy Lab</h1>
+        <p className="subtitle">Draft a grid. Summon your captions.</p>
+      </div>
 
       <main className="layout">
         <section className="panel">
@@ -229,7 +235,47 @@ function App() {
           <ContentIdeasPanel />
         </section>
       </main>
+    </>
+  );
+}
+
+function AppLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  return (
+    <div className="app-shell with-sidebar">
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="app-main">
+        <header className="app-header">
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu size={20} />
+          </button>
+        </header>
+        <div className="app-content">
+          <Routes>
+            <Route path="/" element={<GridPage />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/linkinbio" element={<LinkInBio />} />
+            <Route path="/mediakit" element={<MediaKit />} />
+            <Route path="/workspaces" element={<Workspaces />} />
+            <Route path="/rollout" element={<RolloutPlanner />} />
+          </Routes>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter basename="/alchemy">
+      <AppLayout />
+    </BrowserRouter>
   );
 }
 

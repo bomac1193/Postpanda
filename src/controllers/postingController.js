@@ -240,4 +240,164 @@ exports.refreshInstagramToken = async (req, res) => {
   }
 };
 
+/**
+ * Schedule content for future posting
+ */
+exports.schedulePost = async (req, res) => {
+  try {
+    const { contentId, scheduledTime, platform, autoPost } = req.body;
+
+    if (!contentId || !scheduledTime) {
+      return res.status(400).json({ error: 'Content ID and scheduled time are required' });
+    }
+
+    const content = await Content.findOne({
+      _id: contentId,
+      userId: req.user._id
+    });
+
+    if (!content) {
+      return res.status(404).json({ error: 'Content not found' });
+    }
+
+    // Update content with scheduling info
+    content.scheduledTime = new Date(scheduledTime);
+    content.scheduledPlatform = platform || 'instagram';
+    content.autoPost = autoPost || false;
+    content.status = 'scheduled';
+
+    await content.save();
+
+    res.json({
+      message: 'Content scheduled successfully',
+      scheduledPost: {
+        id: content._id,
+        scheduledTime: content.scheduledTime,
+        platform: content.scheduledPlatform,
+        autoPost: content.autoPost,
+        status: content.status
+      }
+    });
+  } catch (error) {
+    console.error('Schedule post error:', error);
+    res.status(500).json({
+      error: 'Failed to schedule post',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Get all scheduled posts for user
+ */
+exports.getScheduledPosts = async (req, res) => {
+  try {
+    const scheduledPosts = await Content.find({
+      userId: req.user._id,
+      status: 'scheduled',
+      scheduledTime: { $exists: true }
+    }).sort({ scheduledTime: 1 });
+
+    res.json({
+      scheduledPosts: scheduledPosts.map(post => ({
+        id: post._id,
+        caption: post.caption,
+        mediaUrl: post.mediaUrl,
+        scheduledTime: post.scheduledTime,
+        platform: post.scheduledPlatform,
+        autoPost: post.autoPost,
+        status: post.status
+      }))
+    });
+  } catch (error) {
+    console.error('Get scheduled posts error:', error);
+    res.status(500).json({ error: 'Failed to get scheduled posts' });
+  }
+};
+
+/**
+ * Update a scheduled post
+ */
+exports.updateScheduledPost = async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    const { scheduledTime, platform, autoPost } = req.body;
+
+    const content = await Content.findOne({
+      _id: scheduleId,
+      userId: req.user._id,
+      status: 'scheduled'
+    });
+
+    if (!content) {
+      return res.status(404).json({ error: 'Scheduled post not found' });
+    }
+
+    if (scheduledTime) {
+      content.scheduledTime = new Date(scheduledTime);
+    }
+    if (platform) {
+      content.scheduledPlatform = platform;
+    }
+    if (typeof autoPost === 'boolean') {
+      content.autoPost = autoPost;
+    }
+
+    await content.save();
+
+    res.json({
+      message: 'Scheduled post updated successfully',
+      scheduledPost: {
+        id: content._id,
+        scheduledTime: content.scheduledTime,
+        platform: content.scheduledPlatform,
+        autoPost: content.autoPost
+      }
+    });
+  } catch (error) {
+    console.error('Update scheduled post error:', error);
+    res.status(500).json({
+      error: 'Failed to update scheduled post',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Cancel a scheduled post
+ */
+exports.cancelScheduledPost = async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+
+    const content = await Content.findOne({
+      _id: scheduleId,
+      userId: req.user._id,
+      status: 'scheduled'
+    });
+
+    if (!content) {
+      return res.status(404).json({ error: 'Scheduled post not found' });
+    }
+
+    content.status = 'draft';
+    content.scheduledTime = undefined;
+    content.scheduledPlatform = undefined;
+    content.autoPost = false;
+
+    await content.save();
+
+    res.json({
+      message: 'Scheduled post cancelled successfully',
+      contentId: content._id
+    });
+  } catch (error) {
+    console.error('Cancel scheduled post error:', error);
+    res.status(500).json({
+      error: 'Failed to cancel scheduled post',
+      details: error.message
+    });
+  }
+};
+
 module.exports = exports;

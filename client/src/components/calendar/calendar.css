@@ -1,0 +1,475 @@
+/* Calendar Component Styles */
+
+.calendar-container {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 15, 14, 0.06);
+  overflow: hidden;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(17, 15, 14, 0.08);
+}
+
+.calendar-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.calendar-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.calendar-nav-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(17, 15, 14, 0.15);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.calendar-nav-btn:hover {
+  background: #f5f0e8;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 0.75rem 1rem;
+  background: #f9f6f1;
+  border-bottom: 1px solid rgba(17, 15, 14, 0.08);
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #7a6f65;
+  font-weight: 500;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: rgba(17, 15, 14, 0.08);
+}
+
+/* Calendar Cell */
+
+.calendar-cell {
+  min-height: 100px;
+  background: #fff;
+  padding: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.calendar-cell.other-month {
+  background: #faf8f5;
+}
+
+.calendar-cell.other-month .calendar-day-number {
+  color: #c5bdb3;
+}
+
+.calendar-cell.today {
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.calendar-cell.drag-over {
+  background: rgba(33, 150, 243, 0.1);
+  box-shadow: inset 0 0 0 2px #2196F3;
+}
+
+.calendar-cell-header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.calendar-day-number {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #5a524a;
+}
+
+.calendar-today-badge {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: #4CAF50;
+  color: #fff;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+}
+
+.calendar-cell-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* Scheduled Item */
+
+.calendar-scheduled-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  background: #f5f0e8;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.calendar-scheduled-item:hover {
+  background: #e8e2d9;
+}
+
+.calendar-scheduled-item.scheduled {
+  border-left: 3px solid #2196F3;
+}
+
+.calendar-scheduled-item.posted {
+  border-left: 3px solid #4CAF50;
+}
+
+.calendar-scheduled-item.failed {
+  border-left: 3px solid #f44336;
+}
+
+.calendar-item-thumb {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.calendar-item-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.calendar-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.calendar-item-time {
+  font-size: 0.65rem;
+  font-weight: 500;
+}
+
+.calendar-item-platform {
+  font-size: 0.6rem;
+  color: #7a6f65;
+  text-transform: capitalize;
+}
+
+.calendar-item-remove {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f44336;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.calendar-scheduled-item:hover .calendar-item-remove {
+  opacity: 1;
+}
+
+.calendar-drop-hint {
+  text-align: center;
+  padding: 0.5rem;
+  font-size: 0.7rem;
+  color: #2196F3;
+  border: 1px dashed #2196F3;
+  border-radius: 6px;
+}
+
+/* Schedule Time Picker */
+
+.schedule-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.schedule-picker {
+  background: #fff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.schedule-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(17, 15, 14, 0.08);
+}
+
+.schedule-picker-header h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.schedule-picker-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #7a6f65;
+  padding: 0;
+  line-height: 1;
+}
+
+.schedule-picker-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.schedule-picker-date {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(17, 15, 14, 0.08);
+}
+
+.schedule-picker-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #7a6f65;
+}
+
+.schedule-picker-value {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.schedule-picker-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #f9f6f1;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.schedule-picker-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.schedule-picker-caption {
+  font-size: 0.85rem;
+  color: #5a524a;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.schedule-picker-section {
+  margin-bottom: 1rem;
+}
+
+.schedule-preset-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.schedule-preset-btn {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(17, 15, 14, 0.15);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.schedule-preset-btn:hover {
+  background: #f5f0e8;
+}
+
+.schedule-preset-btn.active {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.schedule-suggested-times {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.schedule-suggested-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 8px;
+  background: rgba(76, 175, 80, 0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+}
+
+.schedule-suggested-btn:hover {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.schedule-suggested-score {
+  font-size: 0.7rem;
+  color: #4CAF50;
+}
+
+.schedule-time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.schedule-time-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(17, 15, 14, 0.15);
+  border-radius: 8px;
+  background: #fdfbf7;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.schedule-time-separator {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.schedule-platform-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.schedule-platform-btn {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(17, 15, 14, 0.15);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.schedule-platform-btn:hover {
+  background: #f5f0e8;
+}
+
+.schedule-platform-btn.active {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.schedule-auto-post {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.schedule-auto-post input {
+  width: 16px;
+  height: 16px;
+}
+
+.schedule-picker-footer {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(17, 15, 14, 0.08);
+}
+
+.schedule-cancel-btn,
+.schedule-submit-btn {
+  flex: 1;
+  padding: 0.75rem 1.25rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.schedule-cancel-btn {
+  background: transparent;
+  border-color: rgba(17, 15, 14, 0.2);
+}
+
+.schedule-submit-btn {
+  background: #111;
+  color: #fdfbf7;
+}
+
+.schedule-submit-btn:hover {
+  background: #2a2a2a;
+}
