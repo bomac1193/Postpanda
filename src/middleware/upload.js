@@ -1,8 +1,9 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const cloudinaryService = require('../services/cloudinaryService');
 
-// Ensure upload directories exist
+// Ensure upload directories exist (for local storage fallback)
 const uploadDir = path.join(__dirname, '../../uploads');
 const thumbnailDir = path.join(__dirname, '../../uploads/thumbnails');
 
@@ -12,18 +13,24 @@ const thumbnailDir = path.join(__dirname, '../../uploads/thumbnails');
   }
 });
 
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const filename = `${file.fieldname}-${uniqueSuffix}${ext}`;
-    cb(null, filename);
-  }
-});
+// Check if we should use cloud storage
+const useCloudStorage = () => cloudinaryService.isConfigured();
+
+// Configure storage - use memory storage when cloud is configured
+// This allows us to upload the buffer directly to Cloudinary
+const storage = useCloudStorage()
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, uploadDir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        const filename = `${file.fieldname}-${uniqueSuffix}${ext}`;
+        cb(null, filename);
+      }
+    });
 
 // File filter
 const fileFilter = (req, file, cb) => {
@@ -50,4 +57,8 @@ const upload = multer({
   }
 });
 
+// Export both upload middleware and helper functions
 module.exports = upload;
+module.exports.useCloudStorage = useCloudStorage;
+module.exports.uploadDir = uploadDir;
+module.exports.thumbnailDir = thumbnailDir;

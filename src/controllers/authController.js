@@ -2,6 +2,10 @@ const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
 const axios = require('axios');
 const passport = require('../config/passport');
+const cloudinaryService = require('../services/cloudinaryService');
+const { useCloudStorage, uploadDir } = require('../middleware/upload');
+const path = require('path');
+const fs = require('fs').promises;
 
 // Register new user
 exports.register = async (req, res) => {
@@ -103,7 +107,7 @@ exports.getCurrentUser = async (req, res) => {
 // Update user profile
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, bio, avatar } = req.body;
+    const { name, bio, avatar, avatarPosition, avatarZoom, username, brandName } = req.body;
     const userId = req.userId;
 
     const user = await User.findById(userId);
@@ -115,6 +119,10 @@ exports.updateProfile = async (req, res) => {
     if (name !== undefined) user.name = name;
     if (bio !== undefined) user.bio = bio;
     if (avatar !== undefined) user.avatar = avatar;
+    if (avatarPosition !== undefined) user.avatarPosition = avatarPosition;
+    if (avatarZoom !== undefined) user.avatarZoom = avatarZoom;
+    if (username !== undefined) user.username = username;
+    if (brandName !== undefined) user.brandName = brandName;
 
     await user.save();
 
@@ -125,12 +133,75 @@ exports.updateProfile = async (req, res) => {
         email: user.email,
         name: user.name,
         bio: user.bio,
-        avatar: user.avatar
+        avatar: user.avatar,
+        avatarPosition: user.avatarPosition,
+        avatarZoom: user.avatarZoom,
+        username: user.username,
+        brandName: user.brandName
       }
     });
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ error: 'Failed to update profile' });
+  }
+};
+
+// Upload avatar image
+exports.uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const userId = req.userId;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    let avatarUrl;
+
+    // Check if using cloud storage (Cloudinary)
+    if (useCloudStorage()) {
+      // Upload to Cloudinary
+      const uploadResult = await cloudinaryService.uploadBuffer(req.file.buffer, {
+        folder: 'postpanda/avatars',
+        resourceType: 'image',
+        transformation: [
+          { width: 500, height: 500, crop: 'fill', gravity: 'face' }
+        ]
+      });
+      avatarUrl = uploadResult.secure_url;
+    } else {
+      // Local storage fallback
+      const filename = `avatar-${userId}-${Date.now()}${path.extname(req.file.originalname)}`;
+      const filepath = path.join(uploadDir, filename);
+      await fs.writeFile(filepath, req.file.buffer);
+      avatarUrl = `/uploads/${filename}`;
+    }
+
+    // Update user's avatar
+    user.avatar = avatarUrl;
+    await user.save();
+
+    res.json({
+      message: 'Avatar uploaded successfully',
+      avatar: avatarUrl,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        bio: user.bio,
+        avatar: user.avatar,
+        avatarPosition: user.avatarPosition,
+        avatarZoom: user.avatarZoom,
+        username: user.username,
+        brandName: user.brandName
+      }
+    });
+  } catch (error) {
+    console.error('Upload avatar error:', error);
+    res.status(500).json({ error: 'Failed to upload avatar' });
   }
 };
 

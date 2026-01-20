@@ -1,6 +1,30 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// One-time cleanup of old localStorage data that was too large
+// This runs once on app load to fix quota exceeded issues
+try {
+  const storageKey = 'postpanda-storage';
+  const stored = localStorage.getItem(storageKey);
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    // Check if stored data has large fields that shouldn't be persisted
+    if (parsed?.state?.posts?.length > 0 ||
+        parsed?.state?.reels?.length > 0 ||
+        parsed?.state?.youtubeVideos?.length > 0 ||
+        parsed?.state?.user?.avatar?.startsWith?.('data:')) {
+      console.log('[PostPanda] Clearing old localStorage data (migrating to cloud storage)');
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem('postpilot-storage'); // Also clear old name
+    }
+  }
+} catch (e) {
+  // If parsing fails, just clear it
+  console.log('[PostPanda] Clearing corrupted localStorage');
+  localStorage.removeItem('postpanda-storage');
+  localStorage.removeItem('postpilot-storage');
+}
+
 // Main application store
 export const useAppStore = create(
   persist(
@@ -34,6 +58,10 @@ export const useAppStore = create(
       // Reels
       reels: [],
       reelOrder: [], // Persisted array of reel IDs for custom ordering
+
+      // Reel Collections (separate from photo grid collections)
+      reelCollections: [],
+      currentReelCollectionId: null,
 
       // YouTube Planner
       youtubeVideos: [],
@@ -196,6 +224,22 @@ export const useAppStore = create(
         reels: reels,
         reelOrder: reels.map(r => r._id || r.id)
       }),
+
+      // Reel Collection actions
+      setReelCollections: (collections) => set({ reelCollections: collections }),
+      addReelCollection: (collection) => set((state) => ({
+        reelCollections: [collection, ...state.reelCollections]
+      })),
+      updateReelCollection: (id, updates) => set((state) => ({
+        reelCollections: state.reelCollections.map(c =>
+          (c._id || c.id) === id ? { ...c, ...updates } : c
+        )
+      })),
+      deleteReelCollection: (id) => set((state) => ({
+        reelCollections: state.reelCollections.filter(c => (c._id || c.id) !== id),
+        currentReelCollectionId: state.currentReelCollectionId === id ? null : state.currentReelCollectionId
+      })),
+      setCurrentReelCollection: (id) => set({ currentReelCollectionId: id }),
 
       // YouTube Planner actions
       setYoutubeVideos: (videos) => set({ youtubeVideos: videos }),
@@ -692,76 +736,41 @@ export const useAppStore = create(
       },
       partialize: (state) => ({
         theme: state.theme,
-        posts: state.posts,
-        // gridPosts removed - should always come from MongoDB to avoid stale data
+        // Don't persist posts - they come from MongoDB
+        // posts: state.posts,
         // Grid metadata (colors/rollout assignments) - stored locally
         gridMeta: state.gridMeta,
         sidebarCollapsed: state.sidebarCollapsed,
-        // User profile data for persistence
+        // User profile - avatar URL is now small (Cloudinary URL), so we can persist it
         user: state.user,
         isAuthenticated: state.isAuthenticated,
-        // Reel order for custom sorting
+        // Reel order for custom sorting (just IDs, not full objects)
         reelOrder: state.reelOrder,
-        // YouTube Planner data
-        youtubeVideos: state.youtubeVideos,
+        // YouTube Planner - only persist small data
         youtubeViewMode: state.youtubeViewMode,
         youtubeCompetitors: state.youtubeCompetitors,
         youtubeChannelSettings: state.youtubeChannelSettings,
-        // YouTube Collections
-        youtubeCollections: state.youtubeCollections,
+        // YouTube Collections - just IDs and names, not full video data
         currentYoutubeCollectionId: state.currentYoutubeCollectionId,
-        youtubeVideosByCollection: state.youtubeVideosByCollection,
-        // Rollouts
-        rollouts: state.rollouts,
+        // Reel collections - just the current selection
+        currentReelCollectionId: state.currentReelCollectionId,
+        // Rollouts - just current selection
         currentRolloutId: state.currentRolloutId,
       }),
-      // Custom merge to ensure persisted data takes precedence
+      // Simple merge - most data now comes from DB, only persist small settings
       merge: (persistedState, currentState) => {
-        // Get the current collection ID
-        const currentCollectionId = persistedState?.currentYoutubeCollectionId || currentState.currentYoutubeCollectionId || 'default';
-
-        // Get persisted videos
-        const persistedVideos = persistedState?.youtubeVideos || [];
-        const persistedVideosByCollection = persistedState?.youtubeVideosByCollection || {};
-
-        // Migration: If youtubeVideos has content but the current collection in youtubeVideosByCollection is empty,
-        // sync the videos to the collection. This handles data from before collections were added.
-        let finalVideosByCollection = { ...persistedVideosByCollection };
-        let finalYoutubeVideos = persistedVideos;
-
-        // Check if we need to migrate - if youtubeVideos has content but the collection storage doesn't
-        if (persistedVideos.length > 0) {
-          const collectionVideos = persistedVideosByCollection[currentCollectionId];
-          if (!collectionVideos || collectionVideos.length === 0) {
-            // Migrate videos to the current collection
-            finalVideosByCollection[currentCollectionId] = persistedVideos;
-          }
-        }
-
-        // Always load videos from the current collection
-        if (finalVideosByCollection[currentCollectionId] && finalVideosByCollection[currentCollectionId].length > 0) {
-          finalYoutubeVideos = finalVideosByCollection[currentCollectionId];
-        }
-
         return {
           ...currentState,
           ...persistedState,
-          // Ensure user data is preserved if it exists in persisted state
-          user: persistedState?.user || currentState.user,
-          isAuthenticated: persistedState?.isAuthenticated || currentState.isAuthenticated,
-          // Ensure grid metadata is preserved
+          // Preserve small settings
           gridMeta: persistedState?.gridMeta || currentState.gridMeta,
-          // Ensure YouTube data is preserved with migration
-          youtubeVideos: finalYoutubeVideos,
+          sidebarCollapsed: persistedState?.sidebarCollapsed ?? currentState.sidebarCollapsed,
           youtubeViewMode: persistedState?.youtubeViewMode || currentState.youtubeViewMode,
           youtubeCompetitors: persistedState?.youtubeCompetitors || currentState.youtubeCompetitors,
           youtubeChannelSettings: persistedState?.youtubeChannelSettings || currentState.youtubeChannelSettings,
-          // Ensure YouTube Collections are preserved
-          youtubeCollections: persistedState?.youtubeCollections || currentState.youtubeCollections,
-          currentYoutubeCollectionId: currentCollectionId,
-          youtubeVideosByCollection: finalVideosByCollection,
-          // Ensure Rollouts are preserved
-          rollouts: persistedState?.rollouts || currentState.rollouts,
+          // Preserve collection selections
+          currentYoutubeCollectionId: persistedState?.currentYoutubeCollectionId || currentState.currentYoutubeCollectionId,
+          currentReelCollectionId: persistedState?.currentReelCollectionId || currentState.currentReelCollectionId,
           currentRolloutId: persistedState?.currentRolloutId || currentState.currentRolloutId,
         };
       },

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { User, Settings, Share2, Plus, Play, Heart, MessageCircle, Bookmark, MoreHorizontal, GripVertical, Music2, X, Check, Loader2, ChevronDown, Mail } from 'lucide-react';
+import { User, Settings, Share2, Plus, Play, Heart, MessageCircle, Bookmark, MoreHorizontal, GripVertical, Music2, X, Check, Loader2, ChevronDown, Mail, FolderPlus, Pencil, Trash2, LayoutGrid } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
-import { contentApi } from '../../lib/api';
+import { contentApi, reelCollectionApi } from '../../lib/api';
 import api from '../../lib/api';
 import { generateVideoThumbnail, formatDuration } from '../../utils/videoUtils';
 import {
@@ -218,8 +218,26 @@ function TikTokPreview({ showRowHandles = true }) {
   const addReel = useAppStore((state) => state.addReel);
   const reorderReels = useAppStore((state) => state.reorderReels);
 
+  // TikTok Reel Collections state
+  const reelCollections = useAppStore((state) => state.reelCollections);
+  const setReelCollections = useAppStore((state) => state.setReelCollections);
+  const addReelCollection = useAppStore((state) => state.addReelCollection);
+  const updateReelCollection = useAppStore((state) => state.updateReelCollection);
+  const deleteReelCollection = useAppStore((state) => state.deleteReelCollection);
+  const currentReelCollectionId = useAppStore((state) => state.currentReelCollectionId);
+  const setCurrentReelCollection = useAppStore((state) => state.setCurrentReelCollection);
+
   // Tab state
   const [activeTab, setActiveTab] = useState('videos');
+
+  // TikTok Reel Collection UI state
+  const [showReelCollectionSelector, setShowReelCollectionSelector] = useState(false);
+  const [editingReelCollectionId, setEditingReelCollectionId] = useState(null);
+  const [editingReelCollectionName, setEditingReelCollectionName] = useState('');
+  const [showDeleteReelCollectionConfirm, setShowDeleteReelCollectionConfirm] = useState(null);
+
+  // Loading state for collections
+  const [isLoadingCollections, setIsLoadingCollections] = useState(true);
 
   // Video drag state
   const [isVideoDragOver, setIsVideoDragOver] = useState(false);
@@ -248,10 +266,41 @@ function TikTokPreview({ showRowHandles = true }) {
   // Row drag state
   const [rowDragActiveId, setRowDragActiveId] = useState(null);
 
+  // Filter collections for TikTok platform
+  const tiktokCollections = reelCollections.filter(c => c.platform === 'tiktok' || c.platform === 'both');
+
+  // Get current reel collection (must be a tiktok collection)
+  // If current selection isn't a tiktok collection, fall back to first tiktok collection
+  let currentReelCollection = tiktokCollections.find(c => (c._id || c.id) === currentReelCollectionId);
+  if (!currentReelCollection && tiktokCollections.length > 0) {
+    currentReelCollection = tiktokCollections[0];
+  }
+
+  // Get videos for current collection only (populated contentId objects)
+  // Handle both populated objects and raw ObjectId strings
+  const collectionVideos = currentReelCollection?.reels
+    ?.map(r => {
+      // If contentId is a populated object with mediaUrl, return it
+      if (r.contentId && typeof r.contentId === 'object' && r.contentId.mediaUrl) {
+        return r.contentId;
+      }
+      return null;
+    })
+    ?.filter(Boolean) || [];
+
+  // Debug logging
+  if (currentReelCollection) {
+    console.log('[TikTok Display] Current collection:', currentReelCollection.name, 'ID:', currentReelCollection._id);
+    console.log('[TikTok Display] Raw reels array:', currentReelCollection.reels);
+    console.log('[TikTok Display] First reel contentId type:', typeof currentReelCollection.reels?.[0]?.contentId);
+    console.log('[TikTok Display] First reel contentId:', currentReelCollection.reels?.[0]?.contentId);
+    console.log('[TikTok Display] Mapped videos count:', collectionVideos.length);
+  }
+
   // Group videos into rows of 3
   const videoRows = [];
-  for (let i = 0; i < reels.length; i += 3) {
-    videoRows.push(reels.slice(i, i + 3));
+  for (let i = 0; i < collectionVideos.length; i += 3) {
+    videoRows.push(collectionVideos.slice(i, i + 3));
   }
   const rowIds = videoRows.map((_, index) => `tiktok-row-${index}`);
 
@@ -260,10 +309,12 @@ function TikTokPreview({ showRowHandles = true }) {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  // Video drag handlers
+  // Video drag handlers - stop propagation to prevent GridPlanner from handling
   const handleVideoDragEnter = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     videoDragCounterRef.current++;
+    console.log('[TikTok Drag] Enter - counter:', videoDragCounterRef.current, 'types:', e.dataTransfer?.types);
     if (e.dataTransfer?.types?.includes('Files')) {
       setIsVideoDragOver(true);
     }
@@ -271,11 +322,13 @@ function TikTokPreview({ showRowHandles = true }) {
 
   const handleVideoDragOver = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = 'copy';
   };
 
   const handleVideoDragLeave = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     videoDragCounterRef.current--;
     if (videoDragCounterRef.current === 0) {
       setIsVideoDragOver(false);
@@ -284,28 +337,38 @@ function TikTokPreview({ showRowHandles = true }) {
 
   const handleVideoDrop = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    console.log('[TikTok Drop] Drop event received');
     setIsVideoDragOver(false);
     videoDragCounterRef.current = 0;
 
     const token = localStorage.getItem('token');
     if (!token) {
+      console.error('[TikTok Drop] No auth token');
       alert('Please log in to upload videos');
       return;
     }
 
     const files = Array.from(e.dataTransfer.files);
+    console.log('[TikTok Drop] Files dropped:', files.length, files.map(f => f.name + ' (' + f.type + ')'));
     const videoFile = files.find(f => f.type.startsWith('video/'));
 
     if (!videoFile) {
+      console.error('[TikTok Drop] No video file found in dropped files');
+      alert('Please drop a video file (MP4, MOV, WebM)');
       return;
     }
 
+    console.log('[TikTok Drop] Video file:', videoFile.name, 'Size:', (videoFile.size / 1024 / 1024).toFixed(2) + 'MB');
     setUploadingVideo(true);
 
     try {
+      console.log('[TikTok Drop] Generating thumbnail...');
       const { thumbnailBlob, duration, width, height, isVertical } =
         await generateVideoThumbnail(videoFile);
+      console.log('[TikTok Drop] Thumbnail generated:', { duration, width, height, isVertical });
 
+      console.log('[TikTok Drop] Uploading to server...');
       const result = await contentApi.uploadReel(videoFile, thumbnailBlob, {
         title: videoFile.name.replace(/\.[^/.]+$/, ''),
         mediaType: 'video',
@@ -315,20 +378,176 @@ function TikTokPreview({ showRowHandles = true }) {
         isReel: true,
         recommendedType: 'video'
       });
+      console.log('[TikTok Drop] Upload response:', result);
 
       const uploadedVideo = result.content || result;
+      console.log('[TikTok Drop] Uploaded video ID:', uploadedVideo._id || uploadedVideo.id);
       addReel(uploadedVideo);
 
+      // Add video to current collection - use the displayed collection (with fallback) or create one
+      // Get the currently displayed collection (same logic as display)
+      const displayedTiktokCollections = reelCollections.filter(c => c.platform === 'tiktok' || c.platform === 'both');
+      let targetCollection = displayedTiktokCollections.find(c => (c._id || c.id) === currentReelCollectionId);
+      if (!targetCollection && displayedTiktokCollections.length > 0) {
+        targetCollection = displayedTiktokCollections[0];
+      }
+
+      let collectionId = targetCollection?._id || targetCollection?.id;
+      console.log('[TikTok Upload] Starting - targetCollection:', targetCollection?.name, 'ID:', collectionId);
+      console.log('[TikTok Upload] Uploaded video ID:', uploadedVideo._id || uploadedVideo.id);
+
+      // If no collection exists, create one first
+      if (!collectionId) {
+        console.log('[TikTok Upload] No collection exists, creating new one...');
+        try {
+          const newCollection = await reelCollectionApi.create({
+            name: `TikTok ${displayedTiktokCollections.length + 1}`,
+            platform: 'tiktok'
+          });
+          console.log('[TikTok Upload] Created collection:', newCollection);
+          addReelCollection(newCollection);
+          setCurrentReelCollection(newCollection._id);
+          collectionId = newCollection._id;
+        } catch (createErr) {
+          console.error('[TikTok Upload] Failed to create collection:', createErr);
+        }
+      }
+
+      // Now add the video to the collection
+      if (collectionId) {
+        console.log('[TikTok Upload] Adding video to collection:', collectionId);
+        try {
+          const updatedCollection = await reelCollectionApi.addReel(collectionId, uploadedVideo._id || uploadedVideo.id);
+          console.log('[TikTok Upload] Updated collection:', updatedCollection);
+          console.log('[TikTok Upload] Collection reels:', updatedCollection?.reels);
+          // Update the collection in state so the video shows immediately
+          updateReelCollection(collectionId, updatedCollection);
+
+          // Also refetch all collections to ensure state is synced
+          const freshCollections = await reelCollectionApi.getAll();
+          console.log('[TikTok Upload] Fresh collections:', freshCollections);
+          setReelCollections(freshCollections);
+        } catch (collErr) {
+          console.error('[TikTok Upload] Failed to add video to collection:', collErr);
+        }
+      } else {
+        console.error('[TikTok Upload] No collectionId available!');
+      }
+
+      console.log('[TikTok Upload] SUCCESS! Video uploaded and added to collection. Opening thumbnail selector...');
       setSelectedVideo(uploadedVideo);
       setPendingVideoUpload(videoFile);
       setShowThumbnailSelector(true);
     } catch (err) {
-      console.error('Video upload failed:', err);
+      console.error('[TikTok Drop] Video upload failed:', err);
+      console.error('[TikTok Drop] Error details:', err.response?.data || err.message);
       if (err.response?.status === 401) {
         alert('Please log in to upload videos');
+      } else {
+        alert('Video upload failed: ' + (err.response?.data?.error || err.message));
       }
     } finally {
       setUploadingVideo(false);
+    }
+  };
+
+  // Fetch reel collections on mount (always fetch fresh data to ensure populated content)
+  useEffect(() => {
+    const fetchReelCollections = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setIsLoadingCollections(false);
+        return;
+      }
+      try {
+        console.log('[TikTok] Fetching fresh collections from backend...');
+        setIsLoadingCollections(true);
+        const collections = await reelCollectionApi.getAll(); // Get all collections with populated contentId
+        console.log('[TikTok] Fetched collections:', collections.length);
+        if (collections.length > 0) {
+          console.log('[TikTok] First collection reels:', collections[0]?.reels?.length);
+          console.log('[TikTok] First reel contentId:', collections[0]?.reels?.[0]?.contentId);
+        }
+        setReelCollections(collections);
+      } catch (err) {
+        console.error('Failed to fetch reel collections:', err);
+      } finally {
+        setIsLoadingCollections(false);
+      }
+    };
+    // Always fetch fresh data on mount to ensure contentId is populated
+    fetchReelCollections();
+  }, [setReelCollections]);
+
+  // Auto-select first TikTok collection if none selected
+  useEffect(() => {
+    if (tiktokCollections.length > 0 && !currentReelCollectionId) {
+      setCurrentReelCollection(tiktokCollections[0]._id);
+    }
+  }, [tiktokCollections.length, currentReelCollectionId, setCurrentReelCollection]);
+
+  // TikTok Reel collection handlers
+  const handleCreateReelCollection = async () => {
+    try {
+      const collection = await reelCollectionApi.create({
+        name: `TikTok ${tiktokCollections.length + 1}`,
+        platform: 'tiktok'
+      });
+      addReelCollection(collection);
+      setCurrentReelCollection(collection._id);
+      setShowReelCollectionSelector(false);
+    } catch (err) {
+      console.error('Failed to create TikTok collection:', err);
+    }
+  };
+
+  const handleSelectReelCollection = (collection) => {
+    setCurrentReelCollection(collection._id || collection.id);
+    setShowReelCollectionSelector(false);
+  };
+
+  const handleStartRenameReelCollection = (e, collection) => {
+    e.stopPropagation();
+    setEditingReelCollectionId(collection._id || collection.id);
+    setEditingReelCollectionName(collection.name);
+  };
+
+  const handleSaveRenameReelCollection = async (e, collectionId) => {
+    e.stopPropagation();
+    if (!editingReelCollectionName.trim()) {
+      setEditingReelCollectionId(null);
+      return;
+    }
+    try {
+      await reelCollectionApi.update(collectionId, { name: editingReelCollectionName.trim() });
+      updateReelCollection(collectionId, { name: editingReelCollectionName.trim() });
+      setEditingReelCollectionId(null);
+    } catch (err) {
+      console.error('Failed to rename TikTok collection:', err);
+    }
+  };
+
+  const handleCancelRenameReelCollection = (e) => {
+    e.stopPropagation();
+    setEditingReelCollectionId(null);
+    setEditingReelCollectionName('');
+  };
+
+  const handleDeleteReelCollection = async (e, collectionId) => {
+    e.stopPropagation();
+    try {
+      await reelCollectionApi.delete(collectionId);
+      deleteReelCollection(collectionId);
+      // Select another TikTok collection if we deleted the current one
+      if (currentReelCollectionId === collectionId && tiktokCollections.length > 1) {
+        const remaining = tiktokCollections.filter(c => (c._id || c.id) !== collectionId);
+        if (remaining.length > 0) {
+          setCurrentReelCollection(remaining[0]._id || remaining[0].id);
+        }
+      }
+      setShowDeleteReelCollectionConfirm(null);
+    } catch (err) {
+      console.error('Failed to delete TikTok collection:', err);
     }
   };
 
@@ -388,11 +607,12 @@ function TikTokPreview({ showRowHandles = true }) {
       const formData = new FormData();
       formData.append('thumbnail', thumbnailBlob, 'thumbnail.jpg');
 
-      await api.put(`/api/content/${videoId}/thumbnail`, formData, {
+      const response = await api.put(`/api/content/${videoId}/thumbnail`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      const thumbnailUrl = URL.createObjectURL(thumbnailBlob);
+      // Use the server-returned URL instead of creating a blob URL
+      const thumbnailUrl = response.data.content?.thumbnailUrl || response.data.thumbnailUrl;
       const updatedVideos = reels.map(v =>
         (v._id || v.id) === videoId
           ? { ...v, thumbnailUrl }
@@ -567,7 +787,13 @@ function TikTokPreview({ showRowHandles = true }) {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-dark-800 rounded-2xl overflow-hidden border border-dark-700">
+    <div
+      className="max-w-md mx-auto bg-dark-800 rounded-2xl overflow-hidden border border-dark-700"
+      onDragEnter={handleVideoDragEnter}
+      onDragOver={handleVideoDragOver}
+      onDragLeave={handleVideoDragLeave}
+      onDrop={handleVideoDrop}
+    >
       {/* TikTok Profile Header */}
       <div className="p-4 border-b border-dark-700">
         {/* Avatar - Centered */}
@@ -684,15 +910,141 @@ function TikTokPreview({ showRowHandles = true }) {
 
       {/* Videos Grid */}
       {activeTab === 'videos' && (
-        <div
-          className={`min-h-[300px] transition-colors relative ${
-            isVideoDragOver ? 'bg-cyan-500/20 border-2 border-dashed border-cyan-400' : ''
-          }`}
-          onDragEnter={handleVideoDragEnter}
-          onDragOver={handleVideoDragOver}
-          onDragLeave={handleVideoDragLeave}
-          onDrop={handleVideoDrop}
-        >
+        <div>
+          {/* TikTok Collection Selector */}
+          <div className="p-3 border-b border-dark-700">
+            <div className="relative">
+              <button
+                onClick={() => setShowReelCollectionSelector(!showReelCollectionSelector)}
+                className="flex items-center gap-2 px-3 py-2 bg-dark-700 rounded-lg text-dark-200 hover:bg-dark-600 transition-colors w-full"
+              >
+                <LayoutGrid className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm flex-1 text-left truncate">
+                  {currentReelCollection?.name || 'Select Collection'}
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showReelCollectionSelector ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showReelCollectionSelector && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-dark-700 rounded-lg shadow-xl border border-dark-600 z-20">
+                  <div className="p-2 border-b border-dark-600">
+                    <p className="text-xs text-dark-400 uppercase tracking-wide">TikTok Collections ({tiktokCollections.length})</p>
+                  </div>
+                  <div className="max-h-48 overflow-auto">
+                    {tiktokCollections.map((collection) => (
+                      <div
+                        key={collection._id || collection.id}
+                        className={`group relative ${
+                          currentReelCollectionId === (collection._id || collection.id)
+                            ? 'bg-cyan-500/20'
+                            : 'hover:bg-dark-600'
+                        }`}
+                      >
+                        {editingReelCollectionId === (collection._id || collection.id) ? (
+                          <div className="px-3 py-2 flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editingReelCollectionName}
+                              onChange={(e) => setEditingReelCollectionName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveRenameReelCollection(e, collection._id || collection.id);
+                                if (e.key === 'Escape') handleCancelRenameReelCollection(e);
+                              }}
+                              className="flex-1 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-dark-100 focus:outline-none focus:border-cyan-400"
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <button
+                              onClick={(e) => handleSaveRenameReelCollection(e, collection._id || collection.id)}
+                              className="p-1 text-green-400 hover:bg-dark-500 rounded"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={handleCancelRenameReelCollection}
+                              className="p-1 text-dark-400 hover:bg-dark-500 rounded"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : showDeleteReelCollectionConfirm === (collection._id || collection.id) ? (
+                          <div className="px-3 py-2">
+                            <p className="text-sm text-dark-200 mb-2">Delete "{collection.name}"?</p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={(e) => handleDeleteReelCollection(e, collection._id || collection.id)}
+                                className="flex-1 px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDeleteReelCollectionConfirm(null); }}
+                                className="flex-1 px-2 py-1 text-xs bg-dark-600 text-dark-300 rounded hover:bg-dark-500"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleSelectReelCollection(collection)}
+                            className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors ${
+                              currentReelCollectionId === (collection._id || collection.id)
+                                ? 'text-cyan-400'
+                                : 'text-dark-200'
+                            }`}
+                          >
+                            <LayoutGrid className="w-4 h-4 flex-shrink-0" />
+                            <span className="flex-1 truncate">{collection.name}</span>
+                            <span className="text-xs text-dark-500 mr-1">
+                              {collection.reels?.length || 0}
+                            </span>
+                            <div className="hidden group-hover:flex items-center gap-1">
+                              <button
+                                onClick={(e) => handleStartRenameReelCollection(e, collection)}
+                                className="p-1 text-dark-400 hover:text-cyan-400 hover:bg-dark-500 rounded"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDeleteReelCollectionConfirm(collection._id || collection.id); }}
+                                className="p-1 text-dark-400 hover:text-red-400 hover:bg-dark-500 rounded"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {tiktokCollections.length === 0 && (
+                      <p className="px-3 py-4 text-sm text-dark-400 text-center">No collections yet</p>
+                    )}
+                  </div>
+                  <div className="p-2 border-t border-dark-600">
+                    <button
+                      onClick={handleCreateReelCollection}
+                      className="w-full px-3 py-2 text-sm text-cyan-400 hover:bg-dark-600 rounded-md flex items-center gap-2"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      Create New Collection
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Videos Grid Area */}
+          <div
+            className={`min-h-[300px] transition-colors relative ${
+              isVideoDragOver ? 'bg-cyan-500/20 border-2 border-dashed border-cyan-400' : ''
+            }`}
+            onDragEnter={handleVideoDragEnter}
+            onDragOver={handleVideoDragOver}
+            onDragLeave={handleVideoDragLeave}
+            onDrop={handleVideoDrop}
+          >
           {/* Drop Overlay */}
           {isVideoDragOver && (
             <div className="absolute inset-0 flex items-center justify-center bg-dark-900/80 z-10">
@@ -713,7 +1065,7 @@ function TikTokPreview({ showRowHandles = true }) {
           )}
 
           {/* Videos Grid with Row Drag */}
-          {!uploadingVideo && reels.length > 0 && (
+          {!uploadingVideo && !isLoadingCollections && collectionVideos.length > 0 && (
             <DndContext
               sensors={rowSensors}
               collisionDetection={closestCenter}
@@ -778,14 +1130,32 @@ function TikTokPreview({ showRowHandles = true }) {
             </DndContext>
           )}
 
-          {/* Empty State */}
-          {!uploadingVideo && reels.length === 0 && !isVideoDragOver && (
+          {/* Loading State */}
+          {isLoadingCollections && (
             <div className="py-16 text-center">
-              <TikTokIcon className="w-16 h-16 text-dark-500 mx-auto" />
-              <p className="text-dark-400 text-lg font-medium mt-3">No Videos Yet</p>
-              <p className="text-dark-500 text-sm">Drag a video here to upload</p>
+              <Loader2 className="w-12 h-12 text-cyan-400 mx-auto animate-spin" />
+              <p className="text-dark-400 text-lg font-medium mt-3">Loading videos...</p>
             </div>
           )}
+
+          {/* Empty State */}
+          {!uploadingVideo && !isLoadingCollections && collectionVideos.length === 0 && !isVideoDragOver && (
+            <div className="py-16 text-center">
+              <TikTokIcon className="w-16 h-16 text-dark-500 mx-auto" />
+              {currentReelCollection ? (
+                <>
+                  <p className="text-dark-400 text-lg font-medium mt-3">No Videos Yet</p>
+                  <p className="text-dark-500 text-sm">Drag a video here to upload to "{currentReelCollection.name}"</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-dark-400 text-lg font-medium mt-3">No Collection Selected</p>
+                  <p className="text-dark-500 text-sm">Create a collection first using the dropdown above</p>
+                </>
+              )}
+            </div>
+          )}
+          </div>
         </div>
       )}
 

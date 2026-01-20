@@ -18,38 +18,109 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  const [useCrossOrigin, setUseCrossOrigin] = useState(false);
 
-  // Video source - either from file or from reel URL
-  const videoSrc = videoFile
-    ? URL.createObjectURL(videoFile)
-    : reel?.mediaUrl;
+  // Store blob URL in ref to track for cleanup
+  const blobUrlRef = useRef(null);
+
+  // Determine video source - prefer videoFile (File object) over reel.mediaUrl
+  const [videoSrc, setVideoSrc] = useState(null);
+
+  // Set up video source when component mounts or props change
+  useEffect(() => {
+    console.log('[ThumbnailSelector] Setting up video source');
+    console.log('[ThumbnailSelector] videoFile provided:', !!videoFile, videoFile?.name);
+    console.log('[ThumbnailSelector] reel provided:', !!reel, 'mediaUrl:', reel?.mediaUrl);
+
+    // Clean up any existing blob URL
+    if (blobUrlRef.current) {
+      console.log('[ThumbnailSelector] Cleaning up previous blob URL');
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+
+    if (videoFile) {
+      // Create blob URL from File object
+      const blobUrl = URL.createObjectURL(videoFile);
+      blobUrlRef.current = blobUrl;
+      console.log('[ThumbnailSelector] Created blob URL from videoFile:', blobUrl);
+      setVideoSrc(blobUrl);
+      setUseCrossOrigin(false); // Blob URLs don't need CORS
+      setVideoError(false);
+      setIsVideoReady(false);
+    } else if (reel?.mediaUrl) {
+      // Use Cloudinary URL
+      console.log('[ThumbnailSelector] Using reel mediaUrl:', reel.mediaUrl);
+      setVideoSrc(reel.mediaUrl);
+      // Don't use crossOrigin for Cloudinary URLs - it may cause CORS issues
+      // We can still preview the video, but won't be able to capture frames
+      setUseCrossOrigin(false);
+      setVideoError(false);
+      setIsVideoReady(false);
+    } else {
+      console.error('[ThumbnailSelector] No video source available');
+      setVideoSrc(null);
+      setVideoError(true);
+    }
+  }, [videoFile, reel?.mediaUrl]);
 
   // Clean up object URL on unmount
   useEffect(() => {
     return () => {
-      if (videoFile && videoSrc) {
-        URL.revokeObjectURL(videoSrc);
+      if (blobUrlRef.current) {
+        console.log('[ThumbnailSelector] Cleaning up blob URL on unmount');
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
       }
     };
-  }, [videoFile, videoSrc]);
+  }, []);
 
   // Handle video metadata loaded
   const handleLoadedMetadata = () => {
+    console.log('[ThumbnailSelector] Metadata loaded, duration:', videoRef.current?.duration);
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
       // Seek to 1 second or 10% of duration
       const seekTime = Math.min(1, videoRef.current.duration * 0.1);
+      console.log('[ThumbnailSelector] Seeking to:', seekTime);
       videoRef.current.currentTime = seekTime;
     }
   };
 
   // Handle video can play - ready to capture
   const handleCanPlay = () => {
+    console.log('[ThumbnailSelector] Can play, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
     setIsVideoReady(true);
     // Pause the video to prevent playback
     if (videoRef.current) {
       videoRef.current.pause();
     }
+  };
+
+  // Handle video load error
+  const handleVideoError = (e) => {
+    const video = e.target;
+    const error = video?.error;
+    console.error('[ThumbnailSelector] Video failed to load');
+    console.error('[ThumbnailSelector] Error code:', error?.code);
+    console.error('[ThumbnailSelector] Error message:', error?.message);
+    console.error('[ThumbnailSelector] Video src:', video?.src);
+    console.error('[ThumbnailSelector] Video networkState:', video?.networkState);
+    console.error('[ThumbnailSelector] Video readyState:', video?.readyState);
+
+    // MediaError codes: 1=ABORTED, 2=NETWORK, 3=DECODE, 4=SRC_NOT_SUPPORTED
+    if (error) {
+      const errorTypes = {
+        1: 'MEDIA_ERR_ABORTED - Fetching was aborted',
+        2: 'MEDIA_ERR_NETWORK - Network error',
+        3: 'MEDIA_ERR_DECODE - Error decoding video',
+        4: 'MEDIA_ERR_SRC_NOT_SUPPORTED - Video format not supported'
+      };
+      console.error('[ThumbnailSelector] Error type:', errorTypes[error.code] || 'Unknown');
+    }
+
+    setVideoError(true);
   };
 
   // Track if we're currently seeking (dragging the slider)
@@ -94,26 +165,65 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
 
   // Capture current frame as thumbnail
   const captureCurrentFrame = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    console.log('[ThumbnailSelector] Capture clicked, videoRef:', !!videoRef.current, 'canvasRef:', !!canvasRef.current);
+
+    if (!videoRef.current || !canvasRef.current) {
+      console.error('[ThumbnailSelector] Missing refs');
+      return;
+    }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
 
+    console.log('[ThumbnailSelector] Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+    console.log('[ThumbnailSelector] Video ready state:', video.readyState, 'paused:', video.paused);
+    console.log('[ThumbnailSelector] Video src:', video.src?.substring(0, 50));
+
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error('[ThumbnailSelector] Video not loaded - dimensions are 0');
+      alert('Video not loaded yet. Please wait for the video to load.');
+      return;
+    }
+
     // Set canvas size to match video
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
-    // Draw the current frame
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    try {
+      // Draw the current frame
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert to blob and data URL
-    canvas.toBlob((blob) => {
-      if (blob) {
-        setThumbnailBlob(blob);
-        setThumbnailPreview(canvas.toDataURL('image/jpeg', 0.9));
+      // Try to read pixels - this will fail if CORS blocks it
+      try {
+        ctx.getImageData(0, 0, 1, 1);
+      } catch (corsError) {
+        console.error('[ThumbnailSelector] CORS error - cannot capture frame from cross-origin video');
+        alert('Cannot capture frame from this video due to security restrictions. Please upload a custom thumbnail image instead.');
+        return;
       }
-    }, 'image/jpeg', 0.9);
+
+      // Convert to blob and data URL
+      canvas.toBlob((blob) => {
+        console.log('[ThumbnailSelector] Created blob:', blob ? `${blob.size} bytes` : 'null');
+        if (blob) {
+          setThumbnailBlob(blob);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          console.log('[ThumbnailSelector] Created data URL, length:', dataUrl.length);
+          setThumbnailPreview(dataUrl);
+        } else {
+          console.error('[ThumbnailSelector] Failed to create blob');
+          alert('Failed to capture frame. Please try again.');
+        }
+      }, 'image/jpeg', 0.9);
+    } catch (err) {
+      console.error('[ThumbnailSelector] Error capturing frame:', err);
+      if (err.name === 'SecurityError') {
+        alert('Cannot capture frame from this video due to security restrictions. Please upload a custom thumbnail image instead.');
+      } else {
+        alert('Failed to capture frame: ' + err.message);
+      }
+    }
   };
 
   // Handle file selection from input
@@ -232,17 +342,29 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
 
               {/* Video Preview */}
               <div className="relative bg-black rounded-lg overflow-hidden aspect-[9/16] max-h-[300px]">
-                <video
-                  ref={videoRef}
-                  src={videoSrc}
-                  className="w-full h-full object-contain"
-                  onLoadedMetadata={handleLoadedMetadata}
-                  onCanPlay={handleCanPlay}
-                  onSeeked={handleSeeked}
-                  muted
-                  playsInline
-                  preload="metadata"
-                />
+                {videoError ? (
+                  <div className="w-full h-full flex items-center justify-center text-dark-400 text-sm">
+                    <p>Video unavailable. Use the upload option instead.</p>
+                  </div>
+                ) : videoSrc ? (
+                  <video
+                    ref={videoRef}
+                    src={videoSrc}
+                    className="w-full h-full object-contain"
+                    onLoadedMetadata={handleLoadedMetadata}
+                    onCanPlay={handleCanPlay}
+                    onSeeked={handleSeeked}
+                    onError={handleVideoError}
+                    muted
+                    playsInline
+                    preload="auto"
+                    {...(useCrossOrigin ? { crossOrigin: 'anonymous' } : {})}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-dark-400 text-sm">
+                    <p>Loading video...</p>
+                  </div>
+                )}
               </div>
 
               {/* Hidden canvas for capturing frames */}

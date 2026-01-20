@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 // Local authentication
 router.post('/register', authController.register);
@@ -9,6 +10,7 @@ router.post('/login', authController.login);
 router.post('/logout', authenticate, authController.logout);
 router.get('/me', authenticate, authController.getCurrentUser);
 router.put('/profile', authenticate, authController.updateProfile);
+router.put('/avatar', authenticate, upload.single('avatar'), authController.uploadAvatar);
 
 // Google OAuth
 router.get('/google', authController.googleAuth);

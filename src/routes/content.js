@@ -20,6 +20,9 @@ router.delete('/:id', authenticate, contentController.deleteContent);
 // Thumbnail update
 router.put('/:id/thumbnail', authenticate, upload.single('thumbnail'), contentController.updateThumbnail);
 
+// Media update (for edited images)
+router.put('/:id/media', authenticate, upload.single('media'), contentController.updateMedia);
+
 // Version management
 router.post('/:id/versions', authenticate, upload.single('media'), contentController.addVersion);
 router.put('/:id/versions/:versionId/select', authenticate, contentController.selectVersion);

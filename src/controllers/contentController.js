@@ -2,6 +2,8 @@ const Content = require('../models/Content');
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs').promises;
+const cloudinaryService = require('../services/cloudinaryService');
+const { useCloudStorage, uploadDir, thumbnailDir } = require('../middleware/upload');
 
 // Create new content
 exports.createContent = async (req, res) => {
@@ -12,32 +14,79 @@ exports.createContent = async (req, res) => {
 
     const { title, caption, platform, mediaType } = req.body;
 
-    const mediaUrl = `/uploads/${req.file.filename}`;
+    let mediaUrl;
     let thumbnailUrl = null;
-
-    // Generate thumbnail for images
-    if (req.file.mimetype.startsWith('image/')) {
-      const thumbnailFilename = `thumb-${req.file.filename}`;
-      const thumbnailPath = path.join(__dirname, '../../uploads/thumbnails', thumbnailFilename);
-
-      await sharp(req.file.path)
-        .resize(400, 400, { fit: 'cover' })
-        .toFile(thumbnailPath);
-
-      thumbnailUrl = `/uploads/thumbnails/${thumbnailFilename}`;
-    }
-
-    // Get image metadata
     let metadata = {};
-    if (req.file.mimetype.startsWith('image/')) {
-      const imageMetadata = await sharp(req.file.path).metadata();
-      metadata = {
-        width: imageMetadata.width,
-        height: imageMetadata.height,
-        aspectRatio: `${imageMetadata.width}:${imageMetadata.height}`,
-        fileSize: req.file.size,
-        format: imageMetadata.format
-      };
+
+    // Check if using cloud storage (Cloudinary)
+    if (useCloudStorage()) {
+      // Upload to Cloudinary
+      const isImage = req.file.mimetype.startsWith('image/');
+      const isVideo = req.file.mimetype.startsWith('video/');
+
+      const uploadResult = await cloudinaryService.uploadBuffer(req.file.buffer, {
+        folder: isVideo ? 'postpanda/videos' : 'postpanda/images',
+        resourceType: isVideo ? 'video' : 'image',
+      });
+
+      mediaUrl = uploadResult.secure_url;
+
+      // Generate thumbnail for images
+      if (isImage) {
+        // Use Cloudinary transformation for thumbnail
+        thumbnailUrl = cloudinaryService.getOptimizedUrl(uploadResult.public_id, {
+          width: 400,
+          height: 400,
+          crop: 'fill',
+        });
+
+        metadata = {
+          width: uploadResult.width,
+          height: uploadResult.height,
+          aspectRatio: `${uploadResult.width}:${uploadResult.height}`,
+          fileSize: uploadResult.bytes,
+          format: uploadResult.format,
+          cloudinaryPublicId: uploadResult.public_id,
+        };
+      } else if (isVideo) {
+        // For videos, Cloudinary can auto-generate thumbnail
+        thumbnailUrl = uploadResult.secure_url.replace(/\.[^/.]+$/, '.jpg');
+        metadata = {
+          width: uploadResult.width,
+          height: uploadResult.height,
+          duration: uploadResult.duration,
+          fileSize: uploadResult.bytes,
+          format: uploadResult.format,
+          cloudinaryPublicId: uploadResult.public_id,
+        };
+      }
+    } else {
+      // Local storage fallback
+      mediaUrl = `/uploads/${req.file.filename}`;
+
+      // Generate thumbnail for images
+      if (req.file.mimetype.startsWith('image/')) {
+        const thumbnailFilename = `thumb-${req.file.filename}`;
+        const thumbnailPath = path.join(thumbnailDir, thumbnailFilename);
+
+        await sharp(req.file.path)
+          .resize(400, 400, { fit: 'cover' })
+          .toFile(thumbnailPath);
+
+        thumbnailUrl = `/uploads/thumbnails/${thumbnailFilename}`;
+      }
+
+      // Get image metadata
+      if (req.file.mimetype.startsWith('image/')) {
+        const imageMetadata = await sharp(req.file.path).metadata();
+        metadata = {
+          width: imageMetadata.width,
+          height: imageMetadata.height,
+          aspectRatio: `${imageMetadata.width}:${imageMetadata.height}`,
+          fileSize: req.file.size,
+          format: imageMetadata.format
+        };
+      }
     }
 
     const content = new Content({
@@ -76,21 +125,51 @@ exports.createReel = async (req, res) => {
 
     const { title, duration, width, height, isReel, recommendedType } = req.body;
 
-    const mediaUrl = `/uploads/${videoFile.filename}`;
+    let mediaUrl;
     let thumbnailUrl = null;
+    let cloudinaryPublicId = null;
+    let thumbnailCloudinaryId = null;
 
-    // Use the client-generated thumbnail if provided
-    if (thumbnailFile) {
-      // Move thumbnail to thumbnails directory
-      const thumbnailFilename = `thumb-${videoFile.filename.replace(/\.[^/.]+$/, '')}.jpg`;
-      const thumbnailPath = path.join(__dirname, '../../uploads/thumbnails', thumbnailFilename);
+    // Check if using cloud storage (Cloudinary)
+    if (useCloudStorage()) {
+      // Upload video to Cloudinary
+      const videoUploadResult = await cloudinaryService.uploadBuffer(videoFile.buffer, {
+        folder: 'postpanda/videos',
+        resourceType: 'video',
+      });
 
-      // Copy the uploaded thumbnail to the thumbnails directory
-      await fs.copyFile(thumbnailFile.path, thumbnailPath);
-      // Remove the original uploaded thumbnail from uploads directory
-      await fs.unlink(thumbnailFile.path);
+      mediaUrl = videoUploadResult.secure_url;
+      cloudinaryPublicId = videoUploadResult.public_id;
 
-      thumbnailUrl = `/uploads/thumbnails/${thumbnailFilename}`;
+      // Upload thumbnail to Cloudinary if provided
+      if (thumbnailFile) {
+        const thumbUploadResult = await cloudinaryService.uploadBuffer(thumbnailFile.buffer, {
+          folder: 'postpanda/thumbnails',
+          resourceType: 'image',
+        });
+        thumbnailUrl = thumbUploadResult.secure_url;
+        thumbnailCloudinaryId = thumbUploadResult.public_id;
+      } else {
+        // Use Cloudinary auto-generated video thumbnail
+        thumbnailUrl = videoUploadResult.secure_url.replace(/\.[^/.]+$/, '.jpg');
+      }
+    } else {
+      // Local storage fallback
+      mediaUrl = `/uploads/${videoFile.filename}`;
+
+      // Use the client-generated thumbnail if provided
+      if (thumbnailFile) {
+        // Move thumbnail to thumbnails directory
+        const thumbnailFilename = `thumb-${videoFile.filename.replace(/\.[^/.]+$/, '')}.jpg`;
+        const thumbnailPath = path.join(thumbnailDir, thumbnailFilename);
+
+        // Copy the uploaded thumbnail to the thumbnails directory
+        await fs.copyFile(thumbnailFile.path, thumbnailPath);
+        // Remove the original uploaded thumbnail from uploads directory
+        await fs.unlink(thumbnailFile.path);
+
+        thumbnailUrl = `/uploads/thumbnails/${thumbnailFilename}`;
+      }
     }
 
     // Parse metadata
@@ -99,7 +178,9 @@ exports.createReel = async (req, res) => {
       width: parseInt(width) || 0,
       height: parseInt(height) || 0,
       isReel: isReel === 'true' || isReel === true,
-      fileSize: videoFile.size
+      fileSize: videoFile.size,
+      cloudinaryPublicId,
+      thumbnailCloudinaryId,
     };
 
     const content = new Content({
@@ -226,28 +307,56 @@ exports.updateThumbnail = async (req, res) => {
       return res.status(404).json({ error: 'Content not found' });
     }
 
-    // Delete old thumbnail if exists
-    if (content.thumbnailUrl) {
-      try {
-        const oldThumbnailPath = path.join(__dirname, '../../uploads', content.thumbnailUrl.replace('/uploads/', ''));
-        await fs.unlink(oldThumbnailPath);
-      } catch (err) {
-        // Ignore error if old thumbnail doesn't exist
-        console.error('Could not delete old thumbnail:', err.message);
+    let thumbnailUrl;
+
+    // Check if using cloud storage (Cloudinary)
+    if (useCloudStorage()) {
+      // Delete old thumbnail from Cloudinary if it exists
+      if (content.metadata?.thumbnailCloudinaryId) {
+        try {
+          await cloudinaryService.deleteFile(content.metadata.thumbnailCloudinaryId);
+        } catch (err) {
+          console.error('Could not delete old Cloudinary thumbnail:', err.message);
+        }
       }
+
+      // Upload new thumbnail to Cloudinary
+      const uploadResult = await cloudinaryService.uploadBuffer(thumbnailFile.buffer, {
+        folder: 'postpanda/thumbnails',
+        resourceType: 'image',
+      });
+
+      thumbnailUrl = uploadResult.secure_url;
+      content.metadata = {
+        ...content.metadata,
+        thumbnailCloudinaryId: uploadResult.public_id,
+      };
+    } else {
+      // Local storage fallback
+      // Delete old thumbnail if exists
+      if (content.thumbnailUrl && !content.thumbnailUrl.includes('cloudinary')) {
+        try {
+          const oldThumbnailPath = path.join(__dirname, '../../uploads', content.thumbnailUrl.replace('/uploads/', ''));
+          await fs.unlink(oldThumbnailPath);
+        } catch (err) {
+          console.error('Could not delete old thumbnail:', err.message);
+        }
+      }
+
+      // Move new thumbnail to thumbnails directory
+      const thumbnailFilename = `thumb-${Date.now()}-${Math.round(Math.random() * 1E9)}.jpg`;
+      const thumbnailPath = path.join(thumbnailDir, thumbnailFilename);
+
+      // Copy the uploaded thumbnail to the thumbnails directory
+      await fs.copyFile(thumbnailFile.path, thumbnailPath);
+      // Remove the original uploaded file from uploads directory
+      await fs.unlink(thumbnailFile.path);
+
+      thumbnailUrl = `/uploads/thumbnails/${thumbnailFilename}`;
     }
 
-    // Move new thumbnail to thumbnails directory
-    const thumbnailFilename = `thumb-${Date.now()}-${Math.round(Math.random() * 1E9)}.jpg`;
-    const thumbnailPath = path.join(__dirname, '../../uploads/thumbnails', thumbnailFilename);
-
-    // Copy the uploaded thumbnail to the thumbnails directory
-    await fs.copyFile(thumbnailFile.path, thumbnailPath);
-    // Remove the original uploaded file from uploads directory
-    await fs.unlink(thumbnailFile.path);
-
     // Update content with new thumbnail URL
-    content.thumbnailUrl = `/uploads/thumbnails/${thumbnailFilename}`;
+    content.thumbnailUrl = thumbnailUrl;
     await content.save();
 
     res.json({
@@ -257,6 +366,92 @@ exports.updateThumbnail = async (req, res) => {
   } catch (error) {
     console.error('Update thumbnail error:', error);
     res.status(500).json({ error: 'Failed to update thumbnail' });
+  }
+};
+
+// Update media (edited image) for content
+exports.updateMedia = async (req, res) => {
+  try {
+    const mediaFile = req.file;
+
+    if (!mediaFile) {
+      return res.status(400).json({ error: 'Media file required' });
+    }
+
+    const content = await Content.findOne({ _id: req.params.id, userId: req.userId });
+    if (!content) {
+      return res.status(404).json({ error: 'Content not found' });
+    }
+
+    let mediaUrl;
+    let thumbnailUrl = content.thumbnailUrl;
+
+    // Check if using cloud storage (Cloudinary)
+    if (useCloudStorage()) {
+      // Upload new media to Cloudinary
+      const isImage = mediaFile.mimetype.startsWith('image/');
+      const uploadResult = await cloudinaryService.uploadBuffer(mediaFile.buffer, {
+        folder: isImage ? 'postpanda/images' : 'postpanda/videos',
+        resourceType: isImage ? 'image' : 'video',
+      });
+
+      mediaUrl = uploadResult.secure_url;
+
+      // Generate new thumbnail for images
+      if (isImage) {
+        thumbnailUrl = cloudinaryService.getOptimizedUrl(uploadResult.public_id, {
+          width: 400,
+          height: 400,
+          crop: 'fill',
+        });
+      }
+
+      // Update metadata with new Cloudinary ID
+      content.metadata = {
+        ...content.metadata,
+        cloudinaryPublicId: uploadResult.public_id,
+        width: uploadResult.width,
+        height: uploadResult.height,
+        fileSize: uploadResult.bytes,
+      };
+    } else {
+      // Local storage fallback
+      mediaUrl = `/uploads/${mediaFile.filename}`;
+
+      // Generate new thumbnail for images
+      if (mediaFile.mimetype.startsWith('image/')) {
+        const thumbnailFilename = `thumb-${mediaFile.filename}`;
+        const thumbnailPath = path.join(thumbnailDir, thumbnailFilename);
+
+        await sharp(mediaFile.path)
+          .resize(400, 400, { fit: 'cover' })
+          .toFile(thumbnailPath);
+
+        thumbnailUrl = `/uploads/thumbnails/${thumbnailFilename}`;
+
+        // Get updated metadata
+        const imageMetadata = await sharp(mediaFile.path).metadata();
+        content.metadata = {
+          ...content.metadata,
+          width: imageMetadata.width,
+          height: imageMetadata.height,
+          fileSize: mediaFile.size,
+        };
+      }
+    }
+
+    // Update content with new media URL
+    content.mediaUrl = mediaUrl;
+    content.thumbnailUrl = thumbnailUrl;
+    await content.save();
+
+    res.json({
+      message: 'Media updated successfully',
+      content
+    });
+  } catch (error) {
+    console.error('Update media error:', error);
+    res.status(500).json({ error: 'Failed to update media' });
   }
 };
 

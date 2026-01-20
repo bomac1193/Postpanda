@@ -33,6 +33,14 @@ const userSchema = new mongoose.Schema({
   avatar: {
     type: String
   },
+  avatarPosition: {
+    type: Object,
+    default: { x: 0, y: 0 }
+  },
+  avatarZoom: {
+    type: Number,
+    default: 1
+  },
   bio: {
     type: String,
     maxlength: 500

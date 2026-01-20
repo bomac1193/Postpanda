@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Canvas, FabricImage, filters } from 'fabric';
 import { useAppStore } from '../stores/useAppStore';
 import { useEditorStore } from '../stores/useAppStore';
+import { contentApi } from '../lib/api';
 import {
   RotateCw,
   RotateCcw,
@@ -25,6 +26,7 @@ import {
   RectangleVertical,
   RectangleHorizontal,
   Smartphone,
+  Loader2,
 } from 'lucide-react';
 
 // Filter presets
@@ -298,17 +300,48 @@ function QuickEditor() {
     link.click();
   }, []);
 
-  // Save to post
+  // Save to post (uploads to backend for persistence)
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
   const handleSave = useCallback(async () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !selectedPostId) return;
 
-    const dataUrl = canvas.toDataURL({
-      format: 'png',
-      quality: 1,
-    });
+    setIsSaving(true);
+    setSaveError(null);
 
-    updatePost(selectedPostId, { image: dataUrl });
+    try {
+      const dataUrl = canvas.toDataURL({
+        format: 'png',
+        quality: 1,
+      });
+
+      // Upload edited image to backend for persistence
+      const result = await contentApi.updateMediaFromDataUrl(selectedPostId, dataUrl, `edited-${selectedPostId}.png`);
+
+      // Update local state with the new URL from the backend
+      if (result.content) {
+        updatePost(selectedPostId, {
+          image: result.content.mediaUrl,
+          thumbnailUrl: result.content.thumbnailUrl,
+        });
+      }
+
+      console.log('Image saved successfully to backend');
+    } catch (error) {
+      console.error('Failed to save image to backend:', error);
+      setSaveError('Failed to save. Please try again.');
+
+      // Fallback: at least save to local state so user doesn't lose work
+      const dataUrl = canvas.toDataURL({
+        format: 'png',
+        quality: 1,
+      });
+      updatePost(selectedPostId, { image: dataUrl });
+    } finally {
+      setIsSaving(false);
+    }
   }, [selectedPostId, updatePost]);
 
   return (
@@ -373,11 +406,23 @@ function QuickEditor() {
             <button
               onClick={handleSave}
               className="btn-primary"
-              disabled={!selectedPostId}
+              disabled={!selectedPostId || isSaving}
             >
-              <Check className="w-4 h-4" />
-              <span>Save</span>
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Save</span>
+                </>
+              )}
             </button>
+            {saveError && (
+              <span className="text-red-400 text-sm">{saveError}</span>
+            )}
           </div>
         </div>
 

@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { User, Upload, ZoomIn, ZoomOut, X, Check, Camera, RotateCcw, Save, GripVertical, Replace, Layers, Trash2, Eye, EyeOff, Play } from 'lucide-react';
+import { User, Upload, ZoomIn, ZoomOut, X, Check, Camera, RotateCcw, Save, GripVertical, Replace, Layers, Trash2, Eye, EyeOff, Play, ChevronDown, FolderPlus, Pencil, LayoutGrid, Loader2 } from 'lucide-react';
 import { setInternalDragActive } from '../../utils/dragState';
 import { generateVideoThumbnail, formatDuration } from '../../utils/videoUtils';
-import { contentApi, gridApi } from '../../lib/api';
+import { contentApi, gridApi, reelCollectionApi } from '../../lib/api';
 import api from '../../lib/api';
 import ReelPlayer from './ReelPlayer';
 import ReelThumbnailSelector from './ReelThumbnailSelector';
@@ -564,6 +564,129 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   const [uploadingReel, setUploadingReel] = useState(false);
   const videoDragCounterRef = useRef(0);
 
+  // Reel Collections state
+  const reelCollections = useAppStore((state) => state.reelCollections);
+  const setReelCollections = useAppStore((state) => state.setReelCollections);
+  const addReelCollection = useAppStore((state) => state.addReelCollection);
+  const updateReelCollection = useAppStore((state) => state.updateReelCollection);
+  const deleteReelCollection = useAppStore((state) => state.deleteReelCollection);
+  const currentReelCollectionId = useAppStore((state) => state.currentReelCollectionId);
+  const setCurrentReelCollection = useAppStore((state) => state.setCurrentReelCollection);
+  const [showReelCollectionSelector, setShowReelCollectionSelector] = useState(false);
+  const [editingReelCollectionId, setEditingReelCollectionId] = useState(null);
+  const [editingReelCollectionName, setEditingReelCollectionName] = useState('');
+  const [showDeleteReelCollectionConfirm, setShowDeleteReelCollectionConfirm] = useState(null);
+  const [isLoadingCollections, setIsLoadingCollections] = useState(true);
+
+  // Fetch reel collections on mount (always fetch fresh data to ensure populated content)
+  useEffect(() => {
+    const fetchReelCollections = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setIsLoadingCollections(false);
+        return;
+      }
+      try {
+        console.log('[Instagram] Fetching fresh collections from backend...');
+        setIsLoadingCollections(true);
+        const collections = await reelCollectionApi.getAll(); // Get all collections with populated contentId
+        console.log('[Instagram] Fetched collections:', collections.length);
+        if (collections.length > 0) {
+          console.log('[Instagram] First collection reels:', collections[0]?.reels?.length);
+        }
+        setReelCollections(collections);
+      } catch (err) {
+        console.error('Failed to fetch reel collections:', err);
+      } finally {
+        setIsLoadingCollections(false);
+      }
+    };
+    // Always fetch fresh data on mount to ensure contentId is populated
+    fetchReelCollections();
+  }, [setReelCollections]);
+
+  // Filter collections for Instagram platform
+  const instagramCollections = reelCollections.filter(c => c.platform === 'instagram' || c.platform === 'both');
+
+  // Auto-select first Instagram collection if none selected
+  useEffect(() => {
+    if (instagramCollections.length > 0 && !currentReelCollectionId) {
+      setCurrentReelCollection(instagramCollections[0]._id);
+    }
+  }, [instagramCollections.length, currentReelCollectionId, setCurrentReelCollection]);
+
+  // Get current reel collection (must be an instagram collection)
+  // If current selection isn't an instagram collection, fall back to first instagram collection
+  let currentReelCollection = instagramCollections.find(c => (c._id || c.id) === currentReelCollectionId);
+  if (!currentReelCollection && instagramCollections.length > 0) {
+    currentReelCollection = instagramCollections[0];
+  }
+
+  // Reel collection handlers
+  const handleCreateReelCollection = async () => {
+    try {
+      const collection = await reelCollectionApi.create({
+        name: `Reels ${instagramCollections.length + 1}`,
+        platform: 'instagram'
+      });
+      addReelCollection(collection);
+      setCurrentReelCollection(collection._id);
+      setShowReelCollectionSelector(false);
+    } catch (err) {
+      console.error('Failed to create reel collection:', err);
+    }
+  };
+
+  const handleSelectReelCollection = (collection) => {
+    setCurrentReelCollection(collection._id || collection.id);
+    setShowReelCollectionSelector(false);
+  };
+
+  const handleStartRenameReelCollection = (e, collection) => {
+    e.stopPropagation();
+    setEditingReelCollectionId(collection._id || collection.id);
+    setEditingReelCollectionName(collection.name);
+  };
+
+  const handleSaveRenameReelCollection = async (e, collectionId) => {
+    e.stopPropagation();
+    if (!editingReelCollectionName.trim()) {
+      setEditingReelCollectionId(null);
+      return;
+    }
+    try {
+      await reelCollectionApi.update(collectionId, { name: editingReelCollectionName.trim() });
+      updateReelCollection(collectionId, { name: editingReelCollectionName.trim() });
+      setEditingReelCollectionId(null);
+    } catch (err) {
+      console.error('Failed to rename reel collection:', err);
+    }
+  };
+
+  const handleCancelRenameReelCollection = (e) => {
+    e.stopPropagation();
+    setEditingReelCollectionId(null);
+    setEditingReelCollectionName('');
+  };
+
+  const handleDeleteReelCollection = async (e, collectionId) => {
+    e.stopPropagation();
+    try {
+      await reelCollectionApi.delete(collectionId);
+      deleteReelCollection(collectionId);
+      // Select another Instagram collection if we deleted the current one
+      if (currentReelCollectionId === collectionId && instagramCollections.length > 1) {
+        const remaining = instagramCollections.filter(c => (c._id || c.id) !== collectionId);
+        if (remaining.length > 0) {
+          setCurrentReelCollection(remaining[0]._id || remaining[0].id);
+        }
+      }
+      setShowDeleteReelCollectionConfirm(null);
+    } catch (err) {
+      console.error('Failed to delete reel collection:', err);
+    }
+  };
+
   // Reel player, editor, and thumbnail selector state
   const [selectedReel, setSelectedReel] = useState(null);
   const [showReelPlayer, setShowReelPlayer] = useState(false);
@@ -572,10 +695,30 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   const [pendingReelUpload, setPendingReelUpload] = useState(null); // Stores video file for thumbnail selection after upload
   const [reelRowDragActiveId, setReelRowDragActiveId] = useState(null);
 
+  // Get reels for current collection only (populated contentId objects)
+  // Handle both populated objects and raw ObjectId strings
+  const collectionReels = currentReelCollection?.reels
+    ?.map(r => {
+      // If contentId is a populated object with mediaUrl, return it
+      if (r.contentId && typeof r.contentId === 'object' && r.contentId.mediaUrl) {
+        return r.contentId;
+      }
+      return null;
+    })
+    ?.filter(Boolean) || [];
+
+  // Debug logging
+  if (currentReelCollection) {
+    console.log('[Instagram Display] Current collection:', currentReelCollection.name, 'ID:', currentReelCollection._id);
+    console.log('[Instagram Display] Raw reels array:', currentReelCollection.reels);
+    console.log('[Instagram Display] First reel contentId type:', typeof currentReelCollection.reels?.[0]?.contentId);
+    console.log('[Instagram Display] Mapped reels count:', collectionReels.length);
+  }
+
   // Group reels into rows of 3
   const reelRows = [];
-  for (let i = 0; i < reels.length; i += 3) {
-    reelRows.push(reels.slice(i, i + 3));
+  for (let i = 0; i < collectionReels.length; i += 3) {
+    reelRows.push(collectionReels.slice(i, i + 3));
   }
   const reelRowIds = reelRows.map((_, index) => `reel-row-${index}`);
 
@@ -665,10 +808,12 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
     setSelectedItemId(null);
   }, []);
 
-  // Video drag handlers for Reels tab
+  // Video drag handlers for Reels tab - stop propagation to prevent GridPlanner from handling
   const handleVideoDragEnter = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     videoDragCounterRef.current++;
+    console.log('[Instagram Drag] Enter - counter:', videoDragCounterRef.current, 'types:', e.dataTransfer?.types);
     if (e.dataTransfer?.types?.includes('Files')) {
       setIsVideoDragOver(true);
     }
@@ -676,11 +821,13 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
 
   const handleVideoDragOver = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = 'copy';
   };
 
   const handleVideoDragLeave = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     videoDragCounterRef.current--;
     if (videoDragCounterRef.current === 0) {
       setIsVideoDragOver(false);
@@ -689,6 +836,8 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
 
   const handleVideoDrop = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    console.log('[Instagram Drop] Drop event received');
     setIsVideoDragOver(false);
     videoDragCounterRef.current = 0;
 
@@ -712,10 +861,13 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
 
     try {
       // Generate initial thumbnail
+      console.log('[Instagram Drop] Generating thumbnail...');
       const { thumbnailBlob, duration, width, height, isVertical } =
         await generateVideoThumbnail(videoFile);
+      console.log('[Instagram Drop] Thumbnail generated:', { duration, width, height, isVertical });
 
       // Upload video with thumbnail
+      console.log('[Instagram Drop] Uploading to server...');
       const result = await contentApi.uploadReel(videoFile, thumbnailBlob, {
         title: videoFile.name.replace(/\.[^/.]+$/, ''),
         mediaType: 'video',
@@ -725,19 +877,67 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
         isReel: true,
         recommendedType: isVertical ? 'reel' : 'video'
       });
+      console.log('[Instagram Drop] Upload response:', result);
 
       // Add to reels state - the response contains both message and content
       const uploadedReel = result.content || result;
+      console.log('[Instagram Drop] Uploaded reel ID:', uploadedReel._id || uploadedReel.id);
+      console.log('[Instagram Drop] Uploaded reel mediaUrl:', uploadedReel.mediaUrl);
       addReel(uploadedReel);
 
+      // Add reel to current collection - use the displayed collection (with fallback) or create one
+      // Get the currently displayed collection (same logic as display)
+      const displayedInstaCollections = reelCollections.filter(c => c.platform === 'instagram' || c.platform === 'both');
+      let targetCollection = displayedInstaCollections.find(c => (c._id || c.id) === currentReelCollectionId);
+      if (!targetCollection && displayedInstaCollections.length > 0) {
+        targetCollection = displayedInstaCollections[0];
+      }
+
+      let collectionId = targetCollection?._id || targetCollection?.id;
+      console.log('[Instagram Upload] Target collection:', targetCollection?.name, 'ID:', collectionId);
+
+      // If no collection exists, create one first
+      if (!collectionId) {
+        console.log('[Instagram Upload] No collection exists, creating new one...');
+        try {
+          const newCollection = await reelCollectionApi.create({
+            name: `Reels ${displayedInstaCollections.length + 1}`,
+            platform: 'instagram'
+          });
+          addReelCollection(newCollection);
+          setCurrentReelCollection(newCollection._id);
+          collectionId = newCollection._id;
+        } catch (createErr) {
+          console.error('Failed to create collection:', createErr);
+        }
+      }
+
+      // Now add the reel to the collection
+      if (collectionId) {
+        try {
+          const updatedCollection = await reelCollectionApi.addReel(collectionId, uploadedReel._id || uploadedReel.id);
+          // Update the collection in state so the video shows immediately
+          updateReelCollection(collectionId, updatedCollection);
+
+          // Also refetch all collections to ensure state is synced
+          const freshCollections = await reelCollectionApi.getAll();
+          setReelCollections(freshCollections);
+        } catch (collErr) {
+          console.error('Failed to add reel to collection:', collErr);
+        }
+      }
+
       // Show thumbnail selector for the newly uploaded reel
+      console.log('[Instagram Upload] SUCCESS! Reel uploaded and added to collection. Opening thumbnail selector...');
       setSelectedReel(uploadedReel);
       setPendingReelUpload(videoFile);
       setShowThumbnailSelector(true);
     } catch (err) {
-      console.error('Reel upload failed:', err);
+      console.error('[Instagram Upload] Reel upload failed:', err);
       if (err.response?.status === 401) {
         alert('Please log in to upload reels');
+      } else {
+        alert('Upload failed: ' + (err.response?.data?.error || err.message));
       }
     } finally {
       setUploadingReel(false);
@@ -878,7 +1078,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   };
 
   // Handle saving thumbnail
-  const handleSaveThumbnail = async (thumbnailBlob, thumbnailUrl) => {
+  const handleSaveThumbnail = async (thumbnailBlob) => {
     if (!selectedReel) return;
 
     const reelId = selectedReel._id || selectedReel.id;
@@ -888,14 +1088,17 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
       const formData = new FormData();
       formData.append('thumbnail', thumbnailBlob, 'thumbnail.jpg');
 
-      await api.put(`/api/content/${reelId}/thumbnail`, formData, {
+      const response = await api.put(`/api/content/${reelId}/thumbnail`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+
+      // Use the server-returned URL instead of local data URL
+      const serverThumbnailUrl = response.data.content?.thumbnailUrl || response.data.thumbnailUrl;
 
       // Update the reel in local state
       const updatedReels = reels.map(r =>
         (r._id || r.id) === reelId
-          ? { ...r, thumbnailUrl: thumbnailUrl }
+          ? { ...r, thumbnailUrl: serverThumbnailUrl }
           : r
       );
       setReels(updatedReels);
@@ -1145,10 +1348,12 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   // Avatar editor state
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [tempImage, setTempImage] = useState(null);
+  const [tempImageFile, setTempImageFile] = useState(null); // Store the actual file for upload
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Edit profile state
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -1220,10 +1425,13 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image must be less than 5MB');
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Image must be less than 15MB');
       return;
     }
+
+    // Store the file for upload
+    setTempImageFile(file);
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -1291,28 +1499,65 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
     setIsDragging(false);
   };
 
-  // Save avatar non-destructively (original image + position/zoom settings)
-  const handleSave = () => {
+  // Save avatar - upload to cloud and persist
+  const handleSave = async () => {
     if (!tempImage) {
       setShowAvatarModal(false);
       return;
     }
 
-    // Save the original image with position/zoom settings (non-destructive)
-    setUser({
-      ...user,
-      avatar: tempImage, // Store original image
-      avatarPosition: position,
-      avatarZoom: zoom
-    });
+    setIsUploadingAvatar(true);
 
-    setShowAvatarModal(false);
+    try {
+      let avatarUrl = tempImage;
+
+      // If we have a new file, upload it to the server
+      if (tempImageFile) {
+        const formData = new FormData();
+        formData.append('avatar', tempImageFile);
+
+        const response = await api.put('/api/auth/avatar', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        avatarUrl = response.data.avatar;
+        console.log('Avatar uploaded successfully:', avatarUrl);
+      }
+
+      // Save the avatar URL with position/zoom settings
+      const avatarData = {
+        avatar: avatarUrl,
+        avatarPosition: position,
+        avatarZoom: zoom
+      };
+
+      // Update position/zoom on server
+      await api.put('/api/auth/profile', {
+        avatarPosition: position,
+        avatarZoom: zoom
+      });
+
+      // Update local state
+      setUser({
+        ...user,
+        ...avatarData
+      });
+
+      setShowAvatarModal(false);
+      setTempImageFile(null);
+    } catch (err) {
+      console.error('Failed to save avatar:', err);
+      alert('Failed to upload avatar. Please try again.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   // Cancel and close modal
   const handleCancel = () => {
     setShowAvatarModal(false);
     setTempImage(null);
+    setTempImageFile(null);
     setPosition({ x: 0, y: 0 });
     setZoom(1);
   };
@@ -1500,7 +1745,13 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   };
 
   return (
-    <div className="max-w-md mx-auto bg-dark-800 rounded-2xl overflow-hidden border border-dark-700">
+    <div
+      className="max-w-md mx-auto bg-dark-800 rounded-2xl overflow-hidden border border-dark-700"
+      onDragEnter={handleVideoDragEnter}
+      onDragOver={handleVideoDragOver}
+      onDragLeave={handleVideoDragLeave}
+      onDrop={handleVideoDrop}
+    >
       {/* Top Bar - Username with Verified Badge (like Instagram) */}
       <div className="flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-1">
@@ -1877,8 +2128,132 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
             </div>
           )}
 
+          {/* Reel Collection Selector */}
+          <div className="px-4 py-3 border-b border-dark-700">
+            <div className="relative">
+              <button
+                onClick={() => setShowReelCollectionSelector(!showReelCollectionSelector)}
+                className="flex items-center gap-2 px-3 py-2 bg-dark-700 rounded-lg text-dark-200 hover:bg-dark-600 transition-colors w-full"
+              >
+                <LayoutGrid className="w-4 h-4 text-accent-purple" />
+                <span className="text-sm flex-1 text-left truncate">
+                  {currentReelCollection?.name || 'Select Collection'}
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showReelCollectionSelector ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showReelCollectionSelector && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-dark-700 rounded-lg shadow-xl border border-dark-600 z-20">
+                  <div className="p-2 border-b border-dark-600">
+                    <p className="text-xs text-dark-400 uppercase tracking-wide">Reel Collections ({instagramCollections.length})</p>
+                  </div>
+                  <div className="max-h-48 overflow-auto">
+                    {instagramCollections.map((collection) => (
+                      <div
+                        key={collection._id || collection.id}
+                        className={`group relative ${
+                          currentReelCollectionId === (collection._id || collection.id)
+                            ? 'bg-accent-purple/20'
+                            : 'hover:bg-dark-600'
+                        }`}
+                      >
+                        {editingReelCollectionId === (collection._id || collection.id) ? (
+                          <div className="px-3 py-2 flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editingReelCollectionName}
+                              onChange={(e) => setEditingReelCollectionName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveRenameReelCollection(e, collection._id || collection.id);
+                                if (e.key === 'Escape') handleCancelRenameReelCollection(e);
+                              }}
+                              className="flex-1 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-dark-100 focus:outline-none focus:border-accent-purple"
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <button
+                              onClick={(e) => handleSaveRenameReelCollection(e, collection._id || collection.id)}
+                              className="p-1 text-green-400 hover:bg-dark-500 rounded"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={handleCancelRenameReelCollection}
+                              className="p-1 text-dark-400 hover:bg-dark-500 rounded"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : showDeleteReelCollectionConfirm === (collection._id || collection.id) ? (
+                          <div className="px-3 py-2">
+                            <p className="text-sm text-dark-200 mb-2">Delete "{collection.name}"?</p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={(e) => handleDeleteReelCollection(e, collection._id || collection.id)}
+                                className="flex-1 px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDeleteReelCollectionConfirm(null); }}
+                                className="flex-1 px-2 py-1 text-xs bg-dark-600 text-dark-300 rounded hover:bg-dark-500"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleSelectReelCollection(collection)}
+                            className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors ${
+                              currentReelCollectionId === (collection._id || collection.id)
+                                ? 'text-accent-purple'
+                                : 'text-dark-200'
+                            }`}
+                          >
+                            <LayoutGrid className="w-4 h-4 flex-shrink-0" />
+                            <span className="flex-1 truncate">{collection.name}</span>
+                            <span className="text-xs text-dark-500 mr-1">
+                              {collection.reels?.length || 0}
+                            </span>
+                            <div className="hidden group-hover:flex items-center gap-1">
+                              <button
+                                onClick={(e) => handleStartRenameReelCollection(e, collection)}
+                                className="p-1 text-dark-400 hover:text-accent-purple hover:bg-dark-500 rounded"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowDeleteReelCollectionConfirm(collection._id || collection.id); }}
+                                className="p-1 text-dark-400 hover:text-red-400 hover:bg-dark-500 rounded"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {instagramCollections.length === 0 && (
+                      <p className="px-3 py-4 text-sm text-dark-400 text-center">No collections yet</p>
+                    )}
+                  </div>
+                  <div className="p-2 border-t border-dark-600">
+                    <button
+                      onClick={handleCreateReelCollection}
+                      className="w-full px-3 py-2 text-sm text-accent-purple hover:bg-dark-600 rounded-md flex items-center gap-2"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      Create New Collection
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Reels Grid with Row Drag and Drop */}
-          {!uploadingReel && reels.length > 0 && (
+          {!uploadingReel && collectionReels.length > 0 && (
             <DndContext
               sensors={reelRowSensors}
               collisionDetection={closestCenter}
@@ -1949,14 +2324,23 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
           )}
 
           {/* Empty State */}
-          {!uploadingReel && reels.length === 0 && !isVideoDragOver && (
+          {!uploadingReel && collectionReels.length === 0 && !isVideoDragOver && (
             <div className="py-16 text-center">
               <svg className="w-16 h-16 text-dark-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="text-dark-400 text-lg font-medium mt-3">No Reels Yet</p>
-              <p className="text-dark-500 text-sm">Drag a video here to upload</p>
+              {currentReelCollection ? (
+                <>
+                  <p className="text-dark-400 text-lg font-medium mt-3">No Reels Yet</p>
+                  <p className="text-dark-500 text-sm">Drag a video here to upload to "{currentReelCollection.name}"</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-dark-400 text-lg font-medium mt-3">No Collection Selected</p>
+                  <p className="text-dark-500 text-sm">Create a collection first using the dropdown above</p>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -2090,10 +2474,19 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
               <button
                 onClick={handleSave}
                 className="flex-1 btn-primary"
-                disabled={!tempImage}
+                disabled={!tempImage || isUploadingAvatar}
               >
-                <Check className="w-4 h-4" />
-                Save
+                {isUploadingAvatar ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Save
+                  </>
+                )}
               </button>
             </div>
           </div>

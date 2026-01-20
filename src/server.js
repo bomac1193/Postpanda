@@ -24,6 +24,7 @@ const workspaceRoutes = require('./routes/workspace');
 const approvalRoutes = require('./routes/approval');
 const youtubeRoutes = require('./routes/youtube');
 const rolloutRoutes = require('./routes/rollout');
+const reelCollectionRoutes = require('./routes/reelCollection');
 const schedulingService = require('./services/schedulingService');
 
 // Connect to MongoDB
@@ -94,6 +95,7 @@ app.use('/api/workspace', workspaceRoutes);
 app.use('/api/approval', approvalRoutes);
 app.use('/api/youtube', youtubeRoutes);
 app.use('/api/rollout', rolloutRoutes);
+app.use('/api/reel-collections', reelCollectionRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -68,6 +68,23 @@ export const authApi = {
     const { data } = await api.put('/api/auth/profile', profileData);
     return data;
   },
+
+  async uploadAvatar(file) {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const { data } = await api.put('/api/auth/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  async uploadAvatarFromDataUrl(dataUrl, filename = 'avatar.png') {
+    // Convert data URL to blob
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    const file = new File([blob], filename, { type: blob.type || 'image/png' });
+    return this.uploadAvatar(file);
+  },
 };
 
 // YouTube API
@@ -227,6 +244,28 @@ export const contentApi = {
   async addVersion(id, versionData) {
     const { data } = await api.post(`/api/content/${id}/versions`, versionData);
     return data;
+  },
+
+  async updateMedia(id, file) {
+    const formData = new FormData();
+    formData.append('media', file);
+
+    const { data } = await api.put(`/api/content/${id}/media`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  async updateMediaFromBlob(id, blob, filename = 'edited-image.png') {
+    const file = new File([blob], filename, { type: blob.type || 'image/png' });
+    return this.updateMedia(id, file);
+  },
+
+  async updateMediaFromDataUrl(id, dataUrl, filename = 'edited-image.png') {
+    // Convert data URL to blob
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    return this.updateMediaFromBlob(id, blob, filename);
   },
 };
 
@@ -422,6 +461,54 @@ export const platformApi = {
   async refreshToken(platform) {
     const { data } = await api.post(`/api/auth/${platform}/refresh`);
     return data;
+  },
+};
+
+// Reel Collection API
+export const reelCollectionApi = {
+  async getAll(platform) {
+    const params = platform ? { platform } : {};
+    const { data } = await api.get('/api/reel-collections', { params });
+    return data.collections || [];
+  },
+
+  async get(id) {
+    const { data } = await api.get(`/api/reel-collections/${id}`);
+    return data.collection;
+  },
+
+  async create(collectionData) {
+    const { data } = await api.post('/api/reel-collections', collectionData);
+    return data.collection;
+  },
+
+  async update(id, updates) {
+    const { data } = await api.put(`/api/reel-collections/${id}`, updates);
+    return data.collection;
+  },
+
+  async delete(id) {
+    await api.delete(`/api/reel-collections/${id}`);
+  },
+
+  async addReel(collectionId, contentId) {
+    const { data } = await api.post(`/api/reel-collections/${collectionId}/reel`, { contentId });
+    return data.collection;
+  },
+
+  async removeReel(collectionId, contentId) {
+    const { data } = await api.delete(`/api/reel-collections/${collectionId}/reel`, { data: { contentId } });
+    return data.collection;
+  },
+
+  async reorderReels(collectionId, reelIds) {
+    const { data } = await api.post(`/api/reel-collections/${collectionId}/reorder`, { reelIds });
+    return data.collection;
+  },
+
+  async bulkAddReels(collectionId, contentIds) {
+    const { data } = await api.post(`/api/reel-collections/${collectionId}/bulk-add`, { contentIds });
+    return data.collection;
   },
 };
 
