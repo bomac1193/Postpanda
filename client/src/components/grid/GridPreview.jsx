@@ -698,11 +698,18 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   // Get reels for current collection only (populated contentId objects)
   // Handle both populated objects and raw ObjectId strings
   const collectionReels = currentReelCollection?.reels
-    ?.map(r => {
+    ?.map((r, index) => {
       // If contentId is a populated object with mediaUrl, return it
       if (r.contentId && typeof r.contentId === 'object' && r.contentId.mediaUrl) {
         return r.contentId;
       }
+      // Log why this reel is being skipped
+      console.log(`[Instagram Display] Skipping reel ${index}:`, {
+        hasContentId: !!r.contentId,
+        contentIdType: typeof r.contentId,
+        hasMediaUrl: r.contentId?.mediaUrl ? 'yes' : 'no',
+        contentId: r.contentId
+      });
       return null;
     })
     ?.filter(Boolean) || [];
@@ -710,9 +717,11 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   // Debug logging
   if (currentReelCollection) {
     console.log('[Instagram Display] Current collection:', currentReelCollection.name, 'ID:', currentReelCollection._id);
-    console.log('[Instagram Display] Raw reels array:', currentReelCollection.reels);
-    console.log('[Instagram Display] First reel contentId type:', typeof currentReelCollection.reels?.[0]?.contentId);
-    console.log('[Instagram Display] Mapped reels count:', collectionReels.length);
+    console.log('[Instagram Display] Total reels in collection:', currentReelCollection.reels?.length || 0);
+    console.log('[Instagram Display] Displayable reels (with mediaUrl):', collectionReels.length);
+    if (currentReelCollection.reels?.length !== collectionReels.length) {
+      console.warn('[Instagram Display] WARNING: Some reels are not displayable!');
+    }
   }
 
   // Group reels into rows of 3
@@ -985,18 +994,61 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   };
 
   // Handle reordering reels by dragging
-  const handleReelReorder = (sourceId, targetId) => {
+  const handleReelReorder = async (sourceId, targetId) => {
     if (!sourceId || !targetId || sourceId === targetId) return;
+    if (!currentReelCollection) return;
 
-    const sourceIndex = reels.findIndex(r => (r._id || r.id) === sourceId);
-    const targetIndex = reels.findIndex(r => (r._id || r.id) === targetId);
+    const collectionId = currentReelCollection._id || currentReelCollection.id;
+    const currentReels = currentReelCollection.reels || [];
 
-    if (sourceIndex === -1 || targetIndex === -1) return;
+    // Normalize IDs to strings for comparison
+    const normalizeId = (id) => (id?._id || id?.id || id || '').toString();
+    const sourceIdStr = normalizeId(sourceId);
+    const targetIdStr = normalizeId(targetId);
 
-    // Swap the reels and persist order atomically
-    const newReels = [...reels];
+    console.log('[Instagram Reorder] Starting reorder:', { sourceId: sourceIdStr, targetId: targetIdStr });
+    console.log('[Instagram Reorder] Current reels count:', currentReels.length);
+
+    // Find indices in the collection's reels array
+    const sourceIndex = currentReels.findIndex(r => {
+      const contentIdStr = normalizeId(r.contentId);
+      return contentIdStr === sourceIdStr;
+    });
+    const targetIndex = currentReels.findIndex(r => {
+      const contentIdStr = normalizeId(r.contentId);
+      return contentIdStr === targetIdStr;
+    });
+
+    if (sourceIndex === -1 || targetIndex === -1) {
+      console.error('[Instagram Reorder] Could not find reels in collection:', { sourceId, targetId, sourceIndex, targetIndex });
+      return;
+    }
+
+    // Create new reels array with swapped positions
+    const newReels = [...currentReels];
     [newReels[sourceIndex], newReels[targetIndex]] = [newReels[targetIndex], newReels[sourceIndex]];
-    reorderReels(newReels);
+
+    // Update local state immediately for instant UI feedback
+    const updatedCollection = { ...currentReelCollection, reels: newReels };
+    updateReelCollection(collectionId, updatedCollection);
+    console.log('[Instagram Reorder] Local state updated, swapped:', sourceIndex, '<->', targetIndex);
+
+    // Persist to backend and update with returned data
+    try {
+      const reelIds = newReels.map(r => normalizeId(r.contentId));
+      console.log('[Instagram Reorder] Sending reelIds to backend:', reelIds);
+      const returnedCollection = await reelCollectionApi.reorderReels(collectionId, reelIds);
+      console.log('[Instagram Reorder] Backend returned collection with', returnedCollection?.reels?.length, 'reels');
+      // Update with the populated collection from backend
+      if (returnedCollection) {
+        updateReelCollection(collectionId, returnedCollection);
+      }
+    } catch (err) {
+      console.error('[Instagram Reorder] Failed to persist:', err);
+      console.error('[Instagram Reorder] Error details:', err.response?.data || err.message);
+      // Revert local state on error
+      updateReelCollection(collectionId, currentReelCollection);
+    }
   };
 
   // Handle opening thumbnail selector from editor
@@ -1094,14 +1146,33 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
 
       // Use the server-returned URL instead of local data URL
       const serverThumbnailUrl = response.data.content?.thumbnailUrl || response.data.thumbnailUrl;
+      console.log('[Instagram Thumbnail] New thumbnail URL:', serverThumbnailUrl);
 
-      // Update the reel in local state
+      // Helper to normalize IDs for comparison
+      const normalizeId = (id) => (id?._id || id?.id || id || '').toString();
+      const reelIdStr = normalizeId(reelId);
+
+      // Update the reel in global state
       const updatedReels = reels.map(r =>
-        (r._id || r.id) === reelId
+        normalizeId(r) === reelIdStr
           ? { ...r, thumbnailUrl: serverThumbnailUrl }
           : r
       );
       setReels(updatedReels);
+
+      // Also update the thumbnail in the current collection's reels for instant UI update
+      if (currentReelCollection) {
+        const collectionId = currentReelCollection._id || currentReelCollection.id;
+        const updatedCollectionReels = currentReelCollection.reels?.map(r => {
+          const contentIdStr = normalizeId(r.contentId);
+          if (contentIdStr === reelIdStr && r.contentId) {
+            return { ...r, contentId: { ...r.contentId, thumbnailUrl: serverThumbnailUrl } };
+          }
+          return r;
+        });
+        updateReelCollection(collectionId, { ...currentReelCollection, reels: updatedCollectionReels });
+        console.log('[Instagram Thumbnail] Updated collection state');
+      }
 
       // Close the thumbnail selector
       setShowThumbnailSelector(false);

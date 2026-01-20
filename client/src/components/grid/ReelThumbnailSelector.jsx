@@ -19,7 +19,7 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoError, setVideoError] = useState(false);
-  const [useCrossOrigin, setUseCrossOrigin] = useState(false);
+  const [canCaptureFrames, setCanCaptureFrames] = useState(false); // Only true for local blob URLs
 
   // Store blob URL in ref to track for cleanup
   const blobUrlRef = useRef(null);
@@ -41,26 +41,25 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
     }
 
     if (videoFile) {
-      // Create blob URL from File object
+      // Create blob URL from File object - frame capture IS available
       const blobUrl = URL.createObjectURL(videoFile);
       blobUrlRef.current = blobUrl;
       console.log('[ThumbnailSelector] Created blob URL from videoFile:', blobUrl);
       setVideoSrc(blobUrl);
-      setUseCrossOrigin(false); // Blob URLs don't need CORS
+      setCanCaptureFrames(true); // Local blob URLs allow frame capture
       setVideoError(false);
       setIsVideoReady(false);
     } else if (reel?.mediaUrl) {
-      // Use Cloudinary URL
+      // Use Cloudinary URL - frame capture NOT available due to CORS
       console.log('[ThumbnailSelector] Using reel mediaUrl:', reel.mediaUrl);
       setVideoSrc(reel.mediaUrl);
-      // Don't use crossOrigin for Cloudinary URLs - it may cause CORS issues
-      // We can still preview the video, but won't be able to capture frames
-      setUseCrossOrigin(false);
+      setCanCaptureFrames(false); // Cross-origin videos can't be captured
       setVideoError(false);
       setIsVideoReady(false);
     } else {
       console.error('[ThumbnailSelector] No video source available');
       setVideoSrc(null);
+      setCanCaptureFrames(false);
       setVideoError(true);
     }
   }, [videoFile, reel?.mediaUrl]);
@@ -165,7 +164,12 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
 
   // Capture current frame as thumbnail
   const captureCurrentFrame = () => {
-    console.log('[ThumbnailSelector] Capture clicked, videoRef:', !!videoRef.current, 'canvasRef:', !!canvasRef.current);
+    console.log('[ThumbnailSelector] Capture clicked, videoRef:', !!videoRef.current, 'canvasRef:', !!canvasRef.current, 'canCapture:', canCaptureFrames);
+
+    if (!canCaptureFrames) {
+      console.error('[ThumbnailSelector] Frame capture not available for cloud videos');
+      return;
+    }
 
     if (!videoRef.current || !canvasRef.current) {
       console.error('[ThumbnailSelector] Missing refs');
@@ -358,7 +362,6 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
                     muted
                     playsInline
                     preload="auto"
-                    {...(useCrossOrigin ? { crossOrigin: 'anonymous' } : {})}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-dark-400 text-sm">
@@ -410,19 +413,29 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
                 </div>
 
                 {/* Capture button */}
-                <button
-                  onClick={captureCurrentFrame}
-                  disabled={!isVideoReady}
-                  className="w-full mt-3 py-2 bg-accent-purple hover:bg-accent-purple/80 disabled:bg-dark-600 disabled:text-dark-400 text-white rounded-lg transition-colors text-sm font-medium"
-                >
-                  Capture Current Frame
-                </button>
+                {canCaptureFrames ? (
+                  <button
+                    onClick={captureCurrentFrame}
+                    disabled={!isVideoReady}
+                    className="w-full mt-3 py-2 bg-accent-purple hover:bg-accent-purple/80 disabled:bg-dark-600 disabled:text-dark-400 text-white rounded-lg transition-colors text-sm font-medium"
+                  >
+                    Capture Current Frame
+                  </button>
+                ) : (
+                  <div className="mt-3 p-2 bg-dark-700/50 rounded-lg">
+                    <p className="text-xs text-dark-400 text-center">
+                      Frame capture unavailable for cloud videos.
+                      <br />
+                      Please upload a custom thumbnail image.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Right side - Custom upload and preview */}
             <div>
-              <p className="text-sm text-dark-400 mb-2 font-medium">Or upload custom image</p>
+              <p className="text-sm text-dark-400 mb-2 font-medium">{canCaptureFrames ? 'Or upload custom image' : 'Upload custom image'}</p>
 
               {/* Drop zone for custom image */}
               <input

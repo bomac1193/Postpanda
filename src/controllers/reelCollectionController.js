@@ -38,6 +38,20 @@ exports.getAllCollections = async (req, res) => {
       .populate('reels.contentId')
       .sort({ updatedAt: -1 });
 
+    // Clean up orphaned references (where content was deleted)
+    for (const collection of collections) {
+      const originalLength = collection.reels?.length || 0;
+      const validReels = collection.reels?.filter(r => r.contentId && r.contentId.mediaUrl) || [];
+
+      if (validReels.length !== originalLength) {
+        console.log(`[ReelCollection] Cleaning up ${originalLength - validReels.length} orphaned reels from collection ${collection._id}`);
+        collection.reels = validReels;
+        // Re-order after cleanup
+        collection.reels.forEach((r, i) => { r.order = i; });
+        await collection.save();
+      }
+    }
+
     res.json({ collections });
   } catch (error) {
     console.error('Get reel collections error:', error);

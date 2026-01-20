@@ -279,11 +279,18 @@ function TikTokPreview({ showRowHandles = true }) {
   // Get videos for current collection only (populated contentId objects)
   // Handle both populated objects and raw ObjectId strings
   const collectionVideos = currentReelCollection?.reels
-    ?.map(r => {
+    ?.map((r, index) => {
       // If contentId is a populated object with mediaUrl, return it
       if (r.contentId && typeof r.contentId === 'object' && r.contentId.mediaUrl) {
         return r.contentId;
       }
+      // Log why this video is being skipped
+      console.log(`[TikTok Display] Skipping reel ${index}:`, {
+        hasContentId: !!r.contentId,
+        contentIdType: typeof r.contentId,
+        hasMediaUrl: r.contentId?.mediaUrl ? 'yes' : 'no',
+        contentId: r.contentId
+      });
       return null;
     })
     ?.filter(Boolean) || [];
@@ -291,10 +298,11 @@ function TikTokPreview({ showRowHandles = true }) {
   // Debug logging
   if (currentReelCollection) {
     console.log('[TikTok Display] Current collection:', currentReelCollection.name, 'ID:', currentReelCollection._id);
-    console.log('[TikTok Display] Raw reels array:', currentReelCollection.reels);
-    console.log('[TikTok Display] First reel contentId type:', typeof currentReelCollection.reels?.[0]?.contentId);
-    console.log('[TikTok Display] First reel contentId:', currentReelCollection.reels?.[0]?.contentId);
-    console.log('[TikTok Display] Mapped videos count:', collectionVideos.length);
+    console.log('[TikTok Display] Total reels in collection:', currentReelCollection.reels?.length || 0);
+    console.log('[TikTok Display] Displayable videos (with mediaUrl):', collectionVideos.length);
+    if (currentReelCollection.reels?.length !== collectionVideos.length) {
+      console.warn('[TikTok Display] WARNING: Some videos are not displayable!');
+    }
   }
 
   // Group videos into rows of 3
@@ -565,17 +573,61 @@ function TikTokPreview({ showRowHandles = true }) {
     setShowVideoPlayer(true);
   };
 
-  const handleVideoReorder = (sourceId, targetId) => {
+  const handleVideoReorder = async (sourceId, targetId) => {
     if (!sourceId || !targetId || sourceId === targetId) return;
+    if (!currentReelCollection) return;
 
-    const sourceIndex = reels.findIndex(r => (r._id || r.id) === sourceId);
-    const targetIndex = reels.findIndex(r => (r._id || r.id) === targetId);
+    const collectionId = currentReelCollection._id || currentReelCollection.id;
+    const currentReels = currentReelCollection.reels || [];
 
-    if (sourceIndex === -1 || targetIndex === -1) return;
+    // Normalize IDs to strings for comparison
+    const normalizeId = (id) => (id?._id || id?.id || id || '').toString();
+    const sourceIdStr = normalizeId(sourceId);
+    const targetIdStr = normalizeId(targetId);
 
-    const newVideos = [...reels];
-    [newVideos[sourceIndex], newVideos[targetIndex]] = [newVideos[targetIndex], newVideos[sourceIndex]];
-    reorderReels(newVideos);
+    console.log('[TikTok Reorder] Starting reorder:', { sourceId: sourceIdStr, targetId: targetIdStr });
+    console.log('[TikTok Reorder] Current reels count:', currentReels.length);
+
+    // Find indices in the collection's reels array
+    const sourceIndex = currentReels.findIndex(r => {
+      const contentIdStr = normalizeId(r.contentId);
+      return contentIdStr === sourceIdStr;
+    });
+    const targetIndex = currentReels.findIndex(r => {
+      const contentIdStr = normalizeId(r.contentId);
+      return contentIdStr === targetIdStr;
+    });
+
+    if (sourceIndex === -1 || targetIndex === -1) {
+      console.error('[TikTok Reorder] Could not find videos in collection:', { sourceId, targetId, sourceIndex, targetIndex });
+      return;
+    }
+
+    // Create new reels array with swapped positions
+    const newReels = [...currentReels];
+    [newReels[sourceIndex], newReels[targetIndex]] = [newReels[targetIndex], newReels[sourceIndex]];
+
+    // Update local state immediately for instant UI feedback
+    const updatedCollection = { ...currentReelCollection, reels: newReels };
+    updateReelCollection(collectionId, updatedCollection);
+    console.log('[TikTok Reorder] Local state updated, swapped:', sourceIndex, '<->', targetIndex);
+
+    // Persist to backend and update with returned data
+    try {
+      const reelIds = newReels.map(r => normalizeId(r.contentId));
+      console.log('[TikTok Reorder] Sending reelIds to backend:', reelIds);
+      const returnedCollection = await reelCollectionApi.reorderReels(collectionId, reelIds);
+      console.log('[TikTok Reorder] Backend returned collection with', returnedCollection?.reels?.length, 'reels');
+      // Update with the populated collection from backend
+      if (returnedCollection) {
+        updateReelCollection(collectionId, returnedCollection);
+      }
+    } catch (err) {
+      console.error('[TikTok Reorder] Failed to persist:', err);
+      console.error('[TikTok Reorder] Error details:', err.response?.data || err.message);
+      // Revert local state on error
+      updateReelCollection(collectionId, currentReelCollection);
+    }
   };
 
   const handleRowDragStart = (event) => {
@@ -613,12 +665,33 @@ function TikTokPreview({ showRowHandles = true }) {
 
       // Use the server-returned URL instead of creating a blob URL
       const thumbnailUrl = response.data.content?.thumbnailUrl || response.data.thumbnailUrl;
+      console.log('[TikTok Thumbnail] New thumbnail URL:', thumbnailUrl);
+
+      // Helper to normalize IDs for comparison
+      const normalizeId = (id) => (id?._id || id?.id || id || '').toString();
+      const videoIdStr = normalizeId(videoId);
+
+      // Update the global reels state
       const updatedVideos = reels.map(v =>
-        (v._id || v.id) === videoId
+        normalizeId(v) === videoIdStr
           ? { ...v, thumbnailUrl }
           : v
       );
       setReels(updatedVideos);
+
+      // Also update the thumbnail in the current collection's reels for instant UI update
+      if (currentReelCollection) {
+        const collectionId = currentReelCollection._id || currentReelCollection.id;
+        const updatedReels = currentReelCollection.reels?.map(r => {
+          const contentIdStr = normalizeId(r.contentId);
+          if (contentIdStr === videoIdStr && r.contentId) {
+            return { ...r, contentId: { ...r.contentId, thumbnailUrl } };
+          }
+          return r;
+        });
+        updateReelCollection(collectionId, { ...currentReelCollection, reels: updatedReels });
+        console.log('[TikTok Thumbnail] Updated collection state');
+      }
 
       setShowThumbnailSelector(false);
       setPendingVideoUpload(null);

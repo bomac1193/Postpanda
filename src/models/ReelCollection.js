@@ -95,13 +95,25 @@ reelCollectionSchema.methods.removeReel = function(contentId) {
 // Reorder reels
 reelCollectionSchema.methods.reorderReels = function(reelIds) {
   const reorderedReels = [];
+  console.log('[ReelCollection.reorderReels] Input reelIds:', reelIds);
+  console.log('[ReelCollection.reorderReels] Current reels contentIds:', this.reels.map(r => r.contentId?.toString()));
+
   reelIds.forEach((id, index) => {
-    const reel = this.reels.find(r => r.contentId.toString() === id.toString());
+    const idStr = id?.toString() || id;
+    const reel = this.reels.find(r => {
+      const contentIdStr = r.contentId?.toString() || r.contentId;
+      return contentIdStr === idStr;
+    });
     if (reel) {
       reel.order = index;
       reorderedReels.push(reel);
+      console.log(`[ReelCollection.reorderReels] Matched reel at index ${index}:`, idStr);
+    } else {
+      console.warn(`[ReelCollection.reorderReels] No match found for id:`, idStr);
     }
   });
+
+  console.log('[ReelCollection.reorderReels] Reordered reels count:', reorderedReels.length);
   this.reels = reorderedReels;
   return this;
 };
