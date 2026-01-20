@@ -163,7 +163,8 @@ exports.uploadAvatar = async (req, res) => {
 
     // Check if using cloud storage (Cloudinary)
     if (useCloudStorage()) {
-      // Upload to Cloudinary - no transformation since image is pre-cropped on frontend
+      // Upload to Cloudinary - no transformation for non-destructive editing
+      // Zoom/position transforms are applied on frontend
       const uploadResult = await cloudinaryService.uploadBuffer(req.file.buffer, {
         folder: 'postpanda/avatars',
         resourceType: 'image'
