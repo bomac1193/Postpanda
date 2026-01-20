@@ -225,11 +225,36 @@ function GridPlanner() {
     setGridPosts(posts);
   }, [setGridPosts]);
 
-  // Select a different grid
+  // Refresh current grid from server
+  const refreshCurrentGrid = useCallback(async () => {
+    if (!currentGridId) return;
+    try {
+      const response = await gridApi.getById(currentGridId);
+      const freshGrid = response.grid || response;
+      await loadGridContent(freshGrid);
+      // Update local grids array with fresh data
+      setGrids(prev => prev.map(g => g._id === freshGrid._id ? freshGrid : g));
+    } catch (err) {
+      console.error('Failed to refresh grid:', err);
+    }
+  }, [currentGridId, loadGridContent]);
+
+  // Select a different grid - fetch fresh data from server
   const handleSelectGrid = async (grid) => {
     setCurrentGridId(grid._id);
     setShowGridSelector(false);
-    await loadGridContent(grid);
+    try {
+      // Fetch fresh grid data from server to get latest content
+      const response = await gridApi.getById(grid._id);
+      const freshGrid = response.grid || response;
+      await loadGridContent(freshGrid);
+      // Update local grids array with fresh data
+      setGrids(prev => prev.map(g => g._id === freshGrid._id ? freshGrid : g));
+    } catch (err) {
+      console.error('Failed to fetch grid:', err);
+      // Fall back to cached data
+      await loadGridContent(grid);
+    }
   };
 
   // Create a new grid
@@ -1292,7 +1317,7 @@ function GridPlanner() {
             selectedPlatform === 'tiktok' ? (
               <TikTokPreview showRowHandles={showRowHandles} />
             ) : (
-              <GridPreview posts={gridPosts} layout={currentLayout} showRowHandles={showRowHandles} onDeletePost={handleDeletePost} gridId={currentGridId} />
+              <GridPreview posts={gridPosts} layout={currentLayout} showRowHandles={showRowHandles} onDeletePost={handleDeletePost} gridId={currentGridId} onGridChange={refreshCurrentGrid} />
             )
           ) : (
             <div className="bg-dark-800 rounded-2xl p-6 border border-dark-700">

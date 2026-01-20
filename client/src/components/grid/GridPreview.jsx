@@ -1220,7 +1220,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
   );
 }
 
-function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridId }) {
+function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridId, onGridChange }) {
   const cols = layout?.cols || 3;
   const user = useAppStore((state) => state.user);
   const setUser = useAppStore((state) => state.setUser);
@@ -1273,6 +1273,8 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
               contentId: p.id || p._id,
               position: i,
             })));
+            // Notify parent to refresh grid data
+            onGridChange?.();
           } catch (err) {
             console.error('Failed to save row reorder:', err);
           }
@@ -2046,6 +2048,8 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
           contentId: p.id || p._id,
           position: i,
         })));
+        // Notify parent to refresh grid data
+        onGridChange?.();
       } catch (err) {
         console.error('Failed to save reorder:', err);
       }
@@ -2099,6 +2103,8 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
           contentId: p.id || p._id,
           position: i,
         })));
+        // Notify parent to refresh grid data
+        onGridChange?.();
       } catch (err) {
         console.error('Failed to save replace to backend:', err);
       }
@@ -2153,6 +2159,9 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
           position: i,
         })));
       }
+
+      // Notify parent to refresh grid data
+      onGridChange?.();
     } catch (err) {
       console.error('Failed to save carousel to backend:', err);
     }
@@ -2229,6 +2238,8 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
             carouselImages: dropSource.images,
             mediaUrl: dropSource.images[0],
           });
+          // Notify parent to refresh grid data
+          onGridChange?.();
         }
       } catch (err) {
         console.error('Failed to save file drop to backend:', err);
@@ -2279,6 +2290,8 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
             carouselImages: combinedImages,
             mediaUrl: combinedImages[0],
           });
+          // Notify parent to refresh grid data
+          onGridChange?.();
         }
       } catch (err) {
         console.error('Failed to save file drop carousel to backend:', err);
