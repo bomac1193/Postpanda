@@ -25,6 +25,10 @@ const contentSchema = new mongoose.Schema({
     }
   },
   thumbnailUrl: String,
+  // Carousel images - array of URLs for carousel posts
+  carouselImages: [{
+    type: String
+  }],
   mediaType: {
     type: String,
     enum: ['image', 'video', 'carousel'],

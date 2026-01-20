@@ -203,10 +203,15 @@ function GridPlanner() {
       if (!cell.isEmpty && cell.contentId) {
         // contentId might be populated or just an ID
         const content = typeof cell.contentId === 'object' ? cell.contentId : null;
+        // Get carousel images or fall back to single image
+        const carouselImages = content?.carouselImages?.length > 0 ? content.carouselImages : null;
+        const mainImage = carouselImages?.[0] || content?.mediaUrl || null;
         posts.push({
           id: content?._id || cell.contentId,
-          image: content?.mediaUrl || null,
+          image: mainImage,
+          images: carouselImages || (mainImage ? [mainImage] : []),
           caption: content?.caption || content?.title || '',
+          hashtags: content?.hashtags || [],
           color: '#8b5cf6',
           mediaType: content?.mediaType || 'image',
           gridPosition: cell.position?.row * (grid.columns || 3) + cell.position?.col,

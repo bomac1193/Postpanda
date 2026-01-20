@@ -259,7 +259,7 @@ exports.getContentById = async (req, res) => {
 // Update content
 exports.updateContent = async (req, res) => {
   try {
-    const { title, caption, hashtags, location, status, mentions, audioTrack, scheduledFor } = req.body;
+    const { title, caption, hashtags, location, status, mentions, audioTrack, scheduledFor, carouselImages, mediaUrl } = req.body;
 
     const content = await Content.findOne({ _id: req.params.id, userId: req.userId });
     if (!content) {
@@ -280,6 +280,19 @@ exports.updateContent = async (req, res) => {
       }
     }
     if (status) content.status = status;
+    // Handle carousel images update
+    if (carouselImages !== undefined) {
+      content.carouselImages = carouselImages;
+      // Update mediaType to carousel if multiple images
+      if (carouselImages.length > 1) {
+        content.mediaType = 'carousel';
+      }
+      // Update main media URL to first carousel image
+      if (carouselImages.length > 0 && !mediaUrl) {
+        content.mediaUrl = carouselImages[0];
+      }
+    }
+    if (mediaUrl !== undefined) content.mediaUrl = mediaUrl;
 
     await content.save();
 

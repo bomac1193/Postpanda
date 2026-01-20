@@ -624,14 +624,84 @@ function PostPreviewModal({ post, onClose, onSave }) {
   const [hashtags, setHashtags] = useState(post?.hashtags?.join(' ') || '');
   const [isSaving, setIsSaving] = useState(false);
 
-  const images = post?.images || (post?.image ? [post.image] : []);
-  const mainImage = images[0];
-  const isCarousel = images.length > 1;
+  // Carousel state
+  const initialImages = post?.images || (post?.image ? [post.image] : []);
+  const [carouselImages, setCarouselImages] = useState(initialImages);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+
+  const isCarousel = carouselImages.length > 1;
+  const currentImage = carouselImages[currentIndex] || carouselImages[0];
 
   // Get usernames from connected social accounts
   const instagramUsername = user?.socialAccounts?.instagram?.username || user?.name || 'username';
   const tiktokUsername = user?.socialAccounts?.tiktok?.username || user?.name || 'username';
   const userAvatar = user?.avatar;
+
+  // Carousel navigation
+  const goToPrev = () => {
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : carouselImages.length - 1));
+  };
+
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev < carouselImages.length - 1 ? prev + 1 : 0));
+  };
+
+  const goToIndex = (index) => {
+    setCurrentIndex(index);
+  };
+
+  // Drag and drop handlers for reordering carousel images
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    // Reorder images
+    const newImages = [...carouselImages];
+    const [draggedImage] = newImages.splice(draggedIndex, 1);
+    newImages.splice(targetIndex, 0, draggedImage);
+    setCarouselImages(newImages);
+
+    // Update current index if needed
+    if (currentIndex === draggedIndex) {
+      setCurrentIndex(targetIndex);
+    } else if (draggedIndex < currentIndex && targetIndex >= currentIndex) {
+      setCurrentIndex(currentIndex - 1);
+    } else if (draggedIndex > currentIndex && targetIndex <= currentIndex) {
+      setCurrentIndex(currentIndex + 1);
+    }
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -642,10 +712,24 @@ function PostPreviewModal({ post, onClose, onSave }) {
         .map(h => h.startsWith('#') ? h : `#${h}`)
         .filter(h => h.length > 1);
 
-      await onSave({
+      // Include carousel images in the save if order changed
+      const updates = {
         caption,
         hashtags: hashtagArray,
-      });
+      };
+
+      // Check if carousel order changed
+      const originalImages = post?.images || (post?.image ? [post.image] : []);
+      const orderChanged = carouselImages.length !== originalImages.length ||
+        carouselImages.some((img, idx) => img !== originalImages[idx]);
+
+      if (orderChanged && carouselImages.length > 0) {
+        updates.carouselImages = carouselImages;
+        updates.images = carouselImages; // Also update local state format
+        updates.image = carouselImages[0]; // Update main image
+      }
+
+      await onSave(updates);
       onClose();
     } catch (err) {
       console.error('Failed to save post:', err);
@@ -657,6 +741,43 @@ function PostPreviewModal({ post, onClose, onSave }) {
   // Simulated engagement numbers (for preview purposes)
   const likes = Math.floor(Math.random() * 5000) + 500;
   const comments = Math.floor(Math.random() * 200) + 20;
+
+  // Carousel navigation component
+  const CarouselNav = ({ showArrows = true, className = '' }) => (
+    <div className={`flex items-center justify-center gap-2 ${className}`}>
+      {showArrows && isCarousel && (
+        <button
+          onClick={goToPrev}
+          className="p-1.5 rounded-full bg-dark-700/80 hover:bg-dark-600 text-white transition-colors"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+        </button>
+      )}
+      {isCarousel && (
+        <div className="flex items-center gap-1.5">
+          {carouselImages.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => goToIndex(idx)}
+              className={`w-2 h-2 rounded-full transition-all ${
+                idx === currentIndex
+                  ? 'bg-accent-purple w-4'
+                  : 'bg-dark-500 hover:bg-dark-400'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+      {showArrows && isCarousel && (
+        <button
+          onClick={goToNext}
+          className="p-1.5 rounded-full bg-dark-700/80 hover:bg-dark-600 text-white transition-colors"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -707,31 +828,81 @@ function PostPreviewModal({ post, onClose, onSave }) {
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'edit' && (
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Image Preview */}
+              {/* Image Preview with carousel navigation */}
               <div className="space-y-4">
-                <div className="aspect-square bg-dark-900 rounded-lg overflow-hidden">
-                  {mainImage ? (
-                    <img
-                      src={mainImage}
-                      alt="Post preview"
-                      className="w-full h-full object-cover"
-                    />
+                <div className="aspect-square bg-dark-900 rounded-lg overflow-hidden relative">
+                  {currentImage ? (
+                    <>
+                      <img
+                        src={currentImage}
+                        alt="Post preview"
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Overlay navigation arrows for carousel */}
+                      {isCarousel && (
+                        <>
+                          <button
+                            onClick={goToPrev}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                          >
+                            <ChevronRight className="w-5 h-5 rotate-180" />
+                          </button>
+                          <button
+                            onClick={goToNext}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                          >
+                            <ChevronRight className="w-5 h-5" />
+                          </button>
+                          {/* Dot indicators */}
+                          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/50">
+                            {carouselImages.map((_, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => goToIndex(idx)}
+                                className={`w-2 h-2 rounded-full transition-all ${
+                                  idx === currentIndex
+                                    ? 'bg-white'
+                                    : 'bg-white/50 hover:bg-white/70'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-dark-500">
                       No image
                     </div>
                   )}
                 </div>
+                {/* Draggable thumbnail strip for carousel */}
                 {isCarousel && (
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {images.map((img, idx) => (
-                      <div
-                        key={idx}
-                        className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 border-dark-600"
-                      >
-                        <img src={img} alt={`Slide ${idx + 1}`} className="w-full h-full object-cover" />
-                      </div>
-                    ))}
+                  <div className="space-y-2">
+                    <p className="text-xs text-dark-400">Drag to reorder carousel images</p>
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                      {carouselImages.map((img, idx) => (
+                        <div
+                          key={idx}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, idx)}
+                          onDragOver={(e) => handleDragOver(e, idx)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, idx)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => goToIndex(idx)}
+                          className={`w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing transition-all ${
+                            idx === currentIndex
+                              ? 'border-accent-purple ring-2 ring-accent-purple/50'
+                              : dragOverIndex === idx
+                              ? 'border-accent-blue scale-110'
+                              : 'border-dark-600 hover:border-dark-400'
+                          } ${draggedIndex === idx ? 'opacity-50 scale-95' : ''}`}
+                        >
+                          <img src={img} alt={`Slide ${idx + 1}`} className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -793,10 +964,40 @@ function PostPreviewModal({ post, onClose, onSave }) {
                   </div>
                 </div>
 
-                {/* Image */}
-                <div className="aspect-square bg-dark-900">
-                  {mainImage ? (
-                    <img src={mainImage} alt="Post" className="w-full h-full object-cover" />
+                {/* Image with carousel navigation */}
+                <div className="aspect-square bg-dark-900 relative">
+                  {currentImage ? (
+                    <>
+                      <img src={currentImage} alt="Post" className="w-full h-full object-cover" />
+                      {/* Carousel navigation overlay */}
+                      {isCarousel && (
+                        <>
+                          <button
+                            onClick={goToPrev}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 hover:bg-white text-black transition-colors shadow-lg"
+                          >
+                            <ChevronRight className="w-4 h-4 rotate-180" />
+                          </button>
+                          <button
+                            onClick={goToNext}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-white/90 hover:bg-white text-black transition-colors shadow-lg"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                          {/* Instagram-style dot indicators */}
+                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1">
+                            {carouselImages.map((_, idx) => (
+                              <div
+                                key={idx}
+                                className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                                  idx === currentIndex ? 'bg-blue-500' : 'bg-white/50'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-dark-500">
                       No image
@@ -810,6 +1011,21 @@ function PostPreviewModal({ post, onClose, onSave }) {
                     <Heart className="w-6 h-6 text-white cursor-pointer hover:text-dark-300" />
                     <MessageCircle className="w-6 h-6 text-white cursor-pointer hover:text-dark-300" />
                     <Send className="w-6 h-6 text-white cursor-pointer hover:text-dark-300" />
+                    {/* Carousel indicator in actions row */}
+                    {isCarousel && (
+                      <div className="flex-1 flex justify-center">
+                        <div className="flex items-center gap-1">
+                          {carouselImages.map((_, idx) => (
+                            <div
+                              key={idx}
+                              className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                                idx === currentIndex ? 'bg-blue-500' : 'bg-dark-500'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="ml-auto">
                       <Bookmark className="w-6 h-6 text-white cursor-pointer hover:text-dark-300" />
                     </div>
@@ -837,8 +1053,8 @@ function PostPreviewModal({ post, onClose, onSave }) {
               <div className="w-full max-w-[320px] bg-black rounded-2xl overflow-hidden border border-dark-700 relative" style={{ aspectRatio: '9/16' }}>
                 {/* Background Image */}
                 <div className="absolute inset-0">
-                  {mainImage ? (
-                    <img src={mainImage} alt="Post" className="w-full h-full object-cover" />
+                  {currentImage ? (
+                    <img src={currentImage} alt="Post" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-dark-900 flex items-center justify-center text-dark-500">
                       No image
@@ -847,6 +1063,35 @@ function PostPreviewModal({ post, onClose, onSave }) {
                   {/* Gradient overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                 </div>
+
+                {/* Carousel navigation for TikTok */}
+                {isCarousel && (
+                  <>
+                    <button
+                      onClick={goToPrev}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5 rotate-180" />
+                    </button>
+                    <button
+                      onClick={goToNext}
+                      className="absolute right-14 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                    {/* Carousel dots */}
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/30">
+                      {carouselImages.map((_, idx) => (
+                        <div
+                          key={idx}
+                          className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                            idx === currentIndex ? 'bg-white' : 'bg-white/40'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 {/* Right side actions */}
                 <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5">
@@ -1253,20 +1498,34 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
     setItemToDelete(null);
   }, []);
 
-  // Save post preview changes (caption, hashtags)
+  // Save post preview changes (caption, hashtags, carousel images)
   const handleSavePostPreview = useCallback(async (updates) => {
     if (!previewPost) return;
 
     const postId = previewPost.id || previewPost._id;
 
     try {
-      // Update via API
-      await contentApi.update(postId, updates);
+      // Prepare API updates (convert images array to carouselImages for backend)
+      const apiUpdates = { ...updates };
+      if (updates.images) {
+        apiUpdates.carouselImages = updates.images;
+        apiUpdates.mediaUrl = updates.images[0]; // Update main media URL
+        delete apiUpdates.images; // Remove frontend-specific field
+        delete apiUpdates.image; // Remove frontend-specific field
+      }
 
-      // Update local state
+      // Update via API
+      await contentApi.update(postId, apiUpdates);
+
+      // Update local state with frontend format
+      const localUpdates = { ...updates };
+      if (updates.images) {
+        localUpdates.image = updates.images[0];
+      }
+
       const updatedPosts = posts.map(p =>
         (p.id || p._id) === postId
-          ? { ...p, ...updates }
+          ? { ...p, ...localUpdates }
           : p
       );
       setGridPosts(updatedPosts);
