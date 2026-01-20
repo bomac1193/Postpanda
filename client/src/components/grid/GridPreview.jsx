@@ -1603,7 +1603,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
     setIsDragging(false);
   };
 
-  // Save avatar - upload to cloud and persist
+  // Save avatar - pre-crop the image to match preview exactly, then upload
   const handleSave = async () => {
     if (!tempImage) {
       setShowAvatarModal(false);
@@ -1615,10 +1615,67 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
     try {
       let avatarUrl = tempImage;
 
-      // If we have a new file, upload it to the server
-      if (tempImageFile) {
+      // Create a pre-cropped image that matches the preview exactly
+      const createCroppedImage = () => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            // Create a canvas matching the circular crop area (500x500 for good quality)
+            const outputSize = 500;
+            const canvas = document.createElement('canvas');
+            canvas.width = outputSize;
+            canvas.height = outputSize;
+            const ctx = canvas.getContext('2d');
+
+            // Fill with transparent/white background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, outputSize, outputSize);
+
+            // The preview container is 256x256, so scale the transforms proportionally
+            const previewSize = 256;
+            const scaleFactor = outputSize / previewSize;
+
+            // Calculate the actual zoom level
+            const actualZoom = getActualZoom(zoom);
+
+            // Calculate image dimensions at the zoomed size
+            const imgAspect = img.width / img.height;
+            let drawWidth, drawHeight;
+
+            if (imgAspect > 1) {
+              // Landscape image
+              drawHeight = outputSize * actualZoom;
+              drawWidth = drawHeight * imgAspect;
+            } else {
+              // Portrait or square image
+              drawWidth = outputSize * actualZoom;
+              drawHeight = drawWidth / imgAspect;
+            }
+
+            // Calculate position (scale the position from 256px preview to 500px output)
+            const drawX = (outputSize - drawWidth) / 2 + (position.x * scaleFactor);
+            const drawY = (outputSize - drawHeight) / 2 + (position.y * scaleFactor);
+
+            // Draw the image with the user's zoom and position applied
+            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+            // Convert to blob
+            canvas.toBlob((blob) => {
+              resolve(blob);
+            }, 'image/jpeg', 0.9);
+          };
+          img.onerror = () => resolve(null);
+          img.src = tempImage;
+        });
+      };
+
+      // Always create a cropped image to ensure it matches the preview
+      const croppedBlob = await createCroppedImage();
+
+      if (croppedBlob) {
         const formData = new FormData();
-        formData.append('avatar', tempImageFile);
+        formData.append('avatar', croppedBlob, 'avatar.jpg');
 
         const response = await api.put('/api/auth/avatar', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
@@ -1628,23 +1685,18 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
         console.log('Avatar uploaded successfully:', avatarUrl);
       }
 
-      // Save the avatar URL with position/zoom settings
-      const avatarData = {
-        avatar: avatarUrl,
-        avatarPosition: position,
-        avatarZoom: zoom
-      };
-
-      // Update position/zoom on server
-      await api.put('/api/auth/profile', {
-        avatarPosition: position,
-        avatarZoom: zoom
-      });
-
-      // Update local state
+      // Update local state - no position/zoom needed since image is pre-cropped
       setUser({
         ...user,
-        ...avatarData
+        avatar: avatarUrl,
+        avatarPosition: { x: 0, y: 0 },
+        avatarZoom: 1
+      });
+
+      // Clear position/zoom on server since image is pre-cropped
+      await api.put('/api/auth/profile', {
+        avatarPosition: { x: 0, y: 0 },
+        avatarZoom: 1
       });
 
       setShowAvatarModal(false);
@@ -1960,16 +2012,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                 <img
                   src={user.avatar}
                   alt={user.brandName || user.name || 'Profile'}
-                  className="absolute pointer-events-none"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain',
-                    left: '50%',
-                    top: '50%',
-                    transformOrigin: 'center center',
-                    transform: `translate(-50%, -50%) translate(${(user.avatarPosition?.x || 0) * 0.3}px, ${(user.avatarPosition?.y || 0) * 0.3}px) scale(${getActualZoom(user.avatarZoom || 1)})`,
-                  }}
+                  className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
