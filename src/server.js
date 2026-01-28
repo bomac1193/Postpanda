@@ -27,6 +27,7 @@ const rolloutRoutes = require('./routes/rollout');
 const reelCollectionRoutes = require('./routes/reelCollection');
 const profileRoutes = require('./routes/profile');
 const intelligenceRoutes = require('./routes/intelligence');
+const genomeRoutes = require('./routes/genome');
 const schedulingService = require('./services/schedulingService');
 
 // Connect to MongoDB
@@ -100,6 +101,7 @@ app.use('/api/rollout', rolloutRoutes);
 app.use('/api/reel-collections', reelCollectionRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/intelligence', intelligenceRoutes);
+app.use('/api/genome', genomeRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

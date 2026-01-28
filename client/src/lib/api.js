@@ -677,4 +677,47 @@ export const intelligenceApi = {
   }
 };
 
+// Genome API - Taste genome, archetypes, and gamification
+export const genomeApi = {
+  // Get user's taste genome
+  async get(profileId = null) {
+    const params = profileId ? `?profileId=${profileId}` : '';
+    const { data } = await api.get(`/api/genome${params}`);
+    return data;
+  },
+
+  // Record a behavioral signal
+  async signal(type, value = null, metadata = {}, profileId = null) {
+    const { data } = await api.post('/api/genome/signal', {
+      type, value, metadata, profileId
+    });
+    return data;
+  },
+
+  // Get quiz questions
+  async getQuizQuestions() {
+    const { data } = await api.get('/api/genome/quiz/questions');
+    return data;
+  },
+
+  // Submit quiz responses
+  async submitQuiz(responses, profileId = null) {
+    const { data } = await api.post('/api/genome/quiz', { responses, profileId });
+    return data;
+  },
+
+  // Get gamification state
+  async getGamification(profileId = null) {
+    const params = profileId ? `?profileId=${profileId}` : '';
+    const { data } = await api.get(`/api/genome/gamification${params}`);
+    return data;
+  },
+
+  // Get archetype definitions
+  async getArchetypes() {
+    const { data } = await api.get('/api/genome/archetypes');
+    return data;
+  }
+};
+
 export default api;

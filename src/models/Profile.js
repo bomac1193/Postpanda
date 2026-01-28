@@ -133,6 +133,11 @@ const profileSchema = new mongoose.Schema({
     itemCount: { type: Number, default: 0 },
     lastUpdated: { type: Date }
   },
+  // Full Taste Genome (from Subtaste + Refyn integration)
+  tasteGenome: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
 
   createdAt: {
     type: Date,
