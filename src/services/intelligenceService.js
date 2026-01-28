@@ -360,32 +360,100 @@ Rhetorical Devices: ${(voice.rhetoricalDevices || ['questions']).join(', ')}
 
 /**
  * Fallback variant generation without API
+ * Creates contextually aware variants based on topic analysis
  */
 function generateFallbackVariants(topic, count) {
-  const templates = [
-    { prefix: "The truth about ", hookType: "curiosity-gap" },
-    { prefix: "How to ", suffix: " (that actually works)", hookType: "how-to" },
-    { prefix: "Stop doing this with your ", hookType: "controversy" },
-    { prefix: "3 things I wish I knew about ", hookType: "listicle" },
-    { prefix: "Why ", suffix: " is changing everything", hookType: "bold-claim" },
-    { prefix: "Nobody talks about this ", suffix: " secret", hookType: "curiosity-gap" },
-    { prefix: "I tried ", suffix: " for 30 days. Here's what happened", hookType: "story" },
-    { prefix: "The #1 mistake people make with ", hookType: "controversy" },
-  ];
+  // Analyze the topic to create relevant variants
+  const lowerTopic = topic.toLowerCase();
+  const isQuestion = topic.includes('?');
+  const isStatement = !isQuestion && topic.length > 20;
+  const words = topic.split(/\s+/);
+  const shortTopic = words.slice(0, 5).join(' ');
 
+  // Different variant strategies based on content type
   const variants = [];
-  for (let i = 0; i < Math.min(count, templates.length); i++) {
-    const t = templates[i];
-    variants.push({
-      variant: `${t.prefix}${topic}${t.suffix || ''}`,
-      hookType: t.hookType,
-      tone: 'confident',
-      performanceScore: 60 + Math.floor(Math.random() * 20),
-      tasteScore: 50 + Math.floor(Math.random() * 20),
-      reasoning: 'Template-based generation'
-    });
-  }
-  return variants;
+
+  // Strategy 1: Reframe as a hook question
+  variants.push({
+    variant: isQuestion ? topic : `What if ${shortTopic}...? Here's what you need to know.`,
+    hookType: 'question',
+    tone: 'curious',
+    performanceScore: 65 + Math.floor(Math.random() * 15),
+    tasteScore: 55 + Math.floor(Math.random() * 20),
+    reasoning: 'Question hooks drive 23% more engagement'
+  });
+
+  // Strategy 2: Bold statement/claim
+  variants.push({
+    variant: isStatement ? `${topic} - and most people get it completely wrong.` : `${shortTopic} is not what you think it is.`,
+    hookType: 'bold-claim',
+    tone: 'confident',
+    performanceScore: 70 + Math.floor(Math.random() * 15),
+    tasteScore: 50 + Math.floor(Math.random() * 20),
+    reasoning: 'Bold claims create curiosity and debate'
+  });
+
+  // Strategy 3: Personal/Story angle
+  variants.push({
+    variant: `I can't stop thinking about ${shortTopic}. Let me tell you why...`,
+    hookType: 'story',
+    tone: 'personal',
+    performanceScore: 62 + Math.floor(Math.random() * 18),
+    tasteScore: 60 + Math.floor(Math.random() * 20),
+    reasoning: 'Personal stories create emotional connection'
+  });
+
+  // Strategy 4: Educational/Value
+  variants.push({
+    variant: `Here's what nobody tells you about ${shortTopic}:`,
+    hookType: 'curiosity-gap',
+    tone: 'informative',
+    performanceScore: 68 + Math.floor(Math.random() * 15),
+    tasteScore: 55 + Math.floor(Math.random() * 20),
+    reasoning: 'Curiosity gaps drive clicks and saves'
+  });
+
+  // Strategy 5: Call to action / Engagement
+  variants.push({
+    variant: `POV: You just discovered ${shortTopic}`,
+    hookType: 'story',
+    tone: 'playful',
+    performanceScore: 60 + Math.floor(Math.random() * 20),
+    tasteScore: 58 + Math.floor(Math.random() * 22),
+    reasoning: 'POV format is trending and relatable'
+  });
+
+  // Strategy 6: Controversial take
+  variants.push({
+    variant: `Unpopular opinion: ${shortTopic} is overrated. Here's what actually matters...`,
+    hookType: 'controversy',
+    tone: 'edgy',
+    performanceScore: 72 + Math.floor(Math.random() * 13),
+    tasteScore: 45 + Math.floor(Math.random() * 25),
+    reasoning: 'Controversial takes spark discussion'
+  });
+
+  // Strategy 7: Listicle teaser
+  variants.push({
+    variant: `3 things about ${shortTopic} that will change how you see everything:`,
+    hookType: 'listicle',
+    tone: 'informative',
+    performanceScore: 66 + Math.floor(Math.random() * 14),
+    tasteScore: 52 + Math.floor(Math.random() * 18),
+    reasoning: 'Numbered lists promise clear value'
+  });
+
+  // Strategy 8: Urgency/FOMO
+  variants.push({
+    variant: `If you're sleeping on ${shortTopic}, you're missing out. Here's why:`,
+    hookType: 'urgency',
+    tone: 'energetic',
+    performanceScore: 64 + Math.floor(Math.random() * 16),
+    tasteScore: 50 + Math.floor(Math.random() * 20),
+    reasoning: 'FOMO drives immediate engagement'
+  });
+
+  return variants.slice(0, count);
 }
 
 /**
@@ -738,57 +806,72 @@ Return ONLY valid JSON array:
 
 /**
  * Fallback YouTube content generation without API
+ * Creates contextually aware YouTube content based on topic analysis
  */
 function generateFallbackYouTubeContent(topic, count) {
-  const templates = [
+  const words = topic.split(/\s+/);
+  const shortTopic = words.slice(0, 4).join(' ');
+  const keyWord = words[0] || topic;
+
+  const variants = [
     {
-      prefix: "I Tried ",
-      suffix: " For 30 Days - Here's What Happened",
-      hookType: "story",
-      thumbnailIdea: "Before/after split with shocked expression"
+      title: `${shortTopic} - The Complete Breakdown`,
+      description: `Everything you need to know about ${shortTopic}. In this video, I break down the key concepts, share my personal experience, and give you actionable tips you can use today.`,
+      tags: [keyWord.toLowerCase(), shortTopic.toLowerCase(), 'explained', 'breakdown', 'guide', 'tips', '2024'],
+      hookType: 'how-to',
+      tone: 'informative',
+      thumbnailIdea: `Clean text overlay "${shortTopic}" with your face showing curiosity`,
+      performanceScore: 68 + Math.floor(Math.random() * 15),
+      tasteScore: 55 + Math.floor(Math.random() * 20),
+      reasoning: 'Educational content with clear value proposition'
     },
     {
-      prefix: "The Truth About ",
-      suffix: " (Nobody Talks About This)",
-      hookType: "curiosity-gap",
-      thumbnailIdea: "Serious face with redacted text overlay"
+      title: `Why ${shortTopic} Changes Everything`,
+      description: `${shortTopic} is more important than you think. Here's why it matters and how you can take advantage of it before everyone else catches on.`,
+      tags: [keyWord.toLowerCase(), 'why', 'important', 'game changer', 'must know', 'trending'],
+      hookType: 'bold-claim',
+      tone: 'confident',
+      thumbnailIdea: `Surprised/excited expression with arrow pointing to topic visual`,
+      performanceScore: 72 + Math.floor(Math.random() * 13),
+      tasteScore: 50 + Math.floor(Math.random() * 22),
+      reasoning: 'Bold claims create curiosity and urgency'
     },
     {
-      prefix: "How To ",
-      suffix: " (Complete Guide)",
-      hookType: "how-to",
-      thumbnailIdea: "Step-by-step visual with checkmarks"
+      title: `My Honest Take on ${shortTopic}`,
+      description: `I've been thinking a lot about ${shortTopic} lately. Here's my honest opinion, what I've learned, and what I think you should know.`,
+      tags: [keyWord.toLowerCase(), 'honest', 'opinion', 'review', 'thoughts', 'real talk'],
+      hookType: 'story',
+      tone: 'authentic',
+      thumbnailIdea: `Casual, genuine expression with simple text "My Honest Take"`,
+      performanceScore: 65 + Math.floor(Math.random() * 18),
+      tasteScore: 62 + Math.floor(Math.random() * 18),
+      reasoning: 'Authenticity builds trust and connection'
     },
     {
-      prefix: "Why ",
-      suffix: " Is Changing Everything in 2024",
-      hookType: "bold-claim",
-      thumbnailIdea: "Mind-blown expression with topic graphic"
+      title: `${shortTopic}: What Nobody Tells You`,
+      description: `There's a side to ${shortTopic} that most people miss. In this video, I reveal the hidden truths and share insights that could change your perspective.`,
+      tags: [keyWord.toLowerCase(), 'secrets', 'hidden', 'truth', 'revealed', 'insider'],
+      hookType: 'curiosity-gap',
+      tone: 'mysterious',
+      thumbnailIdea: `Finger over lips "shh" gesture with blurred background text`,
+      performanceScore: 70 + Math.floor(Math.random() * 15),
+      tasteScore: 48 + Math.floor(Math.random() * 25),
+      reasoning: 'Curiosity gaps drive high click-through rates'
     },
     {
-      prefix: "5 ",
-      suffix: " Mistakes You're Making Right Now",
-      hookType: "controversy",
-      thumbnailIdea: "X marks with numbered list preview"
+      title: `Stop Making These ${shortTopic} Mistakes`,
+      description: `Are you making these common mistakes with ${shortTopic}? I was too. Here's what I learned and how to avoid the pitfalls that trip up most people.`,
+      tags: [keyWord.toLowerCase(), 'mistakes', 'avoid', 'tips', 'common errors', 'fix'],
+      hookType: 'controversy',
+      tone: 'direct',
+      thumbnailIdea: `Concerned expression with red X marks and "STOP" text`,
+      performanceScore: 67 + Math.floor(Math.random() * 16),
+      tasteScore: 52 + Math.floor(Math.random() * 20),
+      reasoning: 'Problem-solving content has high save rates'
     },
   ];
 
-  const variants = [];
-  for (let i = 0; i < Math.min(count, templates.length); i++) {
-    const t = templates[i];
-    variants.push({
-      title: `${t.prefix}${topic}${t.suffix}`,
-      description: `In this video, I share everything about ${topic}. Whether you're a beginner or advanced, you'll learn valuable insights that can help you succeed.`,
-      tags: [topic.toLowerCase(), 'tips', 'guide', 'how to', '2024', 'tutorial', 'advice', 'learn'],
-      hookType: t.hookType,
-      tone: 'confident',
-      thumbnailIdea: t.thumbnailIdea,
-      performanceScore: 60 + Math.floor(Math.random() * 20),
-      tasteScore: 50 + Math.floor(Math.random() * 20),
-      reasoning: 'Template-based generation'
-    });
-  }
-  return variants;
+  return variants.slice(0, count);
 }
 
 module.exports = {

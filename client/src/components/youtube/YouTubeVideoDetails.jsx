@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
+import { intelligenceApi } from '../../lib/api';
 import {
   Image,
   Type,
@@ -12,6 +13,11 @@ import {
   AlertCircle,
   FileText,
   Clock,
+  Sparkles,
+  RefreshCw,
+  ChevronDown,
+  Star,
+  Check,
 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -35,6 +41,13 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   const [scheduledTime, setScheduledTime] = useState(video?.scheduledTime || '12:00');
   const [showTruncatePreview, setShowTruncatePreview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // AI Generation state
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiVideoType, setAiVideoType] = useState('standard');
+  const [generating, setGenerating] = useState(false);
+  const [aiVariants, setAiVariants] = useState([]);
 
   const fileInputRef = useRef(null);
 
@@ -107,6 +120,54 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   const handleDelete = () => {
     deleteYoutubeVideo(videoId);
     setShowDeleteConfirm(false);
+  };
+
+  // AI Generation
+  const handleGenerateAI = async () => {
+    if (!aiTopic.trim()) return;
+    setGenerating(true);
+    try {
+      const result = await intelligenceApi.generateYouTube(aiTopic, {
+        videoType: aiVideoType,
+        count: 5,
+      });
+      setAiVariants(result.variants || []);
+    } catch (error) {
+      console.error('AI generation error:', error);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const applyAIVariant = (variant) => {
+    setTitle(variant.title);
+    setDescription(variant.description);
+    updateYoutubeVideo(videoId, {
+      title: variant.title,
+      description: variant.description,
+    });
+    setShowAIPanel(false);
+    setAiVariants([]);
+  };
+
+  const handleRateVariant = async (variant, rating) => {
+    try {
+      await intelligenceApi.rate(
+        {
+          variant: variant.title,
+          hookType: variant.hookType,
+          tone: variant.tone,
+          performanceScore: variant.performanceScore,
+          tasteScore: variant.tasteScore,
+        },
+        rating,
+        {},
+        { topic: aiTopic, platform: 'youtube', source: 'local' },
+        false
+      );
+    } catch (error) {
+      console.error('Failed to save rating:', error);
+    }
   };
 
   const titleLength = title.length;
@@ -227,6 +288,100 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
             placeholder="Add a description (optional)..."
             className="input w-full min-h-[80px] resize-none"
           />
+        </div>
+
+        {/* AI Generation */}
+        <div className="border-t border-dark-700 pt-4">
+          <button
+            onClick={() => setShowAIPanel(!showAIPanel)}
+            className="w-full flex items-center justify-between px-3 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-red-400" />
+              <span className="text-sm font-medium text-red-400">AI Generate Title & Description</span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-red-400 transition-transform ${showAIPanel ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showAIPanel && (
+            <div className="mt-3 p-3 bg-dark-700 rounded-lg space-y-3">
+              <div>
+                <label className="block text-xs text-dark-400 mb-1">What's this video about?</label>
+                <input
+                  type="text"
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  placeholder="Enter your video topic..."
+                  className="input w-full text-sm"
+                  onKeyDown={(e) => e.key === 'Enter' && handleGenerateAI()}
+                />
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={aiVideoType}
+                  onChange={(e) => setAiVideoType(e.target.value)}
+                  className="input text-sm flex-1"
+                >
+                  <option value="short">Short</option>
+                  <option value="standard">Standard</option>
+                  <option value="long">Long-form</option>
+                  <option value="tutorial">Tutorial</option>
+                  <option value="vlog">Vlog</option>
+                </select>
+                <button
+                  onClick={handleGenerateAI}
+                  disabled={generating || !aiTopic.trim()}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm"
+                >
+                  {generating ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  Generate
+                </button>
+              </div>
+
+              {/* AI Results */}
+              {aiVariants.length > 0 && (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <p className="text-xs text-dark-400">Click to apply:</p>
+                  {aiVariants.map((variant, i) => (
+                    <div
+                      key={i}
+                      className="p-2 bg-dark-800 rounded-lg hover:bg-dark-600 transition-colors cursor-pointer group"
+                      onClick={() => applyAIVariant(variant)}
+                    >
+                      <p className="text-sm text-white font-medium mb-1 line-clamp-2">{variant.title}</p>
+                      <p className="text-xs text-dark-400 line-clamp-2">{variant.description}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded text-xs">
+                            {variant.hookType}
+                          </span>
+                          <span className="text-xs text-dark-500">{variant.performanceScore}%</span>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRateVariant(variant, star);
+                              }}
+                              className="p-0.5"
+                            >
+                              <Star className="w-3 h-3 text-dark-500 hover:text-yellow-400 hover:fill-yellow-400" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Status */}
