@@ -338,6 +338,11 @@ export const gridApi = {
     const { data } = await api.post(`/api/grid/${gridId}/reorder`, { items });
     return data;
   },
+
+  async assignCharacter(gridId, row, col, characterId) {
+    const { data } = await api.post(`/api/grid/${gridId}/assign-character`, { row, col, characterId });
+    return data;
+  },
 };
 
 // AI API
@@ -615,6 +620,40 @@ export const reelCollectionApi = {
   async bulkAddReels(collectionId, contentIds) {
     const { data } = await api.post(`/api/reel-collections/${collectionId}/bulk-add`, { contentIds });
     return data.collection;
+  },
+};
+
+// Character API - Boveda character management and AI generation
+export const characterApi = {
+  async getAll() {
+    const { data } = await api.get('/api/characters');
+    return data.characters || [];
+  },
+
+  async getById(id) {
+    const { data } = await api.get(`/api/characters/${id}`);
+    return data.character;
+  },
+
+  async create(characterData) {
+    const { data } = await api.post('/api/characters', characterData);
+    return data.character;
+  },
+
+  async update(id, updates) {
+    const { data } = await api.put(`/api/characters/${id}`, updates);
+    return data.character;
+  },
+
+  async delete(id) {
+    const { data } = await api.delete(`/api/characters/${id}`);
+    return data;
+  },
+
+  // Generate content in a character's voice
+  async generate(characterId, options = {}) {
+    const { data } = await api.post(`/api/characters/${characterId}/generate`, options);
+    return data;
   },
 };
 

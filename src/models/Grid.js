@@ -37,6 +37,10 @@ const gridSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Content'
     },
+    characterId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Character'
+    },
     isEmpty: {
       type: Boolean,
       default: true

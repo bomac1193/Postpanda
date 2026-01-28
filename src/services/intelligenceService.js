@@ -339,7 +339,7 @@ function buildTasteContext(tasteProfile) {
   const aes = tasteProfile.aestheticPatterns || {};
   const voice = tasteProfile.voiceSignature || {};
 
-  return `
+  let context = `
 Preferred Hooks: ${(perf.hooks || ['question', 'how-to']).join(', ')}
 Winning Sentiments: ${(perf.sentiment || ['educational', 'entertaining']).join(', ')}
 Dominant Tones: ${(aes.dominantTones || ['authentic']).join(', ')}
@@ -349,6 +349,13 @@ Complexity Level: ${aes.complexity || 'moderate'}
 Sentence Patterns: ${(voice.sentencePatterns || ['varied']).join(', ')}
 Rhetorical Devices: ${(voice.rhetoricalDevices || ['questions']).join(', ')}
   `.trim();
+
+  // Append character context if provided (from Boveda character system)
+  if (tasteProfile.characterContext) {
+    context += `\n\nCHARACTER IDENTITY:\n${tasteProfile.characterContext}`;
+  }
+
+  return context;
 }
 
 /**

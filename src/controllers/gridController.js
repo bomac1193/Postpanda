@@ -26,7 +26,9 @@ const createEmptyCell = (row, col) => ({
 });
 
 const populateGrid = async (gridId) => {
-  const populated = await Grid.findById(gridId).populate('cells.contentId');
+  const populated = await Grid.findById(gridId)
+    .populate('cells.contentId')
+    .populate('cells.characterId', 'name avatar color voice captionStyle');
   normalizeGrid(populated);
   return populated;
 };
@@ -80,6 +82,7 @@ exports.getAllGrids = async (req, res) => {
 
     const grids = await Grid.find(filter)
       .populate('cells.contentId')
+      .populate('cells.characterId', 'name avatar color voice captionStyle')
       .sort({ updatedAt: -1 });
     grids.forEach(normalizeGrid);
 
@@ -103,7 +106,8 @@ exports.getAllGrids = async (req, res) => {
 exports.getGridById = async (req, res) => {
   try {
     const grid = await Grid.findOne({ _id: req.params.id, userId: req.userId })
-      .populate('cells.contentId');
+      .populate('cells.contentId')
+      .populate('cells.characterId', 'name avatar color voice captionStyle');
 
     if (!grid) {
       return res.status(404).json({ error: 'Grid not found' });
@@ -460,6 +464,43 @@ exports.updateCellCrop = async (req, res) => {
   } catch (error) {
     console.error('Update crop error:', error);
     res.status(500).json({ error: 'Failed to update crop' });
+  }
+};
+
+// Assign character to a grid cell
+exports.assignCharacterToCell = async (req, res) => {
+  try {
+    const { row, col, characterId } = req.body;
+    const rowNum = Number(row);
+    const colNum = Number(col);
+
+    if (isNaN(rowNum) || isNaN(colNum)) {
+      return res.status(400).json({ error: 'row and col are required' });
+    }
+
+    const grid = await Grid.findOne({ _id: req.params.id, userId: req.userId });
+    if (!grid) {
+      return res.status(404).json({ error: 'Grid not found' });
+    }
+
+    const cell = grid.cells.find(c => c.position.row === rowNum && c.position.col === colNum);
+    if (!cell) {
+      return res.status(404).json({ error: 'Cell not found' });
+    }
+
+    // Set or clear character assignment
+    cell.characterId = characterId || null;
+    grid.markModified('cells');
+    await grid.save();
+    const populated = await populateGrid(grid._id);
+
+    res.json({
+      message: characterId ? 'Character assigned to cell' : 'Character removed from cell',
+      grid: populated
+    });
+  } catch (error) {
+    console.error('Assign character error:', error);
+    res.status(500).json({ error: 'Failed to assign character' });
   }
 };
 

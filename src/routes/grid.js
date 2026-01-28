@@ -18,6 +18,9 @@ router.post('/:id/remove-content', authenticate, gridController.removeContentFro
 router.post('/:id/crop', authenticate, gridController.updateCellCrop);
 router.post('/:id/reorder', authenticate, gridController.reorderContent);
 
+// Character assignment
+router.post('/:id/assign-character', authenticate, gridController.assignCharacterToCell);
+
 // Grid preview
 router.get('/:id/preview', authenticate, gridController.getGridPreview);
 
