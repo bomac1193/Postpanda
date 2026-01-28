@@ -52,8 +52,14 @@ function ProfileSwitcher({ collapsed = false }) {
           setProfiles([defaultProfile]);
           setCurrentProfile(defaultProfile._id);
         } else {
-          // Ensure we have a current profile selected
-          ensureCurrentProfile();
+          // Set current profile to default if not already set
+          const currentId = useAppStore.getState().currentProfileId;
+          if (!currentId) {
+            const defaultProfile = profileList.find(p => p.isDefault) || profileList[0];
+            if (defaultProfile) {
+              setCurrentProfile(defaultProfile._id || defaultProfile.id);
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to load profiles:', error);

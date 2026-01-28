@@ -379,9 +379,8 @@ function GridPlanner() {
 
   // Refetch grids when profile changes
   useEffect(() => {
-    if (currentProfileId) {
-      fetchGrids();
-    }
+    // Always refetch when profile changes (including when it becomes set for the first time)
+    fetchGrids();
   }, [currentProfileId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sensors = useSensors(
@@ -1056,8 +1055,13 @@ function GridPlanner() {
                         )}
                       </div>
                     ))}
-                    {grids.length === 0 && (
+                    {grids.length === 0 && !loading && (
                       <p className="px-3 py-4 text-sm text-dark-400 text-center">No collections yet</p>
+                    )}
+                    {grids.length === 0 && loading && (
+                      <div className="px-3 py-4 flex justify-center">
+                        <Loader2 className="w-5 h-5 text-dark-400 animate-spin" />
+                      </div>
                     )}
                   </div>
                   <div className="p-2 border-t border-dark-600">
