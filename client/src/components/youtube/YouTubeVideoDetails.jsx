@@ -225,6 +225,16 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
     setShowDeleteConfirm(false);
   };
 
+  // Compose a richer topic for taste-aligned rolls
+  const buildTastePrompt = () => {
+    const baseTitle = title || video?.title || 'untitled video';
+    const desc = description || video?.description || '';
+    if (desc) {
+      return `${baseTitle} — ${desc}`;
+    }
+    return baseTitle;
+  };
+
   // AI Generation
   const handleGenerateAI = async (topicOverride = null) => {
     const topic =
@@ -311,8 +321,9 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
           <button
             onClick={() => {
               setShowAIPanel(true);
+              const prompt = buildTastePrompt();
               if (!generating) {
-                handleGenerateAI('taste-aligned refresh');
+                handleGenerateAI(prompt);
               }
             }}
             disabled={generating}
