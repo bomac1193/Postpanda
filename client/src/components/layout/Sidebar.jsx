@@ -21,6 +21,8 @@ import {
   Zap,
   UserCircle2,
   PenTool,
+  CalendarDays as CalendarIcon,
+  Clock,
 } from 'lucide-react';
 
 // Custom magic wand logo icon for creator-magician brand
@@ -64,7 +66,15 @@ function MagicWandLogo({ className }) {
 const navItems = [
   { path: '/grid', icon: LayoutGrid, label: 'Grid Planner' },
   { path: '/youtube', icon: Youtube, label: 'YouTube Planner' },
-  { path: '/rollout', icon: Layers, label: 'Rollout' },
+  {
+    id: 'scheduler',
+    icon: Clock,
+    label: 'Scheduler',
+    children: [
+      { path: '/rollout', icon: Layers, label: 'Rollout' },
+      { path: '/calendar', icon: CalendarIcon, label: 'Calendar' },
+    ],
+  },
   {
     id: 'editor',
     icon: PenTool,
