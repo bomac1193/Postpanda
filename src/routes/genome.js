@@ -78,6 +78,9 @@ router.post('/signal', auth, async (req, res) => {
 
     // Save evolved genome
     target.tasteGenome = evolvedGenome;
+    if (typeof target.markModified === 'function') {
+      target.markModified('tasteGenome');
+    }
     await target.save();
 
     res.json({
@@ -194,6 +197,9 @@ router.post('/quiz', auth, async (req, res) => {
 
     // Save
     target.tasteGenome = genome;
+    if (typeof target.markModified === 'function') {
+      target.markModified('tasteGenome');
+    }
     await target.save();
 
     res.json({
@@ -386,6 +392,9 @@ router.post('/recompute', auth, async (req, res) => {
     genome.confidence = tasteGenome.calculateConfidence(genome);
     genome.lastUpdated = new Date();
     target.tasteGenome = genome;
+    if (typeof target.markModified === 'function') {
+      target.markModified('tasteGenome');
+    }
     await target.save();
     res.json({
       success: true,

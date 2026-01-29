@@ -427,12 +427,18 @@ function recordSignal(genome, signal) {
  * Update keyword scores (from Refyn deep learning)
  */
 function updateKeywordScores(genome, text, weight, platform) {
+  if (!text || typeof text !== 'string') return;
+  if (!genome.keywordScores) genome.keywordScores = {};
+  if (!genome.platformScores) genome.platformScores = {};
   const lowerText = text.toLowerCase();
 
   // Scan all keyword categories
-  Object.entries(KEYWORD_CATEGORIES).forEach(([category, subcategories]) => {
+  Object.entries(KEYWORD_CATEGORIES || {}).forEach(([category, subcategories]) => {
+    if (!subcategories || typeof subcategories !== 'object') return;
     Object.entries(subcategories).forEach(([subcat, keywords]) => {
+      if (!Array.isArray(keywords)) return;
       keywords.forEach(keyword => {
+        if (typeof keyword !== 'string') return;
         if (lowerText.includes(keyword.replace('-', ' ')) || lowerText.includes(keyword)) {
           const key = `${category}.${subcat}.${keyword}`;
 

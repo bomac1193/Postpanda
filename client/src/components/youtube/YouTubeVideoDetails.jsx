@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Star,
   Check,
+  Dice5,
 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -199,11 +200,14 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   };
 
   // AI Generation
-  const handleGenerateAI = async () => {
-    if (!aiTopic.trim()) return;
+  const handleGenerateAI = async (topicOverride = null) => {
+    const topic =
+      topicOverride ??
+      (aiTopic.trim() || title || description || 'taste-aligned ideas');
+    if (!topic) return;
     setGenerating(true);
     try {
-      const result = await intelligenceApi.generateYouTube(aiTopic, {
+      const result = await intelligenceApi.generateYouTube(topic, {
         videoType: aiVideoType,
         count: 5,
         profileId: currentProfileId || undefined,
@@ -426,18 +430,30 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
                   <option value="tutorial">Tutorial</option>
                   <option value="vlog">Vlog</option>
                 </select>
-                <button
-                  onClick={handleGenerateAI}
-                  disabled={generating || !aiTopic.trim()}
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm"
-                >
-                  {generating ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-4 h-4" />
-                  )}
-                  Generate
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleGenerateAI()}
+                    disabled={generating || (!aiTopic.trim() && !title && !description)}
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm"
+                  >
+                    {generating ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    Generate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateAI('taste-aligned refresh')}
+                    disabled={generating}
+                    className="px-3 py-2 bg-dark-700 border border-dark-600 text-white rounded-lg hover:border-red-500 transition-colors disabled:opacity-50 flex items-center gap-1 text-sm"
+                    title="Randomise with taste profile"
+                  >
+                    <Dice5 className="w-4 h-4" />
+                    <span>Shuffle</span>
+                  </button>
+                </div>
               </div>
 
               {/* AI Results */}

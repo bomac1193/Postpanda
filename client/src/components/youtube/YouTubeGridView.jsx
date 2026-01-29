@@ -178,6 +178,14 @@ function YouTubeGridView({ isLocked, onUpload }) {
 
   // Keyboard delete for selected video
   const handleKeyDown = useCallback((e) => {
+    // Ignore when typing in any input/textarea/contenteditable
+    const activeTag = document.activeElement?.tagName;
+    const isTyping =
+      activeTag === 'INPUT' ||
+      activeTag === 'TEXTAREA' ||
+      document.activeElement?.isContentEditable;
+    if (isTyping) return;
+
     if (!selectedYoutubeVideoId) return;
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
