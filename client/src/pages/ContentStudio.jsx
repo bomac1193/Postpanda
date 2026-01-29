@@ -20,6 +20,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   Youtube,
+  LogIn,
 } from 'lucide-react';
 
 function ScoreRing({ score, size = 60, strokeWidth = 4 }) {
@@ -368,6 +369,16 @@ function ContentStudio() {
     setUseFolioForGeneration(false);
     setFolioProfileStats(null);
     setFolioCollectionsList([]);
+  };
+
+  const handleFolioPopupLogin = () => {
+    const folioUrl = import.meta.env.VITE_FOLIO_API_URL || 'http://localhost:3005';
+    const loginUrl = `${folioUrl.replace(/\/$/, '')}/api/auth/signin`;
+    const width = 520;
+    const height = 720;
+    const left = window.screenX + (window.innerWidth - width) / 2;
+    const top = window.screenY + (window.innerHeight - height) / 2;
+    window.open(loginUrl, 'folio-login', `width=${width},height=${height},left=${left},top=${top}`);
   };
 
   const loadFolioProfile = async () => {
@@ -1034,6 +1045,15 @@ function ContentStudio() {
                       <Link2 className="w-4 h-4" />
                     )}
                     Connect to Folio
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleFolioPopupLogin}
+                    className="px-4 py-2.5 bg-dark-700 text-white rounded-lg hover:bg-dark-600 transition-colors flex items-center gap-2"
+                    title="Open Folio login in a popup"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    Popup
                   </button>
                   <a
                     href="https://folio.subtaste.com"
