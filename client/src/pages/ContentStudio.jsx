@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAppStore } from '../stores/useAppStore';
 import { intelligenceApi, genomeApi } from '../lib/api';
 import folioApi, { folioAuth, isFolioConnected, getFolioUser } from '../lib/folioApi';
 import {
@@ -293,6 +294,9 @@ function ContentStudio() {
   const [youtubeVideoType, setYoutubeVideoType] = useState('standard');
   const [youtubeVariants, setYoutubeVariants] = useState([]);
   const [generatingYoutube, setGeneratingYoutube] = useState(false);
+  const currentProfileId = useAppStore((state) => state.currentProfileId);
+  const activeFolioId = useAppStore((state) => state.activeFolioId);
+  const activeProjectId = useAppStore((state) => state.activeProjectId);
 
   useEffect(() => {
     loadTasteProfile();
@@ -376,8 +380,11 @@ function ContentStudio() {
           topic,
           platform: currentPlatform || platform,
           source: useFolioForGeneration ? 'folio' : 'local',
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
         },
-        false // wasApplied
+        false, // wasApplied
+        currentProfileId || null
       );
     } catch (error) {
       console.error('Failed to save rating:', error);
@@ -406,6 +413,9 @@ function ContentStudio() {
         result = await intelligenceApi.generateYouTube(topic, {
           videoType: youtubeVideoType,
           count: 5,
+          profileId: currentProfileId || undefined,
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
         });
       }
       setYoutubeVariants(result.variants || []);
@@ -439,7 +449,13 @@ function ContentStudio() {
         );
       } else {
         // Use local Slayt AI generation
-        result = await intelligenceApi.generate(topic, { platform, count: 5 });
+        result = await intelligenceApi.generate(topic, {
+          platform,
+          count: 5,
+          profileId: currentProfileId || undefined,
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
+        });
       }
       setVariants(result.variants || []);
     } catch (error) {

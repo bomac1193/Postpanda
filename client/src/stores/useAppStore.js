@@ -64,6 +64,10 @@ export const useAppStore = create(
       // Videos stored by collection ID for persistence
       youtubeVideosByCollection: { default: [] },
 
+      // Subtaste / Folio context
+      activeFolioId: null,
+      activeProjectId: null,
+
       // Rollouts
       rollouts: [],
       currentRolloutId: null,
@@ -434,6 +438,10 @@ export const useAppStore = create(
         }
       })),
 
+      // Subtaste / Folio context actions
+      setActiveFolio: (folioId) => set({ activeFolioId: folioId }),
+      setActiveProject: (projectId) => set({ activeProjectId: projectId }),
+
       // Collection tag actions
       updateYoutubeCollectionTags: (collectionId, tags) => set((state) => ({
         youtubeCollections: state.youtubeCollections.map(c =>
@@ -770,6 +778,8 @@ export const useAppStore = create(
         youtubeChannelSettings: state.youtubeChannelSettings,
         // YouTube collections/videos are now stored in MongoDB - only persist selection ID
         currentYoutubeCollectionId: state.currentYoutubeCollectionId,
+        activeFolioId: state.activeFolioId,
+        activeProjectId: state.activeProjectId,
         // Reel collections - just the current selection
         currentReelCollectionId: state.currentReelCollectionId,
         // Rollouts - persist selection (data should come from backend)

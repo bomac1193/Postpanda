@@ -263,13 +263,13 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
 
       {/* Selected state - show trash icon */}
       {isSelected && (
-        <div className="absolute inset-0 bg-black/30 pointer-events-none">
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
           <button
             onClick={handleDeleteClick}
-            className="absolute bottom-2 right-2 p-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors pointer-events-auto"
+            className="p-3 bg-red-500 hover:bg-red-600 rounded-full transition-colors pointer-events-auto shadow-lg shadow-red-900/40"
             title="Delete image"
           >
-            <Trash2 className="w-4 h-4 text-white" />
+            <Trash2 className="w-5 h-5 text-white" />
           </button>
         </div>
       )}

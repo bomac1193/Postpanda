@@ -72,6 +72,8 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
   const [ratings, setRatings] = useState({});
   const [savedRatings, setSavedRatings] = useState({});
   const currentProfileId = useAppStore((state) => state.currentProfileId);
+  const activeFolioId = useAppStore((state) => state.activeFolioId);
+  const activeProjectId = useAppStore((state) => state.activeProjectId);
 
   useEffect(() => {
     loadCharacters();
@@ -117,6 +119,8 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
           platform,
           count: 5,
           profileId: currentProfileId || undefined,
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
         });
       } else {
         // Generate using personal taste profile
@@ -124,6 +128,8 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
           platform,
           count: 5,
           profileId: currentProfileId || undefined,
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
         });
       }
 
@@ -166,6 +172,8 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
           platform,
           characterId: selectedCharacter?._id,
           source: 'local',
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
         },
         false,
         currentProfileId || null

@@ -162,6 +162,10 @@ function QuizQuestion({ question, onAnswer, selectedAnswer }) {
 
 function TasteGenome() {
   const currentProfileId = useAppStore((state) => state.currentProfileId);
+  const activeFolioId = useAppStore((state) => state.activeFolioId);
+  const activeProjectId = useAppStore((state) => state.activeProjectId);
+  const setActiveFolio = useAppStore((state) => state.setActiveFolio);
+  const setActiveProject = useAppStore((state) => state.setActiveProject);
   const [genome, setGenome] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showQuiz, setShowQuiz] = useState(false);
@@ -398,7 +402,14 @@ function TasteGenome() {
       await genomeApi.signal(
         'preference',
         'subtaste-input',
-        { authors, topics, books, influences },
+        {
+          authors,
+          topics,
+          books,
+          influences,
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
+        },
         currentProfileId || null
       );
       setPrefMessage('Locked into your taste genome. Keep adding signals anytime.');
@@ -420,7 +431,7 @@ function TasteGenome() {
       await genomeApi.signal(
         'choice',
         pair.id,
-        { choice, selected: chosen, rejected: other },
+        { choice, selected: chosen, rejected: other, folioId: activeFolioId || undefined, projectId: activeProjectId || undefined },
         currentProfileId || null
       );
       setTrainMessage(`Logged: "${chosen}" → genome updated.`);
@@ -447,7 +458,13 @@ function TasteGenome() {
       await genomeApi.signal(
         'likert',
         item.id,
-        { score, prompt: item.prompt, archetypeHint: item.archetypeHint },
+        {
+          score,
+          prompt: item.prompt,
+          archetypeHint: item.archetypeHint,
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
+        },
         currentProfileId || null
       );
       await refreshGenomeQuietly();
@@ -565,9 +582,19 @@ function TasteGenome() {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <Dna className="w-7 h-7 text-accent-purple" />
-            Taste Genome
+            Subtaste · Taste Genome
           </h1>
-          <p className="text-dark-400 mt-1">Your creative DNA profile</p>
+          <p className="text-dark-400 mt-1">Your creative DNA profile, wired into Folio and the content studio.</p>
+          {genome?.archetype?.primary && (
+            <div className="mt-2 flex items-center gap-3">
+              <span className="px-3 py-1 bg-dark-800 border border-dark-600 rounded-md text-xs text-dark-200 font-mono tracking-[0.2em] uppercase">
+                {genome.archetype.primary.glyph} / {genome.archetype.primary.designation}
+              </span>
+              <span className="text-sm text-dark-300 font-semibold">
+                {genome.archetype.primary.title}
+              </span>
+            </div>
+          )}
         </div>
         <button
           onClick={startQuiz}
@@ -591,6 +618,28 @@ function TasteGenome() {
           <p className="text-sm text-dark-400 mb-3">
             Give the model your influences so captions, hooks, and YouTube titles start closer to your lane.
           </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="block text-xs text-dark-400 mb-1">Active Folio</label>
+              <input
+                type="text"
+                value={activeFolioId || ''}
+                onChange={(e) => setActiveFolio(e.target.value || null)}
+                className="input w-full"
+                placeholder="folio workspace id or slug"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-dark-400 mb-1">Active Project</label>
+              <input
+                type="text"
+                value={activeProjectId || ''}
+                onChange={(e) => setActiveProject(e.target.value || null)}
+                className="input w-full"
+                placeholder="project id (optional)"
+              />
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-dark-400 mb-1">Authors / thinkers</label>

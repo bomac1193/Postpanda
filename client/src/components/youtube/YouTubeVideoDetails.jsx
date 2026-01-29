@@ -34,6 +34,8 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   const updateYoutubeVideo = useAppStore((state) => state.updateYoutubeVideo);
   const deleteYoutubeVideo = useAppStore((state) => state.deleteYoutubeVideo);
   const currentProfileId = useAppStore((state) => state.currentProfileId);
+  const activeFolioId = useAppStore((state) => state.activeFolioId);
+  const activeProjectId = useAppStore((state) => state.activeProjectId);
 
   const [title, setTitle] = useState(video?.title || '');
   const [description, setDescription] = useState(video?.description || '');
@@ -51,6 +53,12 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   const [aiVariants, setAiVariants] = useState([]);
 
   const fileInputRef = useRef(null);
+  const videoId = video?.id || video?._id;
+  const autosaveTimer = useRef(null);
+  const lastSavedRef = useRef({
+    title: video?.title || '',
+    description: video?.description || '',
+  });
 
   // Update local state when video changes
   useEffect(() => {
@@ -60,8 +68,49 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
       setStatus(video.status || 'draft');
       setScheduledDate(video.scheduledDate || '');
       setScheduledTime(video.scheduledTime || '12:00');
+      lastSavedRef.current = {
+        title: video.title || '',
+        description: video.description || '',
+      };
+      if (autosaveTimer.current) {
+        clearTimeout(autosaveTimer.current);
+      }
     }
   }, [video?.id]);
+
+  // Debounced autosave for title/description so refresh/collection switch doesn't lose edits
+  useEffect(() => {
+    if (!video) return undefined;
+    if (autosaveTimer.current) {
+      clearTimeout(autosaveTimer.current);
+    }
+    autosaveTimer.current = setTimeout(() => {
+      const dirtyTitle = title !== lastSavedRef.current.title;
+      const dirtyDescription = description !== lastSavedRef.current.description;
+      if (dirtyTitle || dirtyDescription) {
+        persistVideoUpdates({ title, description });
+        lastSavedRef.current = { title, description };
+      }
+    }, 700);
+
+    return () => {
+      if (autosaveTimer.current) {
+        clearTimeout(autosaveTimer.current);
+      }
+    };
+  }, [title, description, video?.id]);
+
+  // Final flush on unmount
+  useEffect(() => () => {
+    if (videoId) {
+      const dirtyTitle = title !== lastSavedRef.current.title;
+      const dirtyDescription = description !== lastSavedRef.current.description;
+      if (dirtyTitle || dirtyDescription) {
+        persistVideoUpdates({ title, description });
+        lastSavedRef.current = { title, description };
+      }
+    }
+  }, [videoId, title, description]);
 
   if (!video) {
     return (
@@ -90,6 +139,12 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
       const { video: savedVideo } = await youtubeApi.updateVideo(videoId, updates);
       if (savedVideo) {
         updateYoutubeVideo(videoId, { ...savedVideo, id: savedVideo._id || videoId });
+        if (typeof updates.title === 'string' || typeof updates.description === 'string') {
+          lastSavedRef.current = {
+            title: updates.title ?? lastSavedRef.current.title,
+            description: updates.description ?? lastSavedRef.current.description,
+          };
+        }
       }
     } catch (error) {
       console.error('Failed to save YouTube video update:', error);
@@ -104,6 +159,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
 
   const handleTitleBlur = () => {
     persistVideoUpdates({ title });
+    lastSavedRef.current = { ...lastSavedRef.current, title };
   };
 
   const handleDescriptionChange = (value) => {
@@ -112,6 +168,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
 
   const handleDescriptionBlur = () => {
     persistVideoUpdates({ description });
+    lastSavedRef.current = { ...lastSavedRef.current, description };
   };
 
   const handleStatusChange = (newStatus) => {
@@ -151,6 +208,8 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
         videoType: aiVideoType,
         count: 5,
         profileId: currentProfileId || undefined,
+        folioId: activeFolioId || undefined,
+        projectId: activeProjectId || undefined,
       });
       const variants = result.variants || [];
       setAiVariants(variants);
@@ -195,7 +254,13 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
         },
         rating,
         {},
-        { topic: aiTopic, platform: 'youtube', source: 'local' },
+        {
+          topic: aiTopic,
+          platform: 'youtube',
+          source: 'local',
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
+        },
         false,
         currentProfileId || null
       );
