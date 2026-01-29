@@ -124,6 +124,7 @@ const ARCHETYPES = {
 const SIGNAL_WEIGHTS = {
   // Explicit signals
   rating: 1.0,
+  likert: 1.3,
   choice: 1.0,
   preference: 1.0,
   block: 1.5,
@@ -315,13 +316,28 @@ function recordSignal(genome, signal) {
 
   // Get signal weight
   const weight = SIGNAL_WEIGHTS[type] || 0.5;
-  const isPositive = !['skip', 'dislike', 'block', 'delete'].includes(type);
+  let isPositive = !['skip', 'dislike', 'block', 'delete'].includes(type);
+  let direction = 1;
+
+  // Likert signals can be negative/neutral depending on score
+  if (type === 'likert' && metadata.score !== undefined) {
+    if (metadata.score <= 2) {
+      isPositive = false;
+      direction = -1;
+    } else if (metadata.score === 3) {
+      isPositive = true;
+      direction = 0.3; // low weight for neutral
+    } else {
+      isPositive = true;
+      direction = 1;
+    }
+  }
 
   // Create signal record
   const signalRecord = {
     type,
     value,
-    weight: isPositive ? weight : -weight * 0.5,
+    weight: isPositive ? weight * direction : -weight * Math.abs(direction) * 0.5,
     metadata,
     timestamp,
     archetypeWeights: {}
@@ -330,8 +346,21 @@ function recordSignal(genome, signal) {
   // Infer archetype weights from signal type
   const archetypeMap = SIGNAL_ARCHETYPE_MAP[type] || {};
   Object.entries(archetypeMap).forEach(([designation, w]) => {
-    signalRecord.archetypeWeights[designation] = isPositive ? w : -w * 0.5;
+    signalRecord.archetypeWeights[designation] = isPositive ? w * direction : -w * Math.abs(direction) * 0.5;
   });
+
+  // Preference inputs (Subtaste) should steer archival/integrative archetypes
+  if (type === 'preference') {
+    const prefWeight = isPositive ? 0.4 : -0.2;
+    signalRecord.archetypeWeights['P-7'] = (signalRecord.archetypeWeights['P-7'] || 0) + prefWeight;
+    signalRecord.archetypeWeights['N-5'] = (signalRecord.archetypeWeights['N-5'] || 0) + prefWeight * 0.6;
+  }
+
+  // Likert with archetype hint
+  if (type === 'likert' && metadata.archetypeHint) {
+    const likertWeight = isPositive ? 0.6 * direction : -0.3 * Math.abs(direction);
+    signalRecord.archetypeWeights[metadata.archetypeHint] = (signalRecord.archetypeWeights[metadata.archetypeHint] || 0) + likertWeight;
+  }
 
   // Infer archetype weights from metadata
   if (metadata.isObscure && isPositive) {
@@ -353,7 +382,31 @@ function recordSignal(genome, signal) {
 
   // Update keyword scores if value contains text
   if (value && typeof value === 'string') {
-    updateKeywordScores(genome, value, isPositive ? 2 : -2, metadata.platform);
+    updateKeywordScores(genome, value, isPositive ? 2 * direction : -2 * Math.abs(direction), metadata.platform);
+  }
+
+  // Subtaste freeform inputs: fold authors/topics/books/influences into keyword learning
+  if (type === 'preference') {
+    const fields = ['authors', 'topics', 'books', 'influences'];
+    const textParts = fields
+      .map((key) => metadata[key])
+      .filter((arr) => Array.isArray(arr) && arr.length)
+      .map((arr) => arr.join(' '));
+
+    if (textParts.length) {
+      updateKeywordScores(
+        genome,
+        textParts.join(' '),
+        isPositive ? 3 * direction : -3 * Math.abs(direction),
+        metadata.platform
+      );
+    }
+  }
+
+  // Likert: treat the prompt as text for keyword learning
+  if (type === 'likert' && metadata.prompt) {
+    const keywordWeight = direction === 0.3 ? 1 : 2.5 * direction;
+    updateKeywordScores(genome, metadata.prompt, keywordWeight, metadata.platform);
   }
 
   // Update item count and confidence
@@ -647,6 +700,7 @@ function getCurrentTier(genome) {
 function getGenomeSummary(genome) {
   return {
     archetype: genome.archetype.primary ? {
+      designation: genome.archetype.primary.designation,
       glyph: genome.archetype.primary.glyph,
       title: genome.archetype.primary.title,
       essence: genome.archetype.primary.essence,
@@ -654,6 +708,7 @@ function getGenomeSummary(genome) {
       color: genome.archetype.primary.color,
       confidence: genome.archetype.confidence,
       secondary: genome.archetype.secondary ? {
+        designation: genome.archetype.secondary.designation,
         glyph: genome.archetype.secondary.glyph,
         title: genome.archetype.secondary.title,
         confidence: genome.archetype.secondary.confidence

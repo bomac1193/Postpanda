@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -174,6 +174,20 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
       deleteYoutubeVideo(id);
     }
   }, [deleteYoutubeVideo]);
+
+  // Keyboard delete for selected video
+  const handleKeyDown = useCallback((e) => {
+    if (!selectedYoutubeVideoId) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      handleDelete(selectedYoutubeVideoId);
+    }
+  }, [selectedYoutubeVideoId, handleDelete]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   // Empty state
   if (youtubeVideos.length === 0) {

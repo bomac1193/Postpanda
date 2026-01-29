@@ -81,9 +81,9 @@ function YouTubeVideoCard({ video, isSelected, isLocked, onClick, onDelete }) {
         )}
 
         {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 pointer-events-none">
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/45 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
           {!isLocked && (
-            <div className="p-2 bg-dark-800/80 rounded-lg text-dark-200">
+            <div className="absolute top-2 left-2 p-1.5 bg-dark-800/80 rounded-lg text-dark-200 pointer-events-auto">
               <GripVertical className="w-4 h-4" />
             </div>
           )}
@@ -92,9 +92,10 @@ function YouTubeVideoCard({ video, isSelected, isLocked, onClick, onDelete }) {
               e.stopPropagation();
               onDelete?.();
             }}
-            className="p-2 bg-dark-800/80 rounded-lg text-dark-200 hover:text-red-400 transition-colors pointer-events-auto"
+            className="p-3 rounded-full bg-black/70 text-white hover:bg-red-600/80 transition-colors pointer-events-auto"
+            title="Delete"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-5 h-5" />
           </button>
         </div>
       </div>

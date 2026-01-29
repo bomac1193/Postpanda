@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
-import { intelligenceApi } from '../../lib/api';
+import { intelligenceApi, youtubeApi } from '../../lib/api';
 import {
   Image,
   Type,
@@ -33,6 +33,7 @@ const TITLE_VISIBLE = 60; // Characters visible in search results
 function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   const updateYoutubeVideo = useAppStore((state) => state.updateYoutubeVideo);
   const deleteYoutubeVideo = useAppStore((state) => state.deleteYoutubeVideo);
+  const currentProfileId = useAppStore((state) => state.currentProfileId);
 
   const [title, setTitle] = useState(video?.title || '');
   const [description, setDescription] = useState(video?.description || '');
@@ -76,7 +77,24 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
     );
   }
 
-  const videoId = video.id;
+  const videoId = video.id || video._id;
+
+  // Persist updates to the backend and keep local state in sync
+  const persistVideoUpdates = async (updates) => {
+    if (!videoId) return;
+
+    // Optimistic local update
+    updateYoutubeVideo(videoId, updates);
+
+    try {
+      const { video: savedVideo } = await youtubeApi.updateVideo(videoId, updates);
+      if (savedVideo) {
+        updateYoutubeVideo(videoId, { ...savedVideo, id: savedVideo._id || videoId });
+      }
+    } catch (error) {
+      console.error('Failed to save YouTube video update:', error);
+    }
+  };
 
   const handleTitleChange = (value) => {
     if (value.length <= TITLE_MAX) {
@@ -85,7 +103,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   };
 
   const handleTitleBlur = () => {
-    updateYoutubeVideo(videoId, { title });
+    persistVideoUpdates({ title });
   };
 
   const handleDescriptionChange = (value) => {
@@ -93,19 +111,21 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   };
 
   const handleDescriptionBlur = () => {
-    updateYoutubeVideo(videoId, { description });
+    persistVideoUpdates({ description });
   };
 
   const handleStatusChange = (newStatus) => {
     setStatus(newStatus);
-    updateYoutubeVideo(videoId, { status: newStatus });
+    persistVideoUpdates({ status: newStatus });
   };
 
   const handleScheduleChange = () => {
-    updateYoutubeVideo(videoId, {
+    const nextStatus = scheduledDate ? 'scheduled' : status;
+    setStatus(nextStatus);
+    persistVideoUpdates({
       scheduledDate,
       scheduledTime,
-      status: scheduledDate ? 'scheduled' : status,
+      status: nextStatus,
     });
   };
 
@@ -130,6 +150,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
       const result = await intelligenceApi.generateYouTube(aiTopic, {
         videoType: aiVideoType,
         count: 5,
+        profileId: currentProfileId || undefined,
       });
       const variants = result.variants || [];
       setAiVariants(variants);
@@ -139,7 +160,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
         const best = variants[0];
         setTitle(best.title);
         setDescription(best.description);
-        updateYoutubeVideo(videoId, {
+        persistVideoUpdates({
           title: best.title,
           description: best.description,
         });
@@ -154,7 +175,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   const applyAIVariant = (variant) => {
     setTitle(variant.title);
     setDescription(variant.description);
-    updateYoutubeVideo(videoId, {
+    persistVideoUpdates({
       title: variant.title,
       description: variant.description,
     });
@@ -175,7 +196,8 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
         rating,
         {},
         { topic: aiTopic, platform: 'youtube', source: 'local' },
-        false
+        false,
+        currentProfileId || null
       );
     } catch (error) {
       console.error('Failed to save rating:', error);

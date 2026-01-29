@@ -178,7 +178,8 @@ export const useAppStore = create(
         }
       })),
       deleteGridMeta: (gridId) => set((state) => {
-        const { [gridId]: _, ...remaining } = state.gridMeta;
+        const remaining = { ...state.gridMeta };
+        delete remaining[gridId];
         return { gridMeta: remaining };
       }),
 
@@ -382,7 +383,8 @@ export const useAppStore = create(
           : state.currentYoutubeCollectionId;
 
         // Remove deleted collection from videos map
-        const { [id]: _, ...remainingVideosByCollection } = state.youtubeVideosByCollection;
+        const remainingVideosByCollection = { ...state.youtubeVideosByCollection };
+        delete remainingVideosByCollection[id];
 
         return {
           youtubeCollections: newCollections,
@@ -798,7 +800,7 @@ export const useAppStore = create(
 );
 
 // Editor-specific store (not persisted - canvas state is transient)
-export const useEditorStore = create((set, get) => ({
+export const useEditorStore = create((set) => ({
   // Canvas state
   canvas: null,
   activeObject: null,

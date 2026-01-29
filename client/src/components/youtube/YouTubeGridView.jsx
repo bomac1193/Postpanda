@@ -176,6 +176,22 @@ function YouTubeGridView({ isLocked, onUpload }) {
     setZoom(1);
   };
 
+  // Keyboard delete for selected video
+  const handleKeyDown = useCallback((e) => {
+    if (!selectedYoutubeVideoId) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      if (window.confirm('Delete this video?')) {
+        deleteYoutubeVideo(selectedYoutubeVideoId);
+      }
+    }
+  }, [selectedYoutubeVideoId, deleteYoutubeVideo]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
   // Save avatar to user profile (syncs across all platforms)
   const handleSaveAvatar = () => {
     if (!tempImage) {

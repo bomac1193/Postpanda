@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { characterApi, intelligenceApi, genomeApi } from '../../lib/api';
+import { useAppStore } from '../../stores/useAppStore';
+import { characterApi, intelligenceApi } from '../../lib/api';
 import {
   X,
   Sparkles,
@@ -70,6 +71,7 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
   const [tasteProfile, setTasteProfile] = useState(null);
   const [ratings, setRatings] = useState({});
   const [savedRatings, setSavedRatings] = useState({});
+  const currentProfileId = useAppStore((state) => state.currentProfileId);
 
   useEffect(() => {
     loadCharacters();
@@ -78,7 +80,7 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
     if (post?.caption) {
       setTopic(post.caption.substring(0, 100));
     }
-  }, [post]);
+  }, [post, currentProfileId]);
 
   const loadCharacters = async () => {
     try {
@@ -91,7 +93,7 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
 
   const loadTasteProfile = async () => {
     try {
-      const result = await intelligenceApi.getProfile();
+      const result = await intelligenceApi.getProfile(currentProfileId || null);
       if (result.hasProfile) {
         setTasteProfile(result.tasteProfile);
       }
@@ -114,12 +116,14 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
           topic,
           platform,
           count: 5,
+          profileId: currentProfileId || undefined,
         });
       } else {
         // Generate using personal taste profile
         result = await intelligenceApi.generate(topic, {
           platform,
           count: 5,
+          profileId: currentProfileId || undefined,
         });
       }
 
@@ -163,7 +167,8 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
           characterId: selectedCharacter?._id,
           source: 'local',
         },
-        false
+        false,
+        currentProfileId || null
       );
       setSavedRatings(prev => ({ ...prev, [index]: true }));
     } catch (error) {

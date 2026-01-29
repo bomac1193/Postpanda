@@ -804,10 +804,9 @@ function PostPreviewModal({ post, onClose, onSave }) {
   );
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-y-0 right-0 z-50 flex items-start justify-end pointer-events-none">
       <div
-        className="bg-dark-800 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-dark-700 flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+        className="bg-dark-800 pointer-events-auto rounded-l-2xl w-full max-w-3xl h-full overflow-hidden border border-dark-700 flex flex-col shadow-2xl"
       >
         {/* Header with tabs */}
         <div className="px-4 py-3 border-b border-dark-700 flex items-center justify-between">
@@ -1249,6 +1248,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   const user = useAppStore((state) => state.user);
   const setUser = useAppStore((state) => state.setUser);
   const setGridPosts = useAppStore((state) => state.setGridPosts);
+  const selectPost = useAppStore((state) => state.selectPost);
 
   // Get current profile for profile-specific avatar/bio
   const profiles = useAppStore((state) => state.profiles);
@@ -1540,18 +1540,13 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
 
   // Handle item selection - in locked mode, open preview modal instead
   const handleSelectItem = useCallback((postId) => {
-    if (!showRowHandles) {
-      // Locked mode - open post preview modal
-      const post = posts.find(p => (p.id || p._id) === postId);
-      if (post) {
-        setPreviewPost(post);
-        setShowPostPreview(true);
-      }
-    } else {
-      // Normal mode - toggle selection
-      setSelectedItemId(prevId => prevId === postId ? null : postId);
-    }
-  }, [showRowHandles, posts]);
+    const post = posts.find(p => (p.id || p._id) === postId);
+    const nextId = post ? postId : null;
+    setSelectedItemId(prev => (prev === nextId ? null : nextId));
+    selectPost(nextId || null);
+    setPreviewPost(post || null);
+    setShowPostPreview(false); // keep editing in side panel instead of modal
+  }, [posts, selectPost]);
 
   // Handle delete request (from trash icon or keyboard)
   const handleDeleteRequest = useCallback((postId) => {
@@ -1575,10 +1570,11 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
         setGridPosts(newPosts);
       }
       setSelectedItemId(null);
+      selectPost(null);
     }
     setShowDeleteConfirm(false);
     setItemToDelete(null);
-  }, [itemToDelete, posts, setGridPosts, onDeletePost]);
+  }, [itemToDelete, posts, setGridPosts, onDeletePost, selectPost]);
 
   // Cancel delete
   const handleCancelDelete = useCallback(() => {
@@ -1660,7 +1656,8 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   // Click outside to deselect
   const handleBackgroundClick = useCallback(() => {
     setSelectedItemId(null);
-  }, []);
+    selectPost(null);
+  }, [selectPost]);
 
   // Video drag handlers for Reels tab - stop propagation to prevent GridPlanner from handling
   const handleVideoDragEnter = (e) => {
@@ -4191,17 +4188,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
         />
       )}
 
-      {/* Post Preview Modal (for locked mode) */}
-      {showPostPreview && previewPost && (
-        <PostPreviewModal
-          post={previewPost}
-          onClose={() => {
-            setShowPostPreview(false);
-            setPreviewPost(null);
-          }}
-          onSave={handleSavePostPreview}
-        />
-      )}
+      {/* Post Preview Modal disabled in favour of right-hand panel */}
     </div>
   );
 }

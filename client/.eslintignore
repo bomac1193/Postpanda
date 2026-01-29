@@ -1,0 +1,11 @@
+node_modules
+dist
+public
+coverage
+*.config.js
+*.config.cjs
+*.config.mjs
+*.config.ts
+vite.config.*
+tailwind.config.*
+postcss.config.*
