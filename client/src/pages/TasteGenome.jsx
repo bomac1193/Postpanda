@@ -74,35 +74,40 @@ function ArchetypeCard({ archetype, isActive, confidence }) {
 
   return (
     <div
-      className={`relative rounded-xl p-4 border transition-all ${
+      className={`relative rounded-lg p-4 border transition-all ${
         isActive
-          ? 'bg-dark-700 border-accent-purple shadow-lg shadow-accent-purple/20'
-          : 'bg-dark-800 border-dark-700 opacity-60'
+          ? 'bg-dark-900 border-accent-purple/60 shadow-[0_0_0_1px_rgba(139,92,246,0.3)]'
+          : 'bg-dark-900 border-dark-700'
       }`}
     >
       {isActive && (
-        <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-accent-purple text-white text-xs rounded-full font-medium">
+        <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-accent-purple text-white text-xs rounded-sm font-semibold tracking-wide">
           {Math.round(confidence * 100)}%
         </div>
       )}
-      <div className="flex items-center gap-3 mb-3">
-        <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: archetype.color || '#8b5cf6' }}
-        >
-          <IconComponent className="w-5 h-5 text-white" />
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-sm border border-dark-600 bg-dark-800 flex items-center justify-center">
+            <IconComponent className="w-5 h-5 text-dark-200" />
+          </div>
+          <div>
+            <p className="text-[11px] text-dark-400 font-mono uppercase tracking-[0.28em]">
+              {archetype.designation}
+            </p>
+            <h3 className="font-bold text-white tracking-tight uppercase">{archetype.glyph || archetype.title}</h3>
+            <p className="text-xs text-dark-400">{archetype.title}</p>
+          </div>
         </div>
-        <div>
-          <h3 className="font-semibold text-white">{archetype.title}</h3>
-          <p className="text-xs text-dark-400 font-mono">{archetype.designation}</p>
-        </div>
+        {archetype.sigil && (
+          <span className="text-[11px] text-dark-300 font-mono uppercase tracking-[0.18em]">
+            {archetype.sigil}
+          </span>
+        )}
       </div>
       <p className="text-sm text-dark-300 mb-3 line-clamp-2">{archetype.essence}</p>
-      <div className="flex flex-wrap gap-1">
-        <span className="px-2 py-0.5 bg-dark-600 rounded text-xs text-dark-300">
-          {archetype.creativeMode}
-        </span>
-      </div>
+      <span className="inline-flex px-2 py-0.5 border border-dark-600 rounded-sm text-[11px] text-dark-200 uppercase tracking-[0.12em]">
+        {archetype.creativeMode}
+      </span>
     </div>
   );
 }
@@ -587,12 +592,17 @@ function TasteGenome() {
           <p className="text-dark-400 mt-1">Your creative DNA profile, wired into Folio and the content studio.</p>
           {genome?.archetype?.primary && (
             <div className="mt-2 flex items-center gap-3">
-              <span className="px-3 py-1 bg-dark-800 border border-dark-600 rounded-md text-xs text-dark-200 font-mono tracking-[0.2em] uppercase">
-                {genome.archetype.primary.glyph} / {genome.archetype.primary.designation}
+              <span className="px-3 py-1 bg-dark-900 border border-dark-700 rounded-sm text-xs text-dark-100 font-mono tracking-[0.3em] uppercase">
+                {genome.archetype.primary.designation}
               </span>
-              <span className="text-sm text-dark-300 font-semibold">
-                {genome.archetype.primary.title}
+              <span className="text-lg text-white font-black uppercase tracking-[0.08em]">
+                {genome.archetype.primary.glyph}
               </span>
+              {genome.archetype.primary.sigil && (
+                <span className="text-xs text-dark-300 font-mono uppercase tracking-[0.14em]">
+                  {genome.archetype.primary.sigil}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -788,41 +798,41 @@ function TasteGenome() {
           <div className="lg:col-span-2 space-y-6">
             {/* Main Archetype Card */}
             {genome.archetype?.primary && (
-              <div className="bg-dark-800 rounded-xl p-6 border border-dark-700">
+              <div className="bg-dark-900 rounded-lg p-6 border border-dark-700">
                 <div className="flex items-start gap-4 mb-4">
-                  <div
-                    className="w-16 h-16 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: genome.archetype.primary.color || '#8b5cf6' }}
-                  >
+                  <div className="w-18 min-w-[72px] h-18 min-h-[72px] rounded-sm border border-dark-700 bg-dark-800 flex items-center justify-center">
                     {(() => {
                       const IconComponent = ARCHETYPE_ICONS[genome.archetype.primary.designation] || Hexagon;
-                      return <IconComponent className="w-8 h-8 text-white" />;
+                      return <IconComponent className="w-8 h-8 text-dark-200" />;
                     })()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-accent-purple font-mono tracking-[0.3em] uppercase mb-1">
-                      Glyph {genome.archetype.primary.glyph} / {genome.archetype.primary.designation}
+                    <p className="text-[11px] text-dark-400 font-mono tracking-[0.3em] uppercase mb-1">
+                      {genome.archetype.primary.designation}
                     </p>
-                    <h2 className="text-3xl font-black text-white uppercase font-mono tracking-[0.2em]">
+                    <h2 className="text-4xl font-black text-white uppercase font-mono tracking-[0.16em] leading-tight">
                       {genome.archetype.primary.glyph}
                     </h2>
-                    <p className="text-lg text-dark-200 font-semibold mt-1">{genome.archetype.primary.title}</p>
+                    <p className="text-sm text-dark-300 font-semibold mt-1 uppercase tracking-[0.08em]">
+                      {genome.archetype.primary.title}
+                      {genome.archetype.primary.sigil ? ` · ${genome.archetype.primary.sigil}` : ''}
+                    </p>
                   </div>
                   <div className="ml-auto text-right">
                     <p className="text-3xl font-bold text-white">
                       {Math.round((genome.archetype.primary.confidence || 0) * 100)}%
                     </p>
-                    <p className="text-sm text-dark-400">confidence</p>
+                    <p className="text-xs text-dark-400 tracking-wide">confidence</p>
                   </div>
                 </div>
-                <p className="text-dark-300 mb-4">{genome.archetype.primary.essence}</p>
+                <p className="text-dark-200 mb-4 leading-relaxed">{genome.archetype.primary.essence}</p>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-accent-purple/20 text-accent-purple rounded-lg text-sm">
+                  <span className="px-3 py-1 border border-dark-600 text-dark-100 rounded-sm text-xs uppercase tracking-[0.12em]">
                     {genome.archetype.primary.creativeMode}
                   </span>
                   {genome.archetype.primary.shadow && (
-                    <span className="px-3 py-1 bg-dark-700 text-dark-300 rounded-lg text-sm">
-                      Shadow: {genome.archetype.primary.shadow}
+                    <span className="px-3 py-1 border border-dark-700 text-dark-300 rounded-sm text-xs uppercase tracking-[0.08em]">
+                      Shadow · {genome.archetype.primary.shadow}
                     </span>
                   )}
                 </div>
@@ -831,24 +841,21 @@ function TasteGenome() {
 
             {/* Secondary Archetype */}
             {genome.archetype?.secondary && (
-              <div className="bg-dark-800 rounded-xl p-4 border border-dark-700">
-                <p className="text-sm text-dark-400 mb-2">Secondary Influence</p>
+              <div className="bg-dark-900 rounded-lg p-4 border border-dark-700">
+                <p className="text-xs text-dark-400 mb-2 uppercase tracking-[0.14em]">Secondary Influence</p>
                 <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: genome.archetype.secondary.color || '#6366f1' }}
-                  >
+                  <div className="w-12 h-12 rounded-sm border border-dark-700 bg-dark-800 flex items-center justify-center">
                     {(() => {
                       const IconComponent = ARCHETYPE_ICONS[genome.archetype.secondary.designation] || Hexagon;
-                      return <IconComponent className="w-5 h-5 text-white" />;
+                      return <IconComponent className="w-5 h-5 text-dark-200" />;
                     })()}
                   </div>
                   <div>
-                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-dark-400">
-                      {genome.archetype.secondary.glyph} / {genome.archetype.secondary.designation}
+                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-dark-300">
+                      {genome.archetype.secondary.designation}
                     </p>
-                    <h3 className="font-semibold text-white">{genome.archetype.secondary.title}</h3>
-                    <p className="text-sm text-dark-400">
+                    <h3 className="font-semibold text-white uppercase tracking-[0.08em]">{genome.archetype.secondary.glyph}</h3>
+                    <p className="text-xs text-dark-400">
                       {Math.round((genome.archetype.secondary.confidence || 0) * 100)}% influence
                     </p>
                   </div>
