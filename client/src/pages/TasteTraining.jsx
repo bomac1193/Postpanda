@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '../stores/useAppStore';
 import { genomeApi } from '../lib/api';
-import { Dna, Heart, Target, Zap } from 'lucide-react';
+import { Dna, Target, Zap, Activity, ListChecks } from 'lucide-react';
 
 const shuffleArray = (arr) => {
   const copy = [...arr];
@@ -111,24 +111,37 @@ const buildTastePairs = (g) => {
   }
   const keywordPairs = pickKeywordPairs(g);
   const combined = [...base, ...keywordPairs];
-  return shuffleArray(combined).slice(0, 3);
+  return shuffleArray(combined);
 };
 
 function TasteTraining() {
   const currentProfileId = useAppStore((state) => state.currentProfileId);
   const activeFolioId = useAppStore((state) => state.activeFolioId);
   const activeProjectId = useAppStore((state) => state.activeProjectId);
+  const ADMIN_MODE = import.meta.env.VITE_ADMIN_MODE === 'true';
 
   const [genome, setGenome] = useState(null);
   const [loading, setLoading] = useState(true);
   const [trainMessage, setTrainMessage] = useState(null);
-  const [tasteTrainBusy, setTasteTrainBusy] = useState(false);
-  const [likertBusy, setLikertBusy] = useState(false);
-  const [likertScores, setLikertScores] = useState({});
-  const [likertQueue, setLikertQueue] = useState(() => shuffleArray(LIKERT_POOL));
-  const [likertCursor, setLikertCursor] = useState(0);
-  const [likertActive, setLikertActive] = useState(() => likertQueue.slice(0, 3));
-  const [tastePairs, setTastePairs] = useState(() => buildTastePairs(null));
+  const [busy, setBusy] = useState(false);
+  const [queue, setQueue] = useState([]);
+  const [rawGenome, setRawGenome] = useState(null);
+  const [recentSignals, setRecentSignals] = useState([]);
+  const [adminBusy, setAdminBusy] = useState(false);
+
+  const trainingPool = useMemo(() => {
+    // Build a mixed pool of pairs and likert items
+    const pairs = buildTastePairs(genome);
+    const likerts = shuffleArray(LIKERT_POOL);
+    // interleave pairs and likerts
+    const mixed = [];
+    const maxLen = Math.max(pairs.length, likerts.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (pairs[i]) mixed.push({ type: 'pair', data: pairs[i] });
+      if (likerts[i]) mixed.push({ type: 'likert', data: likerts[i] });
+    }
+    return mixed;
+  }, [genome]);
 
   useEffect(() => {
     loadGenome();
@@ -140,7 +153,10 @@ function TasteTraining() {
       const result = await genomeApi.get(currentProfileId || null);
       if (result.hasGenome) {
         setGenome(result.genome);
-        setTastePairs(buildTastePairs(result.genome));
+        setQueue(buildNextQueue(result.genome));
+        if (ADMIN_MODE) {
+          fetchRaw();
+        }
       }
     } catch (error) {
       console.error('Failed to load genome:', error);
@@ -149,12 +165,17 @@ function TasteTraining() {
     }
   };
 
-  const handleTasteChoice = async (pair, choice) => {
-    setTasteTrainBusy(true);
+  const buildNextQueue = (g) => {
+    const mixed = trainingPool.length > 0 ? trainingPool : buildTastePairs(g).map((p) => ({ type: 'pair', data: p }));
+    // take first 4 items to keep UI compact
+    return mixed.slice(0, 4);
+  };
+
+  const handlePair = async (pair, choice) => {
+    setBusy(true);
     setTrainMessage('Updating your genome…');
     const chosen = pair[choice];
     const other = pair[choice === 'a' ? 'b' : 'a'];
-
     try {
       await genomeApi.signal(
         'choice',
@@ -164,20 +185,18 @@ function TasteTraining() {
       );
       setTrainMessage(`Logged: "${chosen}" → genome updated.`);
       await loadGenome();
+      setQueue(buildNextQueue(genome));
     } catch (error) {
       console.error('Failed to log taste choice:', error);
       setTrainMessage('Could not record this choice. Try again.');
     } finally {
-      setTasteTrainBusy(false);
+      setBusy(false);
     }
   };
 
   const handleLikert = async (item, score) => {
-    setLikertBusy(true);
+    setBusy(true);
     setTrainMessage('Locking in your signal…');
-    const nextScores = { ...likertScores, [item.id]: score };
-    setLikertScores(nextScores);
-
     try {
       await genomeApi.signal(
         'likert',
@@ -193,26 +212,63 @@ function TasteTraining() {
       );
       setTrainMessage(`Logged: "${item.prompt}" (${score}/5) → genome updated.`);
       await loadGenome();
-
-      const allAnswered = likertActive.every((q) => nextScores[q.id]);
-      if (allAnswered) {
-        let nextQueue = likertQueue;
-        let nextCursor = likertCursor + 3;
-        if (nextCursor >= nextQueue.length) {
-          nextQueue = shuffleArray(LIKERT_POOL);
-          nextCursor = 0;
-        }
-        const nextActive = nextQueue.slice(nextCursor, nextCursor + 3);
-        setLikertQueue(nextQueue);
-        setLikertActive(nextActive);
-        setLikertCursor(nextCursor);
-        setLikertScores({});
-      }
+      setQueue(buildNextQueue(genome));
     } catch (error) {
       console.error('Failed to log likert signal:', error);
       setTrainMessage('Could not record this signal. Try again.');
     } finally {
-      setLikertBusy(false);
+      setBusy(false);
+    }
+  };
+
+  const fetchRaw = async () => {
+    if (!ADMIN_MODE) return;
+    try {
+      const raw = await genomeApi.getRaw(currentProfileId || null);
+      setRawGenome(raw);
+    } catch (error) {
+      console.error('Failed to load raw genome:', error);
+    }
+    try {
+      const signals = await genomeApi.getSignals(currentProfileId || null, 20);
+      setRecentSignals(signals.signals || []);
+    } catch (error) {
+      console.error('Failed to load signals:', error);
+    }
+  };
+
+  const handleRecompute = async () => {
+    if (!ADMIN_MODE) return;
+    setAdminBusy(true);
+    try {
+      await genomeApi.recompute(currentProfileId || null);
+      await loadGenome();
+      await fetchRaw();
+    } catch (error) {
+      console.error('Failed to recompute genome:', error);
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  const handleSeed = async () => {
+    if (!ADMIN_MODE) return;
+    setAdminBusy(true);
+    const seeds = [
+      { type: 'choice', id: 'seed-contrarian', metadata: { choice: 'a', selected: 'Contrarian', rejected: 'Consensus' } },
+      { type: 'choice', id: 'seed-polish', metadata: { choice: 'b', selected: 'Ship fast', rejected: 'Polish' } },
+      { type: 'likert', id: 'seed-likert-intensity', metadata: { score: 4, prompt: 'I prefer intense delivery', archetypeHint: 'R-10' } },
+    ];
+    try {
+      for (const seed of seeds) {
+        await genomeApi.signal(seed.type, seed.id, { ...seed.metadata, folioId: activeFolioId || undefined, projectId: activeProjectId || undefined }, currentProfileId || null);
+      }
+      await loadGenome();
+      await fetchRaw();
+    } catch (error) {
+      console.error('Failed to seed signals:', error);
+    } finally {
+      setAdminBusy(false);
     }
   };
 
@@ -251,81 +307,144 @@ function TasteTraining() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-dark-900 rounded-lg border border-dark-700 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-[0.12em] flex items-center gap-2">
-              <Target className="w-4 h-4 text-accent-purple" />
-              Rapid A/B
-            </h3>
-            <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.14em]">Signal</span>
-          </div>
-          <p className="text-sm text-dark-300 mb-3">
-            Select the option that fits your taste. Feeds the genome immediately.
-          </p>
-          <div className="space-y-2">
-            {tastePairs.map((pair) => (
-              <div key={pair.id} className="rounded-lg border border-dark-700 bg-dark-950 p-3">
-                <p className="text-[11px] text-dark-400 uppercase tracking-[0.12em] mb-2">{pair.label}</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleTasteChoice(pair, 'a')}
-                    disabled={tasteTrainBusy}
-                    className="p-3 rounded-md border border-dark-700 text-left text-sm text-dark-100 hover:border-accent-purple transition-colors disabled:opacity-50"
-                  >
-                    {pair.a}
-                  </button>
-                  <button
-                    onClick={() => handleTasteChoice(pair, 'b')}
-                    disabled={tasteTrainBusy}
-                    className="p-3 rounded-md border border-dark-700 text-left text-sm text-dark-100 hover:border-accent-purple transition-colors disabled:opacity-50"
-                  >
-                    {pair.b}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          {trainMessage && <p className="text-xs text-dark-300 mt-3">{trainMessage}</p>}
+      {/* Unified Training Stack */}
+      <div className="bg-dark-900 rounded-lg border border-dark-700 p-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-white uppercase tracking-[0.12em] flex items-center gap-2">
+            <Target className="w-4 h-4 text-accent-purple" />
+            Training Stack
+          </h3>
+          <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.14em]">A/B + Likert</span>
         </div>
-
-        <div className="bg-dark-900 rounded-lg border border-dark-700 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-[0.12em] flex items-center gap-2">
-              <Zap className="w-4 h-4 text-accent-purple" />
-              Likert Signals
-            </h3>
-            <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.14em]">Signal</span>
-          </div>
-          <p className="text-sm text-dark-300 mb-3">
-            Slide to record intensity. Strong signals sharpen archetype confidence.
-          </p>
-          <div className="space-y-3">
-            {likertActive.map((item) => (
-              <div key={item.id} className="rounded-lg border border-dark-700 bg-dark-950 p-3">
-                <p className="text-sm text-dark-200 mb-2">{item.prompt}</p>
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] text-dark-500 w-24 text-right uppercase tracking-[0.1em]">Disagree</span>
-                  <input
+        <p className="text-sm text-dark-300 mb-3">
+          Mixed rapid A/B and Likert signals. Answer to advance; genome updates after each input.
+        </p>
+        <div className="space-y-3">
+          {queue.map((item, idx) => {
+            if (item.type === 'pair') {
+              const pair = item.data;
+              return (
+                <div key={`${item.type}-${pair.id}-${idx}`} className="rounded-lg border border-dark-700 bg-dark-950 p-3">
+                  <p className="text-[11px] text-dark-400 uppercase tracking-[0.12em] mb-2">{pair.label}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handlePair(pair, 'a')}
+                      disabled={busy}
+                      className="p-3 rounded-md border border-dark-700 text-left text-sm text-dark-100 hover:border-accent-purple transition-colors disabled:opacity-50"
+                    >
+                      {pair.a}
+                    </button>
+                    <button
+                      onClick={() => handlePair(pair, 'b')}
+                      disabled={busy}
+                      className="p-3 rounded-md border border-dark-700 text-left text-sm text-dark-100 hover:border-accent-purple transition-colors disabled:opacity-50"
+                    >
+                      {pair.b}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+            if (item.type === 'likert') {
+              const lk = item.data;
+              return (
+                <div key={`${item.type}-${lk.id}-${idx}`} className="rounded-lg border border-dark-700 bg-dark-950 p-3">
+                  <p className="text-sm text-dark-200 mb-2">{lk.prompt}</p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] text-dark-500 w-24 text-right uppercase tracking-[0.1em]">Disagree</span>
+                    <input
                     type="range"
                     min="1"
                     max="5"
                     step="1"
-                    value={likertScores[item.id] || 3}
-                    onChange={(e) => handleLikert(item, Number(e.target.value))}
-                    disabled={likertBusy}
+                    defaultValue={3}
+                    onMouseUp={(e) => handleLikert(lk, Number(e.currentTarget.value))}
+                    onTouchEnd={(e) => handleLikert(lk, Number(e.currentTarget.value))}
+                    disabled={busy}
                     className="flex-1 accent-accent-purple bg-dark-800"
                   />
-                  <span className="text-[11px] text-dark-500 w-20 uppercase tracking-[0.1em]">Agree</span>
-                  <span className="text-xs text-dark-300 w-10 text-right">
-                    {likertScores[item.id] || 3}/5
-                  </span>
+                    <span className="text-[11px] text-dark-500 w-20 uppercase tracking-[0.1em]">Agree</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              );
+            }
+            return null;
+          })}
         </div>
+        {trainMessage && <p className="text-xs text-dark-300 mt-3">{trainMessage}</p>}
       </div>
+
+      {ADMIN_MODE && (
+        <div className="bg-dark-900 rounded-lg border border-dark-700 p-4 space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-[0.12em] flex items-center gap-2">
+              <Activity className="w-4 h-4 text-accent-purple" />
+              Admin Diagnostics
+            </h3>
+            {adminBusy && <span className="text-xs text-accent-purple">Working…</span>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleSeed}
+              disabled={adminBusy}
+              className="px-3 py-2 rounded border border-dark-600 text-sm text-white hover:border-accent-purple"
+            >
+              Seed signals
+            </button>
+            <button
+              onClick={handleRecompute}
+              disabled={adminBusy}
+              className="px-3 py-2 rounded border border-dark-600 text-sm text-white hover:border-accent-purple"
+            >
+              Recompute genome
+            </button>
+            <button
+              onClick={fetchRaw}
+              disabled={adminBusy}
+              className="px-3 py-2 rounded border border-dark-600 text-sm text-white hover:border-accent-purple"
+            >
+              Refresh raw view
+            </button>
+          </div>
+
+          {rawGenome?.distribution && (
+            <div>
+              <h4 className="text-xs text-dark-400 uppercase tracking-[0.12em] mb-2 flex items-center gap-2">
+                <ListChecks className="w-4 h-4 text-accent-purple" />
+                Archetype Distribution
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {Object.entries(rawGenome.distribution).map(([designation, prob]) => (
+                  <div key={designation} className="rounded border border-dark-700 p-2 bg-dark-950 text-sm text-dark-200 flex items-center justify-between">
+                    <span className="font-mono tracking-[0.12em]">{designation}</span>
+                    <span className="text-white font-semibold">{Math.round(prob * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {recentSignals?.length > 0 && (
+            <div>
+              <h4 className="text-xs text-dark-400 uppercase tracking-[0.12em] mb-2 flex items-center gap-2">
+                <ListChecks className="w-4 h-4 text-accent-purple" />
+                Recent Signals
+              </h4>
+              <div className="space-y-1 text-sm text-dark-200">
+                {recentSignals.map((sig) => (
+                  <div key={sig.id || sig._id || sig.timestamp} className="rounded border border-dark-700 bg-dark-950 p-2">
+                    <div className="flex items-center justify-between text-xs text-dark-400">
+                      <span>{sig.type}</span>
+                      <span>{sig.timestamp ? new Date(sig.timestamp).toLocaleString() : ''}</span>
+                    </div>
+                    <div className="text-dark-100">{sig.data?.prompt || sig.data?.selected || sig.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -782,6 +782,28 @@ export const genomeApi = {
     return data;
   },
 
+  // Admin/raw genome view
+  async getRaw(profileId = null) {
+    const params = profileId ? `?profileId=${profileId}` : '';
+    const { data } = await api.get(`/api/genome/raw${params}`);
+    return data;
+  },
+
+  // Recent signals for diagnostics
+  async getSignals(profileId = null, limit = 20) {
+    const params = new URLSearchParams();
+    if (profileId) params.append('profileId', profileId);
+    if (limit) params.append('limit', String(limit));
+    const { data } = await api.get(`/api/genome/signals?${params.toString()}`);
+    return data;
+  },
+
+  // Force recompute (admin/testing)
+  async recompute(profileId = null) {
+    const { data } = await api.post('/api/genome/recompute', { profileId });
+    return data;
+  },
+
   // Get archetype definitions
   async getArchetypes() {
     const { data } = await api.get('/api/genome/archetypes');

@@ -11,6 +11,7 @@ import {
   Zap,
   Lock,
   CheckCircle2,
+  ChevronDown,
   Star,
   TrendingUp,
   Award,
@@ -177,6 +178,7 @@ function TasteGenome() {
   });
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [prefMessage, setPrefMessage] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     loadGenome();
@@ -608,6 +610,49 @@ function TasteGenome() {
                   />
                 ))}
               </div>
+            </div>
+
+            {/* Full Genome Detail */}
+            <div className="bg-dark-900 rounded-lg border border-dark-700 p-4">
+              <button
+                onClick={() => setShowDetails((s) => !s)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <span className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Full Genome Detail</span>
+                <ChevronDown className={`w-4 h-4 text-dark-400 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+              </button>
+              {showDetails && (
+                <div className="mt-4 space-y-3">
+                  {genome?.archetype?.distribution && (
+                    <div>
+                      <p className="text-xs text-dark-400 uppercase tracking-[0.12em] mb-2">Distribution</p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {Object.entries(genome.archetype.distribution).map(([designation, prob]) => (
+                          <div key={designation} className="rounded border border-dark-700 p-2 bg-dark-950 text-sm text-dark-200 flex items-center justify-between">
+                            <span className="font-mono tracking-[0.12em]">{designation}</span>
+                            <span className="text-white font-semibold">{Math.round(prob * 100)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {genome?.keywords && (
+                    <div>
+                      <p className="text-xs text-dark-400 uppercase tracking-[0.12em] mb-2">Top Keywords</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(genome.keywords?.content?.tone || {})
+                          .sort((a, b) => b[1] - a[1])
+                          .slice(0, 6)
+                          .map(([kw, score]) => (
+                            <span key={kw} className="px-2 py-1 rounded border border-dark-700 text-xs text-dark-100" title={String(score)}>
+                              {kw}
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
