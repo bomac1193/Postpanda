@@ -541,4 +541,49 @@ exports.getScheduledRollouts = async (req, res) => {
   }
 };
 
+/**
+ * Generate a taste-aware rollout playbook (auto, IG/TikTok-first)
+ */
+exports.generateAutoPlaybook = async (req, res) => {
+  try {
+    const { profileId, campaignName = 'Rollout', targetPlatforms = ['instagram', 'tiktok'] } = req.body || {};
+
+    // Build taste context to influence template pick
+    const tasteContextService = require('../services/tasteContextService');
+    const taste = await tasteContextService.buildTasteContext({
+      userId: req.user._id,
+      profileId,
+    });
+
+    const glyph = taste.glyph || 'VOID';
+    const recommendedTemplate = ['R-10', 'SCHISM', 'STRATA'].some(g => glyph.includes(g))
+      ? 'Velocity: Contrarian Launch'
+      : 'Core Blueprint: Editorial + Launch';
+
+    const playbook = {
+      name: `${campaignName} · ${recommendedTemplate}`,
+      template: recommendedTemplate,
+      glyph,
+      confidence: taste.confidence || 0,
+      platforms: targetPlatforms,
+      steps: [
+        { label: 'Define hook and promise', dueInDays: 1, channel: 'ideation' },
+        { label: 'Create 3 hooks per platform', dueInDays: 2, channel: 'copy' },
+        { label: 'Cut 2x vertical edits', dueInDays: 3, channel: 'video' },
+        { label: 'Schedule IG/TikTok staggered', dueInDays: 4, channel: 'publish' },
+        { label: 'Measure skip/hold/ROAS', dueInDays: 7, channel: 'analyze' },
+      ],
+      guardrails: {
+        prefer: taste.lexicon?.prefer || [],
+        avoid: taste.lexicon?.avoid || [],
+      },
+    };
+
+    res.json({ success: true, playbook });
+  } catch (error) {
+    console.error('Generate auto playbook error:', error);
+    res.status(500).json({ error: 'Failed to generate playbook' });
+  }
+};
+
 module.exports = exports;

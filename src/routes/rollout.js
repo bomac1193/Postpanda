@@ -13,6 +13,9 @@ router.use(authenticate);
 // Get scheduled rollouts for calendar
 router.get('/calendar/scheduled', rolloutController.getScheduledRollouts);
 
+// Auto-generate a rollout playbook (taste-aware)
+router.post('/auto-playbook', rolloutController.generateAutoPlaybook);
+
 /**
  * Rollout CRUD Routes
  */

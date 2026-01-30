@@ -152,17 +152,30 @@ exports.generateHashtags = async (req, res) => {
 };
 
 // Generate caption
+const tasteContextService = require('../services/tasteContextService');
+
 exports.generateCaption = async (req, res) => {
   try {
-    const { contentId, tone = 'casual', length = 'medium', creatorProfile = null } = req.body;
+    const { contentId, tone = 'casual', length = 'medium', creatorProfile = null, profileId = null } = req.body;
 
     const content = await Content.findOne({ _id: contentId, userId: req.userId });
     if (!content) {
       return res.status(404).json({ error: 'Content not found' });
     }
 
+    // Build shared taste context (1193 schema seed) for guardrails
+    const tasteContext = await tasteContextService.buildTasteContext({
+      userId: req.userId,
+      profileId,
+    });
+
     // Generate caption using AI
-    const captions = await aiService.generateCaption(content, { tone, length, creatorProfile });
+    const captions = await aiService.generateCaption(content, {
+      tone,
+      length,
+      creatorProfile,
+      tasteContext,
+    });
 
     res.json({
       message: 'Captions generated successfully',

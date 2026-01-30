@@ -395,7 +395,7 @@ Respond with ONLY hashtags separated by commas (without # symbol).`;
    */
   async generateCaption(content, options = {}) {
     try {
-      const { tone = 'casual', length = 'medium', creatorProfile = null } = options;
+      const { tone = 'casual', length = 'medium', creatorProfile = null, tasteContext = null } = options;
 
       if (!this.openaiApiKey) {
         return ['Caption generation requires OpenAI API key'];
@@ -408,6 +408,9 @@ Respond with ONLY hashtags separated by commas (without # symbol).`;
         long: '6-10 sentences'
       };
 
+      const taste = tasteContext || {};
+      const lexicon = taste.lexicon || { prefer: [], avoid: [] };
+
       const prompt = `Generate 3 engaging social media captions for this content:
 
 Platform: ${content.platform}
@@ -419,13 +422,17 @@ Creator Niche: ${profile.niche}
 Voice & Vibe: ${profile.voice}
 Audience: ${profile.targetAudience}
 Goals: ${profile.goals}
+Taste Glyph: ${taste.glyph || 'VOID'}
+Archetype Confidence: ${taste.confidence || 0}
+Preferred Lexicon: ${lexicon.prefer.join(', ') || 'minimal, authoritative'}
+Avoid Lexicon: ${lexicon.avoid.join(', ') || 'generic, clickbait'}
 
 Requirements:
 - ${tone} tone
 - ${lengthGuide[length]} length
-- Include relevant emojis
-- Add a call-to-action
-- Make it engaging and authentic
+- Always reflect the Taste Glyph and stay on-brand
+- Use preferred lexicon; avoid banned terms and generic templates
+- No placeholders, no cliches; be specific to the archetype and niche
 
 Provide 3 variations separated by "---"`;
 

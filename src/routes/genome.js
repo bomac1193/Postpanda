@@ -9,6 +9,7 @@ const { authenticate: auth } = require('../middleware/auth');
 const User = require('../models/User');
 const Profile = require('../models/Profile');
 const tasteGenome = require('../services/tasteGenome');
+const { buildTasteContext, materialize1193Schema } = require('../services/tasteContextService');
 
 async function getTarget(profileId, userId) {
   if (profileId) {
@@ -96,6 +97,46 @@ router.post('/signal', auth, async (req, res) => {
   } catch (error) {
     console.error('[Genome] Signal error:', error);
     res.status(500).json({ error: 'Failed to record signal' });
+  }
+});
+
+/**
+ * POST /api/genome/folio-signal
+ * Convenience endpoint to ingest Folio signals (save/like/skip)
+ */
+router.post('/folio-signal', auth, async (req, res) => {
+  try {
+    const { action, metadata = {}, profileId } = req.body;
+    if (!action) {
+      return res.status(400).json({ error: 'Action is required' });
+    }
+
+    const type = action === 'skip' ? 'skip' : (action === 'like' || action === 'save' ? 'save' : 'implicit');
+    const signalMeta = { ...metadata, source: 'folio' };
+
+    let target = await getTarget(profileId, req.userId);
+    if (!target) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    let genome = target.tasteGenome || tasteGenome.createGenome(req.userId);
+    genome = tasteGenome.recordSignal(genome, {
+      type,
+      value: metadata?.contentId || action,
+      metadata: signalMeta,
+      timestamp: new Date()
+    });
+
+    target.tasteGenome = genome;
+    if (typeof target.markModified === 'function') {
+      target.markModified('tasteGenome');
+    }
+    await target.save();
+
+    res.json({ success: true, archetype: genome.archetype?.primary || null });
+  } catch (error) {
+    console.error('[Genome] Folio signal error:', error);
+    res.status(500).json({ error: 'Failed to record folio signal' });
   }
 });
 
@@ -373,6 +414,84 @@ router.get('/signals', auth, async (req, res) => {
   } catch (error) {
     console.error('[Genome] Signals error:', error);
     res.status(500).json({ error: 'Failed to load signals' });
+  }
+});
+
+/**
+ * GET /api/genome/schema
+ * Return a materialised 1193 schema view for clients
+ */
+router.get('/schema', auth, async (req, res) => {
+  try {
+    const { profileId } = req.query;
+    const target = await getTarget(profileId, req.userId);
+    if (!target || !target.tasteGenome) {
+      return res.status(404).json({ error: 'Genome not found' });
+    }
+    const schema = materialize1193Schema(target.tasteGenome);
+    res.json({ success: true, schema });
+  } catch (error) {
+    console.error('[Genome] Schema error:', error);
+    res.status(500).json({ error: 'Failed to load schema' });
+  }
+});
+
+/**
+ * GET /api/genome/context
+ * Build shared taste context (for generation guardrails)
+ */
+router.get('/context', auth, async (req, res) => {
+  try {
+    const { profileId } = req.query;
+    const context = await buildTasteContext({ userId: req.userId, profileId });
+    res.json({ success: true, context });
+  } catch (error) {
+    console.error('[Genome] Context error:', error);
+    res.status(500).json({ error: 'Failed to build context' });
+  }
+});
+
+/**
+ * GET /api/genome/dashboard
+ * Minimal 3-signal dashboard: taste confidence, skip rate, ROAS (placeholder)
+ */
+router.get('/dashboard', auth, async (req, res) => {
+  try {
+    const { profileId } = req.query;
+    const target = await getTarget(profileId, req.userId);
+    if (!target || !target.tasteGenome) {
+      return res.status(404).json({ error: 'Genome not found' });
+    }
+    const genome = target.tasteGenome;
+    const signals = genome.signals || [];
+
+    const tasteConfidence = genome?.archetype?.primary?.confidence || genome.confidence || 0;
+    const skipSignals = signals.filter(s => s.type === 'skip');
+    const likeSignals = signals.filter(s => s.type === 'save' || s.type === 'like');
+    const skipRate = (skipSignals.length + likeSignals.length) > 0
+      ? skipSignals.length / (skipSignals.length + likeSignals.length)
+      : 0;
+
+    // Placeholder ROAS; future: pull from performance metrics
+    const roas = genome?.outcomes?.slice(-1)[0]?.roas || 0;
+
+    res.json({
+      success: true,
+      metrics: {
+        tasteConfidence,
+        skipRate,
+        roas,
+      },
+      counts: {
+        totalSignals: signals.length,
+        skipSignals: skipSignals.length,
+        likeSignals: likeSignals.length,
+      },
+      lastUpdated: genome.lastUpdated || genome.updatedAt || null,
+    });
+  } catch (error) {
+    console.error('[Genome] Dashboard error:', error);
+    res.status(500).json({ error: 'Failed to load dashboard metrics' });
   }
 });
 
