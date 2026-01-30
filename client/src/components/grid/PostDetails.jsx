@@ -118,9 +118,8 @@ function PostDetails({ post }) {
   const [posting, setPosting] = useState(false);
   const [tasteProfile, setTasteProfile] = useState(null);
 
-// Quick Edit state
+  // Quick Edit state
   const [isQuickEditing, setIsQuickEditing] = useState(false);
-  const [isRepositionMode, setIsRepositionMode] = useState(false);
   const [editedImage, setEditedImage] = useState(null);
   const [originalImage, setOriginalImage] = useState(null);
   const [editSettings, setEditSettings] = useState({
@@ -237,7 +236,7 @@ function PostDetails({ post }) {
 
   // Recalculate bounds when image loads or quick edit opens
   useEffect(() => {
-    if ((isQuickEditing || isRepositionMode) && imageRef.current) {
+    if (isQuickEditing && imageRef.current) {
       const img = imageRef.current;
       if (img.complete) {
         calculateImageBounds();
@@ -248,14 +247,7 @@ function PostDetails({ post }) {
       window.addEventListener('resize', calculateImageBounds);
       return () => window.removeEventListener('resize', calculateImageBounds);
     }
-  }, [isQuickEditing, isRepositionMode, editedImage]);
-
-  // Reset reposition mode when leaving Instagram tab
-  useEffect(() => {
-    if (activeTab !== 'instagram') {
-      setIsRepositionMode(false);
-    }
-  }, [activeTab]);
+  }, [isQuickEditing, editedImage]);
 
   if (!post) {
     return (
@@ -519,46 +511,10 @@ function PostDetails({ post }) {
     setIsQuickEditing(true);
   };
 
-  const initRepositionState = () => {
-    const sourceImage = post.originalImage || post.image;
-    setOriginalImage(sourceImage);
-    setEditedImage(sourceImage);
-
-    const savedSettings = post.editSettings;
-    if (savedSettings) {
-      setEditSettings({
-        scale: savedSettings.scale || 100,
-        rotation: savedSettings.rotation || 0,
-        flipH: savedSettings.flipH || false,
-        flipV: savedSettings.flipV || false,
-        brightness: savedSettings.brightness || 100,
-        contrast: savedSettings.contrast || 100,
-        cropAspect: savedSettings.cropAspect || '1:1',
-      });
-      if (savedSettings.cropBox) {
-        setCropBox(savedSettings.cropBox);
-      } else {
-        setCropBox({ x: 0, y: 0, width: 100, height: 100 });
-      }
-    } else {
-      setEditSettings({
-        scale: 100,
-        rotation: 0,
-        flipH: false,
-        flipV: false,
-        brightness: 100,
-        contrast: 100,
-        cropAspect: '1:1',
-      });
-      setCropBox({ x: 0, y: 0, width: 100, height: 100 });
-    }
-  };
-
   const cancelQuickEdit = () => {
     setIsQuickEditing(false);
     setEditedImage(null);
     setIsCropping(false);
-    setIsRepositionMode(false);
   };
 
   // Reset current edits but keep working
@@ -827,9 +783,6 @@ function PostDetails({ post }) {
       // Auto-save edits before switching tabs
       await saveQuickEdit();
     }
-    if (tabId !== 'instagram') {
-      setIsRepositionMode(false);
-    }
     setActiveTab(tabId);
   };
 
@@ -943,7 +896,6 @@ function PostDetails({ post }) {
       // Exit quick edit mode
       setIsQuickEditing(false);
       setEditedImage(null);
-      setIsRepositionMode(false);
 
       console.log('Quick edit saved successfully');
     } catch (error) {
@@ -958,11 +910,11 @@ function PostDetails({ post }) {
   const InstagramPreview = () => (
     <div className="bg-black rounded-xl overflow-hidden">
       {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-gray-800">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 overflow-hidden">
-              {userAvatar ? (
-                <img src={userAvatar} alt="" className="w-full h-full object-cover" />
+      <div className="flex items-center justify-between p-3 border-b border-gray-800">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 overflow-hidden">
+            {userAvatar ? (
+              <img src={userAvatar} alt="" className="w-full h-full object-cover" />
             ) : null}
           </div>
           <div>
@@ -973,157 +925,55 @@ function PostDetails({ post }) {
         <MoreHorizontal className="w-5 h-5 text-white" />
       </div>
 
-      {/* Image / Reposition */}
-      <div className="aspect-square bg-gray-900 relative">
-        {!isRepositionMode && (
-          <button
-            className="absolute top-2 right-2 z-10 px-3 py-1.5 rounded-md bg-white/15 text-white text-xs border border-white/25 hover:bg-white/25 transition-colors"
-            onClick={() => {
-              initRepositionState();
-              setIsRepositionMode(true);
-            }}
-          >
-            Reposition
-          </button>
-        )}
-        {isRepositionMode && (
-          <div className="absolute top-2 left-2 right-2 z-10 flex items-center justify-between text-xs text-white">
-            <span className="px-2 py-1 rounded bg-black/50 border border-white/15">Drag to reposition (IG square)</span>
-            <div className="flex gap-2">
-              <button
-                className="px-2 py-1 bg-white/10 text-white rounded border border-white/20 text-[11px]"
-                onClick={() => setCropBox({ x: 0, y: 0, width: 100, height: 100 })}
-              >
-                Reset
-              </button>
-              <button
-                className="px-2 py-1 bg-accent-purple text-white rounded text-[11px]"
-                onClick={saveQuickEdit}
-                disabled={saving}
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
+      {/* Image */}
+      <div className="aspect-square bg-gray-900">
+        {post.image ? (
+          <img src={post.image} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: post.color || '#1f1f1f' }}>
+            <Image className="w-12 h-12 text-gray-600" />
           </div>
         )}
-        <div
-          ref={previewContainerRef}
-          className="relative w-full h-full bg-black overflow-hidden select-none"
-          onMouseMove={(e) => {
-            if (isRepositionMode && isDragging) handleCropBoxDragMove(e);
-          }}
-          onMouseUp={() => setIsDragging(false)}
-          onMouseLeave={() => setIsDragging(false)}
-          onTouchMove={(e) => {
-            if (isRepositionMode && isDragging) handleCropBoxDragMove(e);
-          }}
-          onTouchEnd={() => setIsDragging(false)}
-        >
-          {(editedImage || post.originalImage || post.image) ? (
-            <>
-              <img
-                ref={imageRef}
-                src={editedImage || post.originalImage || post.image}
-                alt="Reposition preview"
-                className="w-full h-full object-contain select-none"
-                draggable={false}
-                onDragStart={(e) => e.preventDefault()}
-              />
-              {isRepositionMode && (
-                <div
-                  className="absolute pointer-events-none"
-                  style={{
-                    left: imageBounds.x,
-                    top: imageBounds.y,
-                    width: imageBounds.width,
-                    height: imageBounds.height,
-                  }}
-                >
-                  {/* Darkened overlay outside crop area */}
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background: `linear-gradient(to right,
-                        rgba(0,0,0,0.7) ${cropBox.x}%,
-                        transparent ${cropBox.x}%,
-                        transparent ${cropBox.x + cropBox.width}%,
-                        rgba(0,0,0,0.7) ${cropBox.x + cropBox.width}%)`
-                    }}
-                  />
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background: `linear-gradient(to bottom,
-                        rgba(0,0,0,0.7) ${cropBox.y}%,
-                        transparent ${cropBox.y}%,
-                        transparent ${cropBox.y + cropBox.height}%,
-                        rgba(0,0,0,0.7) ${cropBox.y + cropBox.height}%)`
-                    }}
-                  />
-
-                  {/* Crop box */}
-                  <div
-                    className="absolute border-2 border-white/80 shadow-[0_0_0_1px_rgba(0,0,0,0.6)] cursor-move"
-                    style={{
-                      left: `${cropBox.x}%`,
-                      top: `${cropBox.y}%`,
-                      width: `${cropBox.width}%`,
-                      height: `${cropBox.height}%`,
-                    }}
-                    onMouseDown={handleCropBoxDragStart}
-                    onTouchStart={handleCropBoxDragStart}
-                  />
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-900">
-              <Image className="w-10 h-10 text-gray-600" />
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Actions */}
-      {!isRepositionMode && (
-        <div className="p-3">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-4">
-              <Heart className="w-6 h-6 text-white cursor-pointer hover:text-red-500 transition-colors" fill="none" />
-              <MessageCircle className="w-6 h-6 text-white cursor-pointer" />
-              <Share2 className="w-6 h-6 text-white cursor-pointer" />
-            </div>
-            <Bookmark className="w-6 h-6 text-white cursor-pointer" />
+      <div className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-4">
+            <Heart className="w-6 h-6 text-white cursor-pointer hover:text-red-500 transition-colors" fill="none" />
+            <MessageCircle className="w-6 h-6 text-white cursor-pointer" />
+            <Share2 className="w-6 h-6 text-white cursor-pointer" />
           </div>
-
-          {/* Likes */}
-          <p className="text-white text-sm font-semibold mb-1">
-            {formatNumber(engagement.likes)} likes
-          </p>
-
-          {/* Caption */}
-          <p className="text-white text-sm">
-            <span className="font-semibold">{username}</span>{' '}
-            <span className="text-gray-300">{caption || 'Your caption will appear here...'}</span>
-          </p>
-
-          {/* Comments */}
-          <p className="text-gray-400 text-sm mt-2 cursor-pointer">
-            View all {engagement.comments} comments
-          </p>
-
-          <div className="mt-2 space-y-1">
-            {FAKE_COMMENTS.instagram.map((comment, i) => (
-              <p key={i} className="text-sm">
-                <span className="text-white font-semibold">{comment.user}</span>{' '}
-                <span className="text-gray-300">{comment.text}</span>
-              </p>
-            ))}
-          </div>
-
-          <p className="text-gray-500 text-xs mt-2 uppercase">2 hours ago</p>
+          <Bookmark className="w-6 h-6 text-white cursor-pointer" />
         </div>
-      )}
+
+        {/* Likes */}
+        <p className="text-white text-sm font-semibold mb-1">
+          {formatNumber(engagement.likes)} likes
+        </p>
+
+        {/* Caption */}
+        <p className="text-white text-sm">
+          <span className="font-semibold">{username}</span>{' '}
+          <span className="text-gray-300">{caption || 'Your caption will appear here...'}</span>
+        </p>
+
+        {/* Comments */}
+        <p className="text-gray-400 text-sm mt-2 cursor-pointer">
+          View all {engagement.comments} comments
+        </p>
+
+        <div className="mt-2 space-y-1">
+          {FAKE_COMMENTS.instagram.map((comment, i) => (
+            <p key={i} className="text-sm">
+              <span className="text-white font-semibold">{comment.user}</span>{' '}
+              <span className="text-gray-300">{comment.text}</span>
+            </p>
+          ))}
+        </div>
+
+        <p className="text-gray-500 text-xs mt-2 uppercase">2 hours ago</p>
+      </div>
     </div>
   );
 
@@ -1295,17 +1145,6 @@ function PostDetails({ post }) {
         {isQuickEditing ? (
           // Quick Edit Mode
           <div className="p-4 space-y-4">
-            {isRepositionMode && (
-              <div className="rounded-md border border-accent-purple/30 bg-accent-purple/5 px-3 py-2 text-xs text-dark-100 flex items-center justify-between">
-                <span>Drag to reposition. Square crop locked for IG.</span>
-                <button
-                  onClick={() => setIsRepositionMode(false)}
-                  className="text-accent-purple hover:text-white text-[11px]"
-                >
-                  Exit
-                </button>
-              </div>
-            )}
             {/* Edit Preview */}
             <div
               ref={previewContainerRef}
@@ -1669,13 +1508,6 @@ function PostDetails({ post }) {
             {/* Edit Overlay */}
             <div className="absolute inset-0 bg-black/0 hover:bg-black/50 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
               <div className="flex flex-col gap-2">
-                <button
-                  onClick={startReposition}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-lg backdrop-blur-sm hover:bg-white/30 transition-colors"
-                >
-                  <Move className="w-4 h-4 text-white" />
-                  <span className="text-white font-medium">Reposition</span>
-                </button>
                 <button
                   onClick={startQuickEdit}
                   className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-lg backdrop-blur-sm hover:bg-white/30 transition-colors"
