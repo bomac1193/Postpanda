@@ -118,8 +118,9 @@ function PostDetails({ post }) {
   const [posting, setPosting] = useState(false);
   const [tasteProfile, setTasteProfile] = useState(null);
 
-  // Quick Edit state
+// Quick Edit state
   const [isQuickEditing, setIsQuickEditing] = useState(false);
+  const [isRepositionMode, setIsRepositionMode] = useState(false);
   const [editedImage, setEditedImage] = useState(null);
   const [originalImage, setOriginalImage] = useState(null);
   const [editSettings, setEditSettings] = useState({
@@ -511,10 +512,18 @@ function PostDetails({ post }) {
     setIsQuickEditing(true);
   };
 
+  const startReposition = () => {
+    startQuickEdit();
+    setIsRepositionMode(true);
+    // Enforce square crop for Instagram preview
+    updateCropAspect('1:1');
+  };
+
   const cancelQuickEdit = () => {
     setIsQuickEditing(false);
     setEditedImage(null);
     setIsCropping(false);
+    setIsRepositionMode(false);
   };
 
   // Reset current edits but keep working
@@ -896,6 +905,7 @@ function PostDetails({ post }) {
       // Exit quick edit mode
       setIsQuickEditing(false);
       setEditedImage(null);
+      setIsRepositionMode(false);
 
       console.log('Quick edit saved successfully');
     } catch (error) {
@@ -1145,6 +1155,17 @@ function PostDetails({ post }) {
         {isQuickEditing ? (
           // Quick Edit Mode
           <div className="p-4 space-y-4">
+            {isRepositionMode && (
+              <div className="rounded-md border border-accent-purple/30 bg-accent-purple/5 px-3 py-2 text-xs text-dark-100 flex items-center justify-between">
+                <span>Drag to reposition. Square crop locked for IG.</span>
+                <button
+                  onClick={() => setIsRepositionMode(false)}
+                  className="text-accent-purple hover:text-white text-[11px]"
+                >
+                  Exit
+                </button>
+              </div>
+            )}
             {/* Edit Preview */}
             <div
               ref={previewContainerRef}
@@ -1508,6 +1529,13 @@ function PostDetails({ post }) {
             {/* Edit Overlay */}
             <div className="absolute inset-0 bg-black/0 hover:bg-black/50 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
               <div className="flex flex-col gap-2">
+                <button
+                  onClick={startReposition}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-lg backdrop-blur-sm hover:bg-white/30 transition-colors"
+                >
+                  <Move className="w-4 h-4 text-white" />
+                  <span className="text-white font-medium">Reposition</span>
+                </button>
                 <button
                   onClick={startQuickEdit}
                   className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-lg backdrop-blur-sm hover:bg-white/30 transition-colors"
