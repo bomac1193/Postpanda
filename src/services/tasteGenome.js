@@ -127,6 +127,7 @@ const SIGNAL_WEIGHTS = {
   likert: 1.3,
   choice: 1.0,
   preference: 1.0,
+  pass: 0.2,
   block: 1.5,
   ranking: 1.2,
   // Intentional implicit
@@ -191,6 +192,7 @@ const XP_REWARDS = {
   daily_login: 10,
   discover_style: 20,
   discover_hook: 15,
+  pass: 0,
   streak_day: 10,
   weekly_milestone: 50,
   monthly_milestone: 200
@@ -315,7 +317,15 @@ function recordSignal(genome, signal) {
   const { type, value, metadata = {}, timestamp = new Date() } = signal;
 
   // Get signal weight
-  const weight = SIGNAL_WEIGHTS[type] || 0.5;
+  const clampWeight = (value) => Math.min(3, Math.max(0.1, value));
+  let weight = SIGNAL_WEIGHTS[type] || 0.5;
+  const override = Number(metadata.weightOverride);
+  const multiplier = Number(metadata.weightMultiplier);
+  if (Number.isFinite(override)) {
+    weight = clampWeight(override);
+  } else if (Number.isFinite(multiplier)) {
+    weight = clampWeight(weight * multiplier);
+  }
   let isPositive = !['skip', 'dislike', 'block', 'delete'].includes(type);
   let direction = 1;
 
@@ -331,6 +341,12 @@ function recordSignal(genome, signal) {
       isPositive = true;
       direction = 1;
     }
+  }
+
+  const isNeutral = metadata.neutral === true || type === 'pass';
+  if (isNeutral) {
+    isPositive = true;
+    direction = 0;
   }
 
   // Create signal record
@@ -544,13 +560,14 @@ function updateArchetypeFromSignals(genome) {
  * Calculate overall genome confidence
  */
 function calculateConfidence(genome) {
-  const signalCount = genome.signals.length;
-  const recentSignals = genome.signals.filter(s => {
+  const effectiveSignals = genome.signals.filter(s => !s.metadata?.neutral);
+  const signalCount = effectiveSignals.length;
+  const recentSignals = effectiveSignals.filter(s => {
     const daysOld = (Date.now() - new Date(s.timestamp).getTime()) / (1000 * 60 * 60 * 24);
     return daysOld <= 30;
   }).length;
 
-  const uniqueSources = new Set(genome.signals.map(s => s.type)).size;
+  const uniqueSources = new Set(effectiveSignals.map(s => s.type)).size;
 
   const countConfidence = Math.min(signalCount / 50, 1);
   const recencyConfidence = Math.min(recentSignals / 20, 1);

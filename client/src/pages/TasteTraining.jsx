@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from '../stores/useAppStore';
 import { genomeApi } from '../lib/api';
-import { Dna, Target, Zap, Activity, ListChecks } from 'lucide-react';
+import { Dna, Target, Activity, ListChecks } from 'lucide-react';
 
 const shuffleArray = (arr) => {
   const copy = [...arr];
@@ -12,123 +12,114 @@ const shuffleArray = (arr) => {
   return copy;
 };
 
-const LIKERT_POOL = [
-  { id: 'risk-bold', prompt: 'I prefer bold, contrarian takes over consensus summaries.', archetypeHint: 'R-10' },
-  { id: 'story-mood', prompt: 'I’m drawn to narrative and mood over straight how-to instructions.', archetypeHint: 'D-8' },
-  { id: 'evidence', prompt: 'Data, references, and receipts make me trust the content.', archetypeHint: 'T-1' },
-  { id: 'craft', prompt: 'I care about aesthetic craft and polish more than speed.', archetypeHint: 'S-0' },
-  { id: 'playful', prompt: 'I enjoy playful, surprising twists more than straightforward delivery.', archetypeHint: 'N-5' },
-  { id: 'mentor', prompt: 'I like calm, mentor energy more than hype or edge.', archetypeHint: 'L-3' },
-  { id: 'lineage', prompt: 'I value references to lineage, influence, and history.', archetypeHint: 'P-7' },
-  { id: 'speed', prompt: 'I prize speed to publish over perfect polish.', archetypeHint: 'F-9' },
-  { id: 'austerity', prompt: 'I prefer austere, brutalist visuals to colourful maximalism.', archetypeHint: 'C-4' },
-  { id: 'experiments', prompt: 'I will try odd formats if the idea feels alive, even if it may flop.', archetypeHint: 'V-2' },
-  { id: 'precision', prompt: 'I want language to be precise and sharp, not conversational and loose.', archetypeHint: 'S-0' },
-  { id: 'community', prompt: 'I value community reaction and discourse as part of the work.', archetypeHint: 'H-6' },
+const BEST_WORST_POOL = [
+  { id: 'bw-opening-thesis', topic: 'opening', prompt: 'Open with a hard thesis. No preamble.', archetypeHint: 'R-10' },
+  { id: 'bw-opening-scene', topic: 'opening', prompt: 'Open with a scene and let the idea surface.', archetypeHint: 'D-8' },
+  { id: 'bw-payoff-fast', topic: 'payoff', prompt: 'Immediate payoff. Zero suspense.', archetypeHint: 'F-9' },
+  { id: 'bw-payoff-slow', topic: 'payoff', prompt: 'Slow burn with a decisive reveal.', archetypeHint: 'D-8' },
+  { id: 'bw-hook-contrarian', topic: 'hook', prompt: 'Contrarian hook that polarizes.', archetypeHint: 'R-10' },
+  { id: 'bw-hook-curiosity', topic: 'hook', prompt: 'Curiosity hook that pulls me forward.', archetypeHint: 'N-5' },
+  { id: 'bw-evidence', topic: 'evidence', prompt: 'Receipts, data, and sources make it land.', archetypeHint: 'T-1' },
+  { id: 'bw-constraints', topic: 'constraints', prompt: 'I want to see the constraints or rules behind it.', archetypeHint: 'T-1' },
+  { id: 'bw-framework', topic: 'framework', prompt: 'Give me a clear model or system.', archetypeHint: 'T-1' },
+  { id: 'bw-narrative', topic: 'narrative', prompt: 'Mythic storytelling and mood over analysis.', archetypeHint: 'D-8' },
+  { id: 'bw-structure', topic: 'structure', prompt: 'Frameworks over story arcs.', archetypeHint: 'T-1' },
+  { id: 'bw-voice-lived', topic: 'authority', prompt: 'Speak from lived experience.', archetypeHint: 'L-3' },
+  { id: 'bw-voice-research', topic: 'authority', prompt: 'Speak from research and synthesis.', archetypeHint: 'T-1' },
+  { id: 'bw-audience-insider', topic: 'audience', prompt: 'Talk to insiders with shared context.', archetypeHint: 'P-7' },
+  { id: 'bw-audience-bridge', topic: 'audience', prompt: 'Translate for first-timers and outsiders.', archetypeHint: 'L-3' },
+  { id: 'bw-risk', topic: 'risk', prompt: 'Make a sharp bet and commit.', archetypeHint: 'R-10' },
+  { id: 'bw-nuance', topic: 'nuance', prompt: 'Hold nuance and bridge perspectives.', archetypeHint: 'L-3' },
+  { id: 'bw-energy', topic: 'energy', prompt: 'High-voltage, kinetic delivery.', archetypeHint: 'F-9' },
+  { id: 'bw-calm', topic: 'energy', prompt: 'Composed, low-velocity delivery.', archetypeHint: 'L-3' },
+  { id: 'bw-visual-polish', topic: 'visual', prompt: 'Cinematic, high-design polish.', archetypeHint: 'S-0' },
+  { id: 'bw-visual-utility', topic: 'visual', prompt: 'Plain, utilitarian clarity.', archetypeHint: 'T-1' },
+  { id: 'bw-format-short', topic: 'format', prompt: 'Shorts, carousels, tight modules.', archetypeHint: 'F-9' },
+  { id: 'bw-format-long', topic: 'format', prompt: 'Longform essays and deep dives.', archetypeHint: 'T-1' },
+  { id: 'bw-novel-framing', topic: 'novelty', prompt: 'New framing on known ideas.', archetypeHint: 'N-5' },
+  { id: 'bw-new-facts', topic: 'novelty', prompt: 'New facts even if framing is familiar.', archetypeHint: 'T-1' },
+  { id: 'bw-texture-analog', topic: 'texture', prompt: 'Analog grit and tactile texture.', archetypeHint: 'P-7' },
+  { id: 'bw-texture-digital', topic: 'texture', prompt: 'Clean, precise, digital surfaces.', archetypeHint: 'S-0' },
+  { id: 'bw-cadence-serial', topic: 'cadence', prompt: 'Serialized drops and ongoing threads.', archetypeHint: 'H-6' },
+  { id: 'bw-cadence-single', topic: 'cadence', prompt: 'Standalone, self-contained posts.', archetypeHint: 'S-0' },
+  { id: 'bw-signal-subtle', topic: 'signal', prompt: 'Subtle, coded, insider signals.', archetypeHint: 'P-7' },
+  { id: 'bw-signal-explicit', topic: 'signal', prompt: 'Direct, explicit, broad reach.', archetypeHint: 'H-6' },
+  { id: 'bw-purpose-utility', topic: 'purpose', prompt: 'Change behavior with practical utility.', archetypeHint: 'F-9' },
+  { id: 'bw-purpose-shift', topic: 'purpose', prompt: 'Change perception with worldview shifts.', archetypeHint: 'N-5' },
+  { id: 'bw-ambiguity', topic: 'ambiguity', prompt: 'A bit of ambiguity keeps me engaged longer.', archetypeHint: 'D-8' },
+  { id: 'bw-precision', topic: 'precision', prompt: 'Precision and naming are half the signal.', archetypeHint: 'S-0' },
+  { id: 'bw-lineage', topic: 'lineage', prompt: 'Lineage and provenance deepen my trust.', archetypeHint: 'P-7' },
+  { id: 'bw-futurism', topic: 'futurism', prompt: 'Future-facing, speculative ideas.', archetypeHint: 'V-2' },
+  { id: 'bw-community', topic: 'community', prompt: 'Community reaction is part of the work.', archetypeHint: 'H-6' },
+  { id: 'bw-humor', topic: 'humor', prompt: 'Humor is a strong delivery mechanism.', archetypeHint: 'N-5' },
+  { id: 'bw-vulnerability', topic: 'vulnerability', prompt: 'Vulnerability connects more than authority.', archetypeHint: 'L-3' },
 ];
 
-const BASE_TASTE_POOL = [
-  {
-    id: 'edge-vs-mentor',
-    label: 'Hook style',
-    a: 'Bold, contrarian hooks that polarize',
-    b: 'Calm, mentor energy with gentle setups',
-  },
-  {
-    id: 'mythic-vs-analytic',
-    label: 'Narrative mode',
-    a: 'Mythic storytelling, symbolism, mood',
-    b: 'Analytic, data-backed, pragmatic proofs',
-  },
-  {
-    id: 'speed-vs-depth',
-    label: 'Format bias',
-    a: 'Fast, punchy shorts and carousels',
-    b: 'Deep-dive longform and thoughtful pacing',
-  },
-  {
-    id: 'design-vs-report',
-    label: 'Visual feel',
-    a: 'High-design, cinematic visuals',
-    b: 'Plain, report-style clarity',
-  },
-  {
-    id: 'voice-vs-data',
-    label: 'Tone preference',
-    a: 'Personal voice, vivid anecdotes',
-    b: 'Data-led, concise insights',
-  },
-  {
-    id: 'genre-vs-cross',
-    label: 'Content angle',
-    a: 'Genre purist: stay in one niche',
-    b: 'Cross-pollinate: mix odd combos',
-  },
-  {
-    id: 'austerity-vs-flare',
-    label: 'Visual palette',
-    a: 'Monochrome, brutalist, negative space',
-    b: 'Colourful, layered, maximalist',
-  },
-  {
-    id: 'narrative-vs-system',
-    label: 'Structure bias',
-    a: 'Story-led arcs and characters',
-    b: 'Frameworks and playbooks',
-  },
-];
+const slugify = (value) => String(value || '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '');
 
-const archetypeTasteMap = {
-  'R-10': { id: 'archetype-contrarian', label: 'Contrarian vs Consensus', a: 'Break assumptions and punch holes', b: 'Balance takes and build consensus' },
-  'D-8': { id: 'archetype-channel', label: 'Channel vs Direct', a: 'Vibes, symbolism, mood-led', b: 'Direct, literal, step-by-step' },
-  'T-1': { id: 'archetype-architect', label: 'Systems vs Intuition', a: 'Frameworks, logic, scaffolds', b: 'Gut feel, creative intuition' },
-  'P-7': { id: 'archetype-archive', label: 'Lineage vs Trend', a: 'Rooted in lineage and references', b: 'Chasing fresh trends constantly' },
-  'S-0': { id: 'archetype-standard', label: 'Polish vs Speed', a: 'High polish and standard-setting', b: 'Ship fast, iterate in public' },
-  'L-3': { id: 'archetype-cultivator', label: 'Mentor vs Maverick', a: 'Patient mentor energy', b: 'Maverick experimentation' },
-  'N-5': { id: 'archetype-integrator', label: 'Integration vs Purity', a: 'Blend opposites and hybrids', b: 'Keep a pure, singular vibe' },
-  'V-2': { id: 'archetype-omen', label: 'Early vs Mainstream', a: 'Spot early gems and edges', b: 'Stick to mainstream proof' },
-  'H-6': { id: 'archetype-advocate', label: 'Advocate vs Observer', a: 'Campaigning advocacy', b: 'Neutral observation' },
-  'F-9': { id: 'archetype-manifestor', label: 'Action vs Theory', a: 'Ship and execute', b: 'Theory and planning first' },
-};
-
-const pickKeywordPairs = (g) => {
+const buildDynamicOptions = (g) => {
   if (!g?.keywords) return [];
+  const options = [];
   const tones = Object.entries(g.keywords?.content?.tone || {})
     .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
     .map(([tone]) => tone);
+  tones.forEach((tone) => {
+    const slug = slugify(tone);
+    options.push({
+      id: `bw-tone-${slug}`,
+      topic: `tone-${slug}`,
+      prompt: `Lean into ${tone} tone.`,
+      archetypeHint: null,
+    });
+  });
   const hooks = Object.entries(g.keywords?.content?.hooks || {})
     .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
     .map(([hook]) => hook);
+  hooks.forEach((hook) => {
+    const slug = slugify(hook);
+    options.push({
+      id: `bw-hook-${slug}`,
+      topic: `hook-${slug}`,
+      prompt: `Open with a ${hook} hook.`,
+      archetypeHint: null,
+    });
+  });
+  return options;
+};
+
+const getItemTopic = (item) => item?.topic || item?.id || 'misc';
+
+const buildBestWorstPool = (g) => {
+  const dynamic = buildDynamicOptions(g);
+  const combined = [...dynamic, ...BEST_WORST_POOL];
+  const seenIds = new Set();
+  return shuffleArray(combined.filter((item) => {
+    if (seenIds.has(item.id)) return false;
+    seenIds.add(item.id);
+    return true;
+  }));
+};
+
+const pickUniqueByTopic = (items, count, usedTopics) => {
   const picks = [];
-  if (tones.length >= 2) {
-    picks.push({
-      id: 'tone-pair',
-      label: 'Tone preference',
-      a: `Leaning toward ${tones[0]} tone`,
-      b: `Leaning toward ${tones[1]} tone`,
-    });
-  }
-  if (hooks.length >= 2) {
-    picks.push({
-      id: 'hook-pair',
-      label: 'Hook style',
-      a: `${hooks[0]} hooks`,
-      b: `${hooks[1]} hooks`,
-    });
+  for (const item of items) {
+    const topic = item.topic;
+    if (usedTopics.has(topic)) continue;
+    usedTopics.add(topic);
+    picks.push(item);
+    if (picks.length >= count) break;
   }
   return picks;
 };
 
-const buildTastePairs = (g) => {
-  const base = [...BASE_TASTE_POOL];
-  const archetypeId = g?.archetype?.primary?.designation;
-  if (archetypeId && archetypeTasteMap[archetypeId]) {
-    base.push(archetypeTasteMap[archetypeId]);
-  }
-  const keywordPairs = pickKeywordPairs(g);
-  const combined = [...base, ...keywordPairs];
-  return shuffleArray(combined);
-};
+const OPTIONS_PER_CARD = 4;
+const QUEUE_SIZE = 1;
+const BEST_WORST_WEIGHT = 1.6;
 
 function TasteTraining() {
   const currentProfileId = useAppStore((state) => state.currentProfileId);
@@ -145,123 +136,204 @@ function TasteTraining() {
   const [recentSignals, setRecentSignals] = useState([]);
   const [adminBusy, setAdminBusy] = useState(false);
   const [askedIds, setAskedIds] = useState(new Set());
-
-  const trainingPool = useMemo(() => {
-    // Build a mixed pool of pairs and likert items
-    const pairs = buildTastePairs(genome).map((p) => ({ type: 'pair', data: p }));
-    const likerts = shuffleArray(LIKERT_POOL).map((l) => ({ type: 'likert', data: l }));
-    // interleave pairs and likerts
-    const mixed = [];
-    const maxLen = Math.max(pairs.length, likerts.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (pairs[i]) mixed.push(pairs[i]);
-      if (likerts[i]) mixed.push(likerts[i]);
-    }
-    return mixed;
-  }, [genome]);
+  const [askedTopics, setAskedTopics] = useState(new Set());
+  const [selections, setSelections] = useState({});
 
   useEffect(() => {
-    loadGenome();
+    loadGenome({ resetAsked: true });
   }, [currentProfileId]);
 
-  const loadGenome = async () => {
+  const loadGenome = async ({ resetAsked = false, skipQueue = false } = {}) => {
     setLoading(true);
     try {
       const result = await genomeApi.get(currentProfileId || null);
       if (result.hasGenome) {
         setGenome(result.genome);
-        setAskedIds(new Set());
-        setQueue(buildNextQueue(result.genome));
+        const nextAskedIds = resetAsked ? new Set() : askedIds;
+        const nextAskedTopics = resetAsked ? new Set() : askedTopics;
+        if (resetAsked) {
+          setAskedIds(nextAskedIds);
+          setAskedTopics(nextAskedTopics);
+        }
+        if (!skipQueue) {
+          setQueue(buildNextQueue(result.genome, nextAskedIds, nextAskedTopics));
+        }
         if (ADMIN_MODE) {
           fetchRaw();
         }
+        return result.genome;
       }
     } catch (error) {
       console.error('Failed to load genome:', error);
+      return null;
     } finally {
       setLoading(false);
     }
+    return null;
   };
 
-  const buildNextQueue = (g) => {
-    const poolPairs = buildTastePairs(g).map((p) => ({ type: 'pair', data: p }));
-    const poolLikerts = shuffleArray(LIKERT_POOL).map((l) => ({ type: 'likert', data: l }));
+  const buildNextQueue = (g, askedIdSet = askedIds, askedTopicSet = askedTopics) => {
+    const pool = buildBestWorstPool(g).map((option) => ({
+      ...option,
+      topic: getItemTopic(option),
+    }));
 
-    // filter items already answered in this session
-    const filteredPairs = poolPairs.filter((item) => !askedIds.has(item.data.id));
-    const filteredLikerts = poolLikerts.filter((item) => !askedIds.has(item.data.id));
-
-    let mixed = [];
-    const maxLen = Math.max(filteredPairs.length, filteredLikerts.length);
-    for (let i = 0; i < maxLen; i++) {
-      if (filteredPairs[i]) mixed.push(filteredPairs[i]);
-      if (filteredLikerts[i]) mixed.push(filteredLikerts[i]);
+    let available = pool.filter((option) => !askedIdSet.has(option.id));
+    if (available.length < OPTIONS_PER_CARD) {
+      available = pool;
     }
 
-    // If everything is exhausted, reset asked set and surface a fresh slice
-    if (mixed.length === 0) {
-      setAskedIds(new Set());
-      mixed = poolPairs.slice(0, 2).concat(poolLikerts.slice(0, 2));
-    }
+    const queueItems = [];
+    const usedTopics = new Set([...askedTopicSet]);
+    let remaining = [...available];
 
-    return mixed.slice(0, 4);
-  };
+    for (let i = 0; i < QUEUE_SIZE && remaining.length >= OPTIONS_PER_CARD; i += 1) {
+      const shuffled = shuffleArray(remaining);
+      const picks = pickUniqueByTopic(shuffled, OPTIONS_PER_CARD, usedTopics);
 
-  const handlePair = async (pair, choice) => {
-    setBusy(true);
-    setTrainMessage('Updating your genome…');
-    const chosen = pair[choice];
-    const other = pair[choice === 'a' ? 'b' : 'a'];
-    try {
-      await genomeApi.signal(
-        'choice',
-        pair.id,
-        { choice, selected: chosen, rejected: other, folioId: activeFolioId || undefined, projectId: activeProjectId || undefined },
-        currentProfileId || null
-      );
-      setTrainMessage(`Logged: "${chosen}" → genome updated.`);
-      await loadGenome();
-      setAskedIds((prev) => {
-        const next = new Set(prev);
-        next.add(pair.id);
-        return next;
+      if (picks.length < OPTIONS_PER_CARD) {
+        for (const item of shuffled) {
+          if (picks.includes(item)) continue;
+          picks.push(item);
+          if (picks.length >= OPTIONS_PER_CARD) break;
+        }
+      }
+
+      if (picks.length < OPTIONS_PER_CARD) break;
+
+      const pickIds = new Set(picks.map((item) => item.id));
+      remaining = remaining.filter((item) => !pickIds.has(item.id));
+      queueItems.push({
+        id: `bw-${picks.map((item) => item.id).join('-')}`,
+        options: picks,
       });
-      setQueue(buildNextQueue(genome));
-    } catch (error) {
-      console.error('Failed to log taste choice:', error);
-      setTrainMessage('Could not record this choice. Try again.');
-    } finally {
-      setBusy(false);
     }
+
+    return queueItems;
   };
 
-  const handleLikert = async (item, score) => {
+  const handleSelectOption = (cardId, optionId, kind) => {
+    if (busy) return;
+    setSelections((prev) => {
+      const current = prev[cardId] || { best: null, worst: null };
+      const next = { ...current };
+      if (kind === 'best') {
+        next.best = current.best === optionId ? null : optionId;
+        if (next.best === next.worst) next.worst = null;
+      } else {
+        next.worst = current.worst === optionId ? null : optionId;
+        if (next.worst === next.best) next.best = null;
+      }
+      return { ...prev, [cardId]: next };
+    });
+  };
+
+  const handleSubmitBestWorst = async (card) => {
+    const selection = selections[card.id];
+    if (!selection?.best || !selection?.worst) return;
+
+    const bestOption = card.options.find((opt) => opt.id === selection.best);
+    const worstOption = card.options.find((opt) => opt.id === selection.worst);
+    if (!bestOption || !worstOption) return;
+
     setBusy(true);
     setTrainMessage('Locking in your signal…');
     try {
       await genomeApi.signal(
         'likert',
-        item.id,
+        null,
         {
-          score,
-          prompt: item.prompt,
-          archetypeHint: item.archetypeHint,
+          score: 5,
+          prompt: bestOption.prompt,
+          archetypeHint: bestOption.archetypeHint,
+          topic: bestOption.topic,
+          optionId: bestOption.id,
+          setId: card.id,
+          polarity: 'best',
+          weightOverride: BEST_WORST_WEIGHT,
           folioId: activeFolioId || undefined,
           projectId: activeProjectId || undefined,
         },
         currentProfileId || null
       );
-      setTrainMessage(`Logged: "${item.prompt}" (${score}/5) → genome updated.`);
-      await loadGenome();
-      setAskedIds((prev) => {
-        const next = new Set(prev);
-        next.add(item.id);
+      await genomeApi.signal(
+        'likert',
+        null,
+        {
+          score: 1,
+          prompt: worstOption.prompt,
+          archetypeHint: worstOption.archetypeHint,
+          topic: worstOption.topic,
+          optionId: worstOption.id,
+          setId: card.id,
+          polarity: 'worst',
+          weightOverride: BEST_WORST_WEIGHT,
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
+        },
+        currentProfileId || null
+      );
+      setTrainMessage(`Logged: best "${bestOption.prompt}" / worst "${worstOption.prompt}".`);
+      const nextGenome = await loadGenome({ skipQueue: true });
+      const nextAskedIds = new Set(askedIds);
+      const nextAskedTopics = new Set(askedTopics);
+      card.options.forEach((opt) => {
+        nextAskedIds.add(opt.id);
+        nextAskedTopics.add(opt.topic);
+      });
+      setAskedIds(nextAskedIds);
+      setAskedTopics(nextAskedTopics);
+      setSelections((prev) => {
+        const next = { ...prev };
+        delete next[card.id];
         return next;
       });
-      setQueue(buildNextQueue(genome));
+      setQueue(buildNextQueue(nextGenome || genome, nextAskedIds, nextAskedTopics));
     } catch (error) {
-      console.error('Failed to log likert signal:', error);
+      console.error('Failed to log best/worst signal:', error);
       setTrainMessage('Could not record this signal. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSkipCard = async (card) => {
+    if (busy) return;
+    setBusy(true);
+    setTrainMessage('Skipping this card…');
+    try {
+      await genomeApi.signal(
+        'pass',
+        card.id,
+        {
+          neutral: true,
+          setId: card.id,
+          optionIds: card.options.map((opt) => opt.id),
+          topics: card.options.map((opt) => opt.topic),
+          folioId: activeFolioId || undefined,
+          projectId: activeProjectId || undefined,
+        },
+        currentProfileId || null
+      );
+      const nextGenome = await loadGenome({ skipQueue: true });
+      const nextAskedIds = new Set(askedIds);
+      const nextAskedTopics = new Set(askedTopics);
+      card.options.forEach((opt) => {
+        nextAskedIds.add(opt.id);
+        nextAskedTopics.add(opt.topic);
+      });
+      setAskedIds(nextAskedIds);
+      setAskedTopics(nextAskedTopics);
+      setSelections((prev) => {
+        const next = { ...prev };
+        delete next[card.id];
+        return next;
+      });
+      setQueue(buildNextQueue(nextGenome || genome, nextAskedIds, nextAskedTopics));
+      setTrainMessage('Skipped. New card loaded.');
+    } catch (error) {
+      console.error('Failed to skip card:', error);
+      setTrainMessage('Could not skip this card. Try again.');
     } finally {
       setBusy(false);
     }
@@ -327,170 +399,202 @@ function TasteTraining() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <Dna className="w-7 h-7 text-accent-purple" />
-            Subtaste · Training
-          </h1>
-          <p className="text-dark-400 mt-1">High-signal inputs to harden your glyph.</p>
-          {genome?.archetype?.primary && (
-            <div className="mt-2 flex items-center gap-3">
-              <span className="px-3 py-1 bg-dark-900 border border-dark-700 rounded-sm text-xs text-dark-100 font-mono tracking-[0.3em] uppercase">
-                {genome.archetype.primary.designation}
-              </span>
-              <span className="text-lg text-white font-black uppercase tracking-[0.08em]">
-                {genome.archetype.primary.glyph}
-              </span>
-              {genome.archetype.primary.sigil && (
-                <span className="text-xs text-dark-300 font-mono uppercase tracking-[0.14em]">
-                  {genome.archetype.primary.sigil}
+    <div className="px-6 py-10">
+      <div className="mx-auto max-w-3xl">
+        <div className="flex items-start justify-between mb-8">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold text-white flex items-center gap-3 tracking-[0.08em]">
+              <Dna className="w-6 h-6 text-accent-purple" />
+              Subtaste · Training
+            </h1>
+            <p className="text-sm text-dark-400 mt-2 max-w-xl">
+              High-signal inputs to sharpen your profile. Short, focused, and reaction-forward.
+            </p>
+            {genome?.archetype?.primary && (
+              <div className="mt-3 flex items-center gap-3">
+                <span className="px-3 py-1 bg-dark-950/60 border border-dark-800 rounded-sm text-[11px] text-dark-100 font-mono tracking-[0.28em] uppercase">
+                  {genome.archetype.primary.designation}
                 </span>
-              )}
-            </div>
-          )}
+                <span className="text-lg text-white font-black uppercase tracking-[0.12em]">
+                  {genome.archetype.primary.glyph}
+                </span>
+                {genome.archetype.primary.sigil && (
+                  <span className="text-[11px] text-dark-400 font-mono uppercase tracking-[0.14em]">
+                    {genome.archetype.primary.sigil}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Unified Training Stack */}
-      <div className="bg-dark-900 rounded-lg border border-dark-700 p-4 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-white uppercase tracking-[0.12em] flex items-center gap-2">
-            <Target className="w-4 h-4 text-accent-purple" />
-            Training Stack
-          </h3>
-          <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.14em]">A/B + Likert</span>
-        </div>
-        <p className="text-sm text-dark-300 mb-3">
-          Mixed rapid A/B and Likert signals. Answer to advance; genome updates after each input.
-        </p>
-        <div className="space-y-3">
-          {queue.map((item, idx) => {
-            if (item.type === 'pair') {
-              const pair = item.data;
-              return (
-                <div key={`${item.type}-${pair.id}-${idx}`} className="rounded-lg border border-dark-700 bg-dark-950 p-3">
-                  <p className="text-[11px] text-dark-400 uppercase tracking-[0.12em] mb-2">{pair.label}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handlePair(pair, 'a')}
-                      disabled={busy}
-                      className="p-3 rounded-md border border-dark-700 text-left text-sm text-dark-100 hover:border-accent-purple transition-colors disabled:opacity-50"
-                    >
-                      {pair.a}
-                    </button>
-                    <button
-                      onClick={() => handlePair(pair, 'b')}
-                      disabled={busy}
-                      className="p-3 rounded-md border border-dark-700 text-left text-sm text-dark-100 hover:border-accent-purple transition-colors disabled:opacity-50"
-                    >
-                      {pair.b}
-                    </button>
-                  </div>
-                </div>
-              );
-            }
-            if (item.type === 'likert') {
-              const lk = item.data;
-              return (
-                <div key={`${item.type}-${lk.id}-${idx}`} className="rounded-lg border border-dark-700 bg-dark-950 p-3">
-                  <p className="text-sm text-dark-200 mb-2">{lk.prompt}</p>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-dark-500 w-24 text-right uppercase tracking-[0.1em]">Disagree</span>
-                    <input
-                    type="range"
-                    min="1"
-                    max="5"
-                    step="1"
-                    defaultValue={3}
-                    onMouseUp={(e) => handleLikert(lk, Number(e.currentTarget.value))}
-                    onTouchEnd={(e) => handleLikert(lk, Number(e.currentTarget.value))}
-                    disabled={busy}
-                    className="flex-1 accent-accent-purple bg-dark-800"
-                  />
-                    <span className="text-[11px] text-dark-500 w-20 uppercase tracking-[0.1em]">Agree</span>
-                  </div>
-                </div>
-              );
-            }
-            return null;
-          })}
-        </div>
-        {trainMessage && <p className="text-xs text-dark-300 mt-3">{trainMessage}</p>}
-      </div>
-
-      {ADMIN_MODE && (
-        <div className="bg-dark-900 rounded-lg border border-dark-700 p-4 space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-[0.12em] flex items-center gap-2">
-              <Activity className="w-4 h-4 text-accent-purple" />
-              Admin Diagnostics
+        {/* Unified Training Stack */}
+        <div className="relative overflow-hidden rounded-2xl border border-dark-800 bg-dark-950/70 p-5 mb-8">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-purple/40 to-transparent" />
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-white uppercase tracking-[0.18em] flex items-center gap-2">
+              <Target className="w-4 h-4 text-accent-purple" />
+              Training Stack
             </h3>
-            {adminBusy && <span className="text-xs text-accent-purple">Working…</span>}
+            <span className="text-[10px] text-dark-500 font-mono uppercase tracking-[0.18em]">Best / Worst</span>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={handleSeed}
-              disabled={adminBusy}
-              className="px-3 py-2 rounded border border-dark-600 text-sm text-white hover:border-accent-purple"
-            >
-              Seed signals
-            </button>
-            <button
-              onClick={handleRecompute}
-              disabled={adminBusy}
-              className="px-3 py-2 rounded border border-dark-600 text-sm text-white hover:border-accent-purple"
-            >
-              Recompute genome
-            </button>
-            <button
-              onClick={fetchRaw}
-              disabled={adminBusy}
-              className="px-3 py-2 rounded border border-dark-600 text-sm text-white hover:border-accent-purple"
-            >
-              Refresh raw view
-            </button>
-          </div>
-
-          {rawGenome?.distribution && (
-            <div>
-              <h4 className="text-xs text-dark-400 uppercase tracking-[0.12em] mb-2 flex items-center gap-2">
-                <ListChecks className="w-4 h-4 text-accent-purple" />
-                Archetype Distribution
-              </h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {Object.entries(rawGenome.distribution).map(([designation, prob]) => (
-                  <div key={designation} className="rounded border border-dark-700 p-2 bg-dark-950 text-sm text-dark-200 flex items-center justify-between">
-                    <span className="font-mono tracking-[0.12em]">{designation}</span>
-                    <span className="text-white font-semibold">{Math.round(prob * 100)}%</span>
+          <p className="text-sm text-dark-300 mb-4">
+            One card at a time. Pick one best and one worst, then lock to continue.
+          </p>
+          <div className="grid gap-3">
+            {queue.map((card, idx) => {
+              const selection = selections[card.id] || { best: null, worst: null };
+              const isReady = selection.best && selection.worst;
+              return (
+                <div key={`${card.id}-${idx}`} className="rounded-xl border border-dark-800 bg-dark-950/80 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] text-dark-500 uppercase tracking-[0.18em]">Best / Worst</p>
+                    <p className="text-[10px] text-dark-500 uppercase tracking-[0.18em]">4 Options</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {recentSignals?.length > 0 && (
-            <div>
-              <h4 className="text-xs text-dark-400 uppercase tracking-[0.12em] mb-2 flex items-center gap-2">
-                <ListChecks className="w-4 h-4 text-accent-purple" />
-                Recent Signals
-              </h4>
-              <div className="space-y-1 text-sm text-dark-200">
-                {recentSignals.map((sig) => (
-                  <div key={sig.id || sig._id || sig.timestamp} className="rounded border border-dark-700 bg-dark-950 p-2">
-                    <div className="flex items-center justify-between text-xs text-dark-400">
-                      <span>{sig.type}</span>
-                      <span>{sig.timestamp ? new Date(sig.timestamp).toLocaleString() : ''}</span>
+                  <div className="space-y-2">
+                    {card.options.map((opt) => {
+                      const isBest = selection.best === opt.id;
+                      const isWorst = selection.worst === opt.id;
+                      return (
+                        <div
+                          key={opt.id}
+                          className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-colors ${
+                            isBest
+                              ? 'border-accent-purple/70 bg-accent-purple/10'
+                              : isWorst
+                                ? 'border-red-500/60 bg-red-500/10'
+                                : 'border-dark-800 bg-dark-950/60'
+                          }`}
+                        >
+                          <span className="text-sm text-dark-100">{opt.prompt}</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleSelectOption(card.id, opt.id, 'best')}
+                              disabled={busy}
+                              className={`px-2 py-1 rounded-md text-[10px] uppercase tracking-[0.12em] border transition-colors ${
+                                isBest
+                                  ? 'border-accent-purple text-white bg-accent-purple/20'
+                                  : 'border-dark-800 text-dark-400 hover:text-white hover:border-accent-purple/70'
+                              }`}
+                            >
+                              Best
+                            </button>
+                            <button
+                              onClick={() => handleSelectOption(card.id, opt.id, 'worst')}
+                              disabled={busy}
+                              className={`px-2 py-1 rounded-md text-[10px] uppercase tracking-[0.12em] border transition-colors ${
+                                isWorst
+                                  ? 'border-red-500 text-white bg-red-500/20'
+                                  : 'border-dark-800 text-dark-400 hover:text-white hover:border-red-500/70'
+                              }`}
+                            >
+                              Worst
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-[10px] text-dark-500 uppercase tracking-[0.14em]">
+                      {isReady ? 'Ready to lock' : 'Select best and worst'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleSkipCard(card)}
+                        disabled={busy}
+                        className="px-3 py-1.5 rounded-md border border-dark-800 text-[10px] uppercase tracking-[0.12em] text-dark-400 hover:text-white hover:border-dark-600 hover:bg-dark-900/40 disabled:opacity-40"
+                      >
+                        Skip
+                      </button>
+                      <button
+                        onClick={() => handleSubmitBestWorst(card)}
+                        disabled={!isReady || busy}
+                        className="px-3 py-1.5 rounded-md border border-dark-800 text-[10px] uppercase tracking-[0.12em] text-dark-200 hover:text-white hover:border-accent-purple/70 hover:bg-dark-900/60 disabled:opacity-40"
+                      >
+                        Lock
+                      </button>
                     </div>
-                    <div className="text-dark-100">{sig.data?.prompt || sig.data?.selected || sig.value}</div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              );
+            })}
+          </div>
+          {trainMessage && <p className="text-xs text-dark-300 mt-3">{trainMessage}</p>}
         </div>
-      )}
+
+        {ADMIN_MODE && (
+          <div className="bg-dark-950/70 rounded-2xl border border-dark-800 p-5 space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-white uppercase tracking-[0.18em] flex items-center gap-2">
+                <Activity className="w-4 h-4 text-accent-purple" />
+                Admin Diagnostics
+              </h3>
+              {adminBusy && <span className="text-xs text-accent-purple">Working…</span>}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={handleSeed}
+                disabled={adminBusy}
+                className="px-3 py-2 rounded-lg border border-dark-700 text-sm text-white hover:border-accent-purple/70 hover:bg-dark-900/50"
+              >
+                Seed signals
+              </button>
+              <button
+                onClick={handleRecompute}
+                disabled={adminBusy}
+                className="px-3 py-2 rounded-lg border border-dark-700 text-sm text-white hover:border-accent-purple/70 hover:bg-dark-900/50"
+              >
+                Recompute genome
+              </button>
+              <button
+                onClick={fetchRaw}
+                disabled={adminBusy}
+                className="px-3 py-2 rounded-lg border border-dark-700 text-sm text-white hover:border-accent-purple/70 hover:bg-dark-900/50"
+              >
+                Refresh raw view
+              </button>
+            </div>
+
+            {rawGenome?.distribution && (
+              <div>
+                <h4 className="text-[11px] text-dark-400 uppercase tracking-[0.18em] mb-2 flex items-center gap-2">
+                  <ListChecks className="w-4 h-4 text-accent-purple" />
+                  Archetype Distribution
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {Object.entries(rawGenome.distribution).map(([designation, prob]) => (
+                    <div key={designation} className="rounded-lg border border-dark-800 p-2 bg-dark-950/80 text-sm text-dark-200 flex items-center justify-between">
+                      <span className="font-mono tracking-[0.12em]">{designation}</span>
+                      <span className="text-white font-semibold">{Math.round(prob * 100)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {recentSignals?.length > 0 && (
+              <div>
+                <h4 className="text-[11px] text-dark-400 uppercase tracking-[0.18em] mb-2 flex items-center gap-2">
+                  <ListChecks className="w-4 h-4 text-accent-purple" />
+                  Recent Signals
+                </h4>
+                <div className="space-y-1 text-sm text-dark-200">
+                  {recentSignals.map((sig) => (
+                    <div key={sig.id || sig._id || sig.timestamp} className="rounded-lg border border-dark-800 bg-dark-950/80 p-2">
+                      <div className="flex items-center justify-between text-xs text-dark-400">
+                        <span>{sig.type}</span>
+                        <span>{sig.timestamp ? new Date(sig.timestamp).toLocaleString() : ''}</span>
+                      </div>
+                      <div className="text-dark-100">{sig.data?.prompt || sig.data?.selected || sig.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
