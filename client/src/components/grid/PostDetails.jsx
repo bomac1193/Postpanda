@@ -1086,8 +1086,13 @@ function PostDetails({ post }) {
 
             {/* Image */}
             {post.image && (
-              <div className="mt-3 rounded-2xl overflow-hidden border border-gray-800">
-                <img src={post.image} alt="" className="w-full object-cover" style={{ maxHeight: '300px' }} />
+              <div className="mt-3 rounded-2xl overflow-hidden border border-gray-800 bg-gray-900 flex items-center justify-center">
+                <img
+                  src={post.image}
+                  alt=""
+                  className="max-h-[420px] w-full object-contain"
+                  style={{ backgroundColor: post.color || '#111' }}
+                />
               </div>
             )}
 
