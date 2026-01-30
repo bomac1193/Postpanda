@@ -163,11 +163,15 @@ function PostDetails({ post }) {
   const [bestTimes, setBestTimes] = useState(null);
   const [loadingBestTimes, setLoadingBestTimes] = useState(false);
 
-  // Reset local editable state when the selected post changes
-  useEffect(() => {
-    setCaption(post?.caption || '');
-    setHashtags(post?.hashtags?.join(' ') || '');
-  }, [post?.id, post?._id]);
+  const cleanGeneratedText = (text) => {
+    const cleaned = String(text || '')
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+    if (!cleaned) return '';
+    if (/^json$/i.test(cleaned)) return '';
+    return cleaned;
+  };
 
   // Track shift key for free movement
   useEffect(() => {
@@ -270,21 +274,55 @@ function PostDetails({ post }) {
   // Get the correct post ID (works for both local and MongoDB posts)
   const postId = post.id || post._id;
 
+  const parseHashtagsText = (value) => (
+    String(value || '')
+      .split(/[\s,#]+/)
+      .filter(Boolean)
+      .map((tag) => (tag.startsWith('#') ? tag : `#${tag}`))
+  );
+
   // Update local state immediately for responsive typing
   const handleCaptionChange = (value) => {
     setCaption(value);
   };
 
   // Persist to store + backend on blur
-  const persistPost = async (payload) => {
-    if (!postId) return;
-    updatePost(postId, payload);
+  const persistPost = async (payload, targetId = postId) => {
+    if (!targetId) return;
+    updatePost(targetId, payload);
     try {
-      await contentApi.update(postId, payload);
+      await contentApi.update(targetId, payload);
     } catch (err) {
       console.error('Failed to persist post update:', err);
     }
   };
+
+  // Auto-save when switching between posts in preview mode
+  const captionDraftRef = useRef(caption);
+  const hashtagsDraftRef = useRef(hashtags);
+  const lastPostIdRef = useRef(postId);
+
+  useEffect(() => {
+    captionDraftRef.current = caption;
+  }, [caption]);
+
+  useEffect(() => {
+    hashtagsDraftRef.current = hashtags;
+  }, [hashtags]);
+
+  useEffect(() => {
+    const prevId = lastPostIdRef.current;
+    if (prevId && prevId !== postId) {
+      persistPost({
+        caption: captionDraftRef.current,
+        hashtags: parseHashtagsText(hashtagsDraftRef.current),
+      }, prevId);
+    }
+
+    lastPostIdRef.current = postId;
+    setCaption(post?.caption || '');
+    setHashtags(post?.hashtags?.join(' ') || '');
+  }, [postId]);
 
   const handleCaptionBlur = () => {
     persistPost({ caption });
@@ -296,21 +334,20 @@ function PostDetails({ post }) {
 
   // Save hashtags to store on blur
   const handleHashtagsBlur = () => {
-    const tags = hashtags
-      .split(/[\s,#]+/)
-      .filter((tag) => tag.length > 0)
-      .map((tag) => (tag.startsWith('#') ? tag : `#${tag}`));
-    persistPost({ hashtags: tags });
+    persistPost({ hashtags: parseHashtagsText(hashtags) });
   };
 
   // Generate caption with AI - completely replaces existing caption
   const handleGenerateCaption = async () => {
     setGeneratingCaption(true);
     try {
-      // Use a generic prompt to generate fresh caption (not based on existing)
-      const captions = await aiApi.generateCaption('engaging social media post', 'casual');
+      const captions = await aiApi.generateCaptionForContent(postId, {
+        tone: 'casual',
+        length: 'medium',
+        profileId: currentProfileId || null,
+      });
       if (captions && captions.length > 0) {
-        const newCaption = captions[0];
+        const newCaption = cleanGeneratedText(captions[0]);
         setCaption(newCaption);
         persistPost({ caption: newCaption });
       }
@@ -376,7 +413,7 @@ function PostDetails({ post }) {
       });
       const pick = variants[0];
       if (pick) {
-        const newCaption = pick.caption || pick.variant || pick.title || caption;
+        const newCaption = cleanGeneratedText(pick.caption || pick.variant || pick.title || caption);
         setCaption(newCaption);
         persistPost({ caption: newCaption });
       }

@@ -20,9 +20,25 @@ class AlchemyAiService {
 
   parseJson(content) {
     if (!content) return null;
+    const trimmed = String(content).trim();
+
+    // If the model wrapped JSON in a code fence, extract the payload
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    const candidate = (fenced?.[1] || trimmed).trim();
+
+    // Attempt direct parse first
     try {
-      return JSON.parse(content);
-    } catch (error) {
+      return JSON.parse(candidate);
+    } catch {
+      // Fallback: pull the first JSON object from mixed text
+      const objMatch = candidate.match(/\{[\s\S]*\}/);
+      if (objMatch) {
+        try {
+          return JSON.parse(objMatch[0]);
+        } catch {
+          return null;
+        }
+      }
       return null;
     }
   }
@@ -37,15 +53,20 @@ class AlchemyAiService {
   }
 
   formattedList(text) {
-    return text
-      ?.split('\n')
+    const cleaned = String(text || '')
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+
+    return cleaned
+      .split('\n')
       .map(line => line.replace(/^[0-9]+[.)-]*\s*/, '').trim())
-      .filter(Boolean);
+      .filter(line => line && !['{', '}', '[', ']'].includes(line));
   }
 
   async generateCaptions(idea, tone = 'neutral') {
     try {
-      const completion = await this.getClient().chat.completions.create({
+      const baseRequest = {
         model: this.model,
         temperature: 0.75,
         messages: [
@@ -60,7 +81,18 @@ Idea: ${idea}
 Return JSON in the shape {"captions":["caption 1","caption 2","caption 3"]}`
           }
         ]
-      });
+      };
+
+      // Prefer enforced JSON output; retry without if the model/API rejects it.
+      let completion;
+      try {
+        completion = await this.getClient().chat.completions.create({
+          ...baseRequest,
+          response_format: { type: 'json_object' },
+        });
+      } catch (error) {
+        completion = await this.getClient().chat.completions.create(baseRequest);
+      }
 
       const content = completion?.choices?.[0]?.message?.content?.trim();
       const parsed = this.parseJson(content);
@@ -92,7 +124,7 @@ Return JSON in the shape {"captions":["caption 1","caption 2","caption 3"]}`
         .map((example, index) => `${index + 1}. ${example}`)
         .join('\n');
 
-      const completion = await this.getClient().chat.completions.create({
+      const baseRequest = {
         model: this.model,
         temperature: 0.65,
         messages: [
@@ -109,7 +141,17 @@ ${formattedExamples || 'None provided'}
 Return JSON in the shape {"ideas":[{"title":"","description":"","format":"reel|photo|carousel"}]}`
           }
         ]
-      });
+      };
+
+      let completion;
+      try {
+        completion = await this.getClient().chat.completions.create({
+          ...baseRequest,
+          response_format: { type: 'json_object' },
+        });
+      } catch (error) {
+        completion = await this.getClient().chat.completions.create(baseRequest);
+      }
 
       const content = completion?.choices?.[0]?.message?.content?.trim();
       const parsed = this.parseJson(content);

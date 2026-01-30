@@ -366,6 +366,39 @@ Respond with ONLY a number.`;
         return this.heuristicHashtags(content, count);
       }
 
+      const mediaUrl = content?.mediaUrl || content?.imageUrl || content?.thumbnailUrl || null;
+      if (mediaUrl && String(mediaUrl).startsWith('http') && (content?.mediaType || '').toLowerCase() !== 'video') {
+        try {
+          const prompt = `Return ONLY valid JSON: {"hashtags":["#tag1",...]} with exactly ${count} Instagram hashtags.
+Rules:
+- No prose, no markdown, no code fences
+- Hashtags must be specific to what is visible in the image
+- Mix niche + popular tags; keep them clean and platform-appropriate`;
+
+          const response = await this.callOpenAIMultimodal([
+            { role: 'system', content: 'You are an expert social media strategist. Return JSON only.' },
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: mediaUrl } },
+              ],
+            },
+          ], true);
+
+          const cleaned = String(response || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleaned);
+          const tags = (parsed?.hashtags || [])
+            .map(t => String(t || '').trim())
+            .filter(Boolean)
+            .map(t => (t.startsWith('#') ? t : `#${t}`))
+            .slice(0, count);
+          if (tags.length) return tags;
+        } catch (err) {
+          console.warn('Multimodal hashtag generation failed, falling back to text-only:', err.message);
+        }
+      }
+
       const prompt = `Return exactly ${count} Instagram-ready hashtags (no sentences, no preamble, no explanation, no code fences).
 Use # with each tag. Do NOT add any other text.
 Base it on:
@@ -376,9 +409,40 @@ Base it on:
 Output format: #tag1 #tag2 #tag3 ... #tag${count}`;
 
       const response = await this.callOpenAI(prompt);
-      const hashtags = response.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+      const cleaned = String(response || '')
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
 
-      return hashtags.slice(0, count);
+      // Prefer extracting hashtags explicitly even if the model adds extra text.
+      const matches = [...cleaned.matchAll(/#[\p{L}\p{N}_]+/gu)].map(m => m[0]);
+      const seen = new Set();
+      const tags = [];
+      for (const tag of matches) {
+        const normalised = tag.toLowerCase();
+        if (seen.has(normalised)) continue;
+        seen.add(normalised);
+        tags.push(tag);
+        if (tags.length >= count) break;
+      }
+
+      if (tags.length > 0) return tags;
+
+      // Fallback to comma/space splitting and normalisation.
+      const parts = cleaned.split(/[\s,]+/).map(t => t.trim()).filter(Boolean);
+      const fallback = [];
+      for (const part of parts) {
+        const withHash = part.startsWith('#') ? part : `#${part}`;
+        const normalised = withHash.toLowerCase();
+        if (seen.has(normalised)) continue;
+        // Ignore obvious non-tags
+        if (withHash === '#' || withHash.length < 3) continue;
+        if (/^#(json|none|n\/a)$/i.test(withHash)) continue;
+        seen.add(normalised);
+        fallback.push(withHash);
+        if (fallback.length >= count) break;
+      }
+      return fallback.slice(0, count);
     } catch (error) {
       console.error('Hashtag generation error:', error);
       return this.heuristicHashtags(content, count);
@@ -405,6 +469,48 @@ Output format: #tag1 #tag2 #tag3 ... #tag${count}`;
 
       const taste = tasteContext || {};
       const lexicon = taste.lexicon || { prefer: [], avoid: [] };
+
+      // Prefer multimodal generation when we have an image URL.
+      const mediaUrl = content?.mediaUrl || content?.imageUrl || content?.thumbnailUrl || null;
+      if (mediaUrl && String(mediaUrl).startsWith('http') && (content?.mediaType || '').toLowerCase() !== 'video') {
+        try {
+          const prompt = `Generate 3 ${content.platform || 'instagram'} captions for the attached image.
+Tone: ${tone}
+Length: ${lengthGuide[length] || lengthGuide.medium}
+Creator Niche: ${profile.niche}
+Audience: ${profile.targetAudience}
+Goals: ${profile.goals}
+Taste Glyph: ${taste.glyph || 'VOID'}
+Archetype Confidence: ${taste.confidence || 0}
+Preferred Lexicon: ${lexicon.prefer.join(', ') || 'minimal, authoritative'}
+Avoid Lexicon: ${lexicon.avoid.join(', ') || 'generic, clickbait'}
+
+Rules:
+- Return ONLY valid JSON: {"captions":["...","...","..."]}
+- No code fences, no markdown
+- No placeholders, no generic templates
+- Be specific to what is visible in the image and align to the Taste Glyph`;
+
+          const response = await this.callOpenAIMultimodal([
+            { role: 'system', content: 'You are an elite social media caption ghostwriter. Return JSON only.' },
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: mediaUrl } },
+              ],
+            },
+          ], true);
+
+          const cleaned = String(response || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed?.captions?.length) {
+            return parsed.captions.map(c => String(c || '').trim()).filter(Boolean).slice(0, 3);
+          }
+        } catch (err) {
+          console.warn('Multimodal caption generation failed, falling back to text-only:', err.message);
+        }
+      }
 
       const prompt = `Generate 3 engaging social media captions for this content:
 

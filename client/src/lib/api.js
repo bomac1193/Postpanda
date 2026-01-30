@@ -357,6 +357,12 @@ export const aiApi = {
     return data.captions || [];
   },
 
+  async generateCaptionForContent(contentId, options = {}) {
+    const { tone = 'casual', length = 'medium', creatorProfile = null, profileId = null } = options;
+    const { data } = await api.post('/api/ai/generate-caption', { contentId, tone, length, creatorProfile, profileId });
+    return data.captions || [];
+  },
+
   async generateHashtags(contentId, count = 20) {
     const { data } = await api.post('/api/ai/generate-hashtags', { contentId, count });
     return data.hashtags || [];
