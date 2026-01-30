@@ -22,10 +22,10 @@ One control room for grids, rollouts, and campaigns—powered by a unified Taste
 - **Visual fidelity:** accurate platform previews; non-destructive crop/reposition saved to uploads.
 
 ## ERRC (Eliminate / Reduce / Raise / Create)
-- **Eliminate:** generic one-size generations; siloed per-surface prefs; vanity dashboards.
-- **Reduce:** manual rollout planning; per-post prompt tinkering; shallow analytics.
-- **Raise:** taste-aware generation quality; platform-specific previews/crops; rollout automation; guardrails.
-- **Create:** unified Taste Brain; taste-driven rollout builder; avant multi-model stack with spiky/safe control; Folio-conditioned AI; template marketplace indexed by archetype.
+- **Eliminate:** vanity dashboards; siloed signals; ungoverned AI generations.
+- **Reduce:** A/B cycles (90→3 days) via auto high-signal Likert/A/B loops; per-post prompting (use shared taste context); noisy analytics (focus on blended taste+outcome signals).
+- **Raise:** Resonance Velocity (define target, e.g., 4.2x predictive lift vs baseline); governance/trust scores (% on-brand, off-brand intercept, explainability); archetype kits (rollout templates + tone/lexicon guardrails).
+- **Create:** RGP schema (taste signals + directives + outcomes); Phase Genome Marketplace priced on predicted LTV/velocity lift; conviction flywheel (taste training → confidence → resonance → more stans/signals → better generation).
 
 ## Horizons (defensibility)
 - **1–2 yrs:** Taste Brain across all surfaces; taste-driven rollout automation; avant stack default; performance loop live.
