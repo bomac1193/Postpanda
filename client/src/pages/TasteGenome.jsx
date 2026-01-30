@@ -198,7 +198,6 @@ function TasteGenome() {
       const result = await genomeApi.get(currentProfileId || null);
       if (result.hasGenome) {
         setGenome(result.genome);
-        setTastePairs(buildTastePairs(result.genome));
         // Governance metrics depend on signals + genome
         await loadSignals(result.genome);
       }
@@ -264,7 +263,6 @@ function TasteGenome() {
       const result = await genomeApi.get(currentProfileId || null);
       if (result.hasGenome) {
         setGenome(result.genome);
-        setTastePairs(buildTastePairs(result.genome));
         await loadSignals(result.genome);
       }
       const gamResult = await genomeApi.getGamification(currentProfileId || null);
