@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Dna, Target, Activity, ListChecks } from 'lucide-react';
 import { useAppStore } from '../stores/useAppStore';
 import { genomeApi } from '../lib/api';
-import '../styles/subtaste-training.css';
 
 const shuffleArray = (arr) => {
   const copy = [...arr];
@@ -414,204 +413,218 @@ function TasteTraining() {
 
   if (loading) {
     return (
-      <div className="subtaste-training">
-        <div className="training-container">
-          <div className="training-loading">
-            <div className="training-spinner" />
-          </div>
-        </div>
+      <div className="p-6 flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-2 border-accent-purple border-t-transparent rounded-full" />
       </div>
     );
   }
 
   return (
-    <div className="subtaste-training">
-      <div className="training-container">
-        <div className="training-header">
-          <div>
-            <h1 className="training-title">
-              <Dna className="training-icon" />
-              Subtaste / Training
-            </h1>
-            <p className="training-subtitle">
-              High-signal inputs to sharpen your profile. Short, focused, and reaction-forward.
-            </p>
-            {genome?.archetype?.primary && (
-              <div className="training-archetype">
-                <span className="training-designation">
-                  {genome.archetype.primary.designation}
-                </span>
-                <span className="training-glyph">
-                  {genome.archetype.primary.glyph}
-                </span>
-                {genome.archetype.primary.sigil && (
-                  <span className="training-sigil">
-                    {genome.archetype.primary.sigil}
-                  </span>
-                )}
-              </div>
+    <div className="p-6 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <Dna className="w-7 h-7 text-accent-purple" />
+          Subtaste / Training
+        </h1>
+        <p className="text-dark-400 mt-1">
+          High-signal inputs to sharpen your profile. Short, focused, and reaction-forward.
+        </p>
+        {genome?.archetype?.primary && (
+          <div className="mt-2 flex items-center gap-3">
+            <span className="px-3 py-1 bg-dark-900 border border-dark-700 rounded-sm text-xs text-dark-100 font-mono tracking-[0.3em] uppercase">
+              {genome.archetype.primary.designation}
+            </span>
+            <span className="text-lg text-white font-black uppercase tracking-[0.08em]">
+              {genome.archetype.primary.glyph}
+            </span>
+            {genome.archetype.primary.sigil && (
+              <span className="text-xs text-dark-300 font-mono uppercase tracking-[0.14em]">
+                {genome.archetype.primary.sigil}
+              </span>
             )}
           </div>
-        </div>
-
-        <section className="training-stack">
-          <div className="training-stack__header">
-            <h3 className="training-stack__title">
-              <Target className="training-icon" />
-              Training Stack
-            </h3>
-            <span className="training-stack__hint">Best / Worst</span>
-          </div>
-          <p className="training-stack__desc">
-            One card at a time. Pick one best and one worst, then lock to continue.
-          </p>
-          <div className="training-cards">
-            {queue.map((card, idx) => {
-              const selection = selections[card.id] || { best: null, worst: null };
-              const isReady = selection.best && selection.worst;
-              return (
-                <div key={`${card.id}-${idx}`} className="training-card">
-                  <div className="training-card__meta">
-                    <span>Best / Worst</span>
-                    <span>4 Options</span>
-                  </div>
-                  <div className="training-options">
-                    {card.options.map((opt) => {
-                      const isBest = selection.best === opt.id;
-                      const isWorst = selection.worst === opt.id;
-                      return (
-                        <div
-                          key={opt.id}
-                          className={`training-option${isBest ? ' is-best' : ''}${isWorst ? ' is-worst' : ''}`}
-                        >
-                          <span className="training-option__text">{opt.prompt}</span>
-                          <div className="training-option__actions">
-                            <button
-                              type="button"
-                              onClick={() => handleSelectOption(card.id, opt.id, 'best')}
-                              disabled={busy}
-                              className={`training-tag${isBest ? ' is-best' : ''}`}
-                            >
-                              Best
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleSelectOption(card.id, opt.id, 'worst')}
-                              disabled={busy}
-                              className={`training-tag${isWorst ? ' is-worst' : ''}`}
-                            >
-                              Worst
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="training-actions">
-                    <span className="training-status">
-                      {isReady ? 'Ready to lock' : 'Select best and worst'}
-                    </span>
-                    <div className="training-actions__buttons">
-                      <button
-                        type="button"
-                        onClick={() => handleSkipCard(card)}
-                        disabled={busy}
-                        className="btn-secondary"
-                      >
-                        Skip
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSubmitBestWorst(card)}
-                        disabled={!isReady || busy}
-                        className="btn-primary"
-                      >
-                        Lock
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {trainMessage && <p className="training-message">{trainMessage}</p>}
-        </section>
-
-        {ADMIN_MODE && (
-          <section className="training-admin">
-            <div className="training-admin__header">
-              <h3 className="training-admin__title">
-                <Activity className="training-icon" />
-                Admin Diagnostics
-              </h3>
-              {adminBusy && <span className="training-stack__hint">Working...</span>}
-            </div>
-            <div className="training-admin__grid">
-              <button
-                type="button"
-                onClick={handleSeed}
-                disabled={adminBusy}
-                className="btn-secondary"
-              >
-                Seed signals
-              </button>
-              <button
-                type="button"
-                onClick={handleRecompute}
-                disabled={adminBusy}
-                className="btn-secondary"
-              >
-                Recompute genome
-              </button>
-              <button
-                type="button"
-                onClick={fetchRaw}
-                disabled={adminBusy}
-                className="btn-secondary"
-              >
-                Refresh raw view
-              </button>
-            </div>
-
-            {rawGenome?.distribution && (
-              <div className="training-admin__section">
-                <h4 className="training-admin__title">
-                  <ListChecks className="training-icon" />
-                  Archetype Distribution
-                </h4>
-                <div className="training-distribution">
-                  {Object.entries(rawGenome.distribution).map(([designation, prob]) => (
-                    <div key={designation} className="training-distribution__item">
-                      <span className="training-designation">{designation}</span>
-                      <span>{Math.round(prob * 100)}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {recentSignals?.length > 0 && (
-              <div className="training-admin__section">
-                <h4 className="training-admin__title">
-                  <ListChecks className="training-icon" />
-                  Recent Signals
-                </h4>
-                <div className="training-signal-log">
-                  {recentSignals.map((sig) => (
-                    <div key={sig.id || sig._id || sig.timestamp} className="training-signal-log__item">
-                      <div className="training-signal-log__meta">
-                        <span>{sig.type}</span>
-                        <span>{sig.timestamp ? new Date(sig.timestamp).toLocaleString() : ''}</span>
-                      </div>
-                      <div className="training-option__text">{sig.data?.prompt || sig.data?.selected || sig.value}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
         )}
       </div>
+
+      {/* Training Stack */}
+      <section className="bg-dark-900 rounded-lg border border-dark-700 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2 uppercase tracking-[0.12em]">
+            <Target className="w-4 h-4 text-accent-purple" />
+            Training Stack
+          </h3>
+          <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.16em]">Best / Worst</span>
+        </div>
+        <div className="mb-6">
+          <p className="text-xl text-white mb-1">I would rather...</p>
+          <p className="text-xs text-dark-400 tracking-wide">Pick your best and worst from these cards, then lock to continue.</p>
+        </div>
+
+        <div className="grid gap-4">
+          {queue.map((card, idx) => {
+            const selection = selections[card.id] || { best: null, worst: null };
+            const isReady = selection.best && selection.worst;
+            return (
+              <div key={`${card.id}-${idx}`} className="bg-dark-800 border border-dark-700 rounded-lg p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.16em]">Best / Worst</span>
+                  <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.16em]">4 Options</span>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {card.options.map((opt) => {
+                    const isBest = selection.best === opt.id;
+                    const isWorst = selection.worst === opt.id;
+                    return (
+                      <div
+                        key={opt.id}
+                        className={`flex items-center justify-between gap-4 p-3 rounded-lg border transition-all ${
+                          isBest
+                            ? 'border-accent-purple bg-accent-purple/10'
+                            : isWorst
+                              ? 'border-red-600 bg-red-600/10'
+                              : 'border-dark-600 bg-dark-700 hover:border-dark-500'
+                        }`}
+                      >
+                        <span className="text-sm text-dark-100">{opt.prompt}</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleSelectOption(card.id, opt.id, 'best')}
+                            disabled={busy}
+                            className={`px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wide border transition-all ${
+                              isBest
+                                ? 'border-accent-purple text-white bg-accent-purple/20'
+                                : 'border-dark-600 text-dark-400 hover:border-dark-500 hover:text-dark-200'
+                            }`}
+                          >
+                            Best
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectOption(card.id, opt.id, 'worst')}
+                            disabled={busy}
+                            className={`px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wide border transition-all ${
+                              isWorst
+                                ? 'border-red-600 text-white bg-red-600/20'
+                                : 'border-dark-600 text-dark-400 hover:border-dark-500 hover:text-dark-200'
+                            }`}
+                          >
+                            Worst
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.14em]">
+                    {isReady ? 'Ready to lock' : 'Select best and worst'}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSkipCard(card)}
+                      disabled={busy}
+                      className="btn-secondary"
+                    >
+                      Skip
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSubmitBestWorst(card)}
+                      disabled={!isReady || busy}
+                      className="btn-primary"
+                    >
+                      Lock
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {trainMessage && <p className="text-xs text-dark-300 mt-4">{trainMessage}</p>}
+      </section>
+
+      {/* Admin Diagnostics */}
+      {ADMIN_MODE && (
+        <section className="bg-dark-900 rounded-lg border border-dark-700 p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2 uppercase tracking-[0.12em]">
+              <Activity className="w-4 h-4 text-accent-purple" />
+              Admin Diagnostics
+            </h3>
+            {adminBusy && <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.16em]">Working...</span>}
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={handleSeed}
+              disabled={adminBusy}
+              className="btn-secondary"
+            >
+              Seed signals
+            </button>
+            <button
+              type="button"
+              onClick={handleRecompute}
+              disabled={adminBusy}
+              className="btn-secondary"
+            >
+              Recompute genome
+            </button>
+            <button
+              type="button"
+              onClick={fetchRaw}
+              disabled={adminBusy}
+              className="btn-secondary"
+            >
+              Refresh raw view
+            </button>
+          </div>
+
+          {rawGenome?.distribution && (
+            <div>
+              <h4 className="text-sm font-semibold text-white flex items-center gap-2 uppercase tracking-[0.12em] mb-3">
+                <ListChecks className="w-4 h-4 text-accent-purple" />
+                Archetype Distribution
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {Object.entries(rawGenome.distribution).map(([designation, prob]) => (
+                  <div key={designation} className="rounded border border-dark-700 p-2 bg-dark-800 text-sm text-dark-200 flex items-center justify-between">
+                    <span className="font-mono tracking-[0.12em]">{designation}</span>
+                    <span className="text-white font-semibold">{Math.round(prob * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {recentSignals?.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-white flex items-center gap-2 uppercase tracking-[0.12em] mb-3">
+                <ListChecks className="w-4 h-4 text-accent-purple" />
+                Recent Signals
+              </h4>
+              <div className="grid gap-3">
+                {recentSignals.map((sig) => (
+                  <div key={sig.id || sig._id || sig.timestamp} className="rounded-lg border border-dark-700 p-3 bg-dark-800">
+                    <div className="flex justify-between mb-2">
+                      <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.14em]">{sig.type}</span>
+                      <span className="text-[11px] text-dark-500 font-mono">{sig.timestamp ? new Date(sig.timestamp).toLocaleString() : ''}</span>
+                    </div>
+                    <p className="text-sm text-dark-100">{sig.data?.prompt || sig.data?.selected || sig.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
