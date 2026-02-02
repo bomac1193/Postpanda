@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -6,12 +6,11 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragOverlay,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -29,7 +28,7 @@ import {
 } from 'lucide-react';
 
 // Sortable list item component
-function SortableVideoItem({ video, isSelected, isLocked, onClick, onDelete }) {
+function SortableVideoItem({ video, isSelected, isLocked, isDropTarget, onClick, onDelete }) {
   const {
     attributes,
     listeners,
@@ -63,10 +62,12 @@ function SortableVideoItem({ video, isSelected, isLocked, onClick, onDelete }) {
       style={style}
       onClick={onClick}
       className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
-        isSelected
-          ? 'bg-red-500/20 border border-red-500/50'
-          : 'bg-dark-700 hover:bg-dark-600 border border-transparent'
-      }`}
+        isDropTarget
+          ? 'bg-red-500/15 border border-red-400/60 scale-[1.01]'
+          : isSelected
+            ? 'bg-red-500/20 border border-red-500/50'
+            : 'bg-dark-700 hover:bg-dark-600 border border-transparent'
+      } ${isDragging ? 'opacity-30' : ''}`}
     >
       {/* Drag Handle */}
       {!isLocked && (
@@ -146,6 +147,21 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
   const deleteYoutubeVideo = useAppStore((state) => state.deleteYoutubeVideo);
   const currentYoutubeCollectionId = useAppStore((state) => state.currentYoutubeCollectionId);
 
+  // Drag state for visual feedback
+  const [activeDragId, setActiveDragId] = useState(null);
+  const [overItemId, setOverItemId] = useState(null);
+
+  const activeDragVideo = youtubeVideos.find((v) => v.id === activeDragId);
+
+  const handleDragStart = useCallback((event) => {
+    setActiveDragId(event.active.id);
+  }, []);
+
+  const handleDragOver = useCallback((event) => {
+    const overId = event.over?.id || null;
+    setOverItemId(overId !== activeDragId ? overId : null);
+  }, [activeDragId]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -160,13 +176,19 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
   const handleDragEnd = useCallback((event) => {
     const { active, over } = event;
 
-    if (isLocked || !over || active.id === over.id) return;
+    if (isLocked || !over || active.id === over.id) {
+      setActiveDragId(null);
+      setOverItemId(null);
+      return;
+    }
 
     const oldIndex = youtubeVideos.findIndex((v) => v.id === active.id);
     const newIndex = youtubeVideos.findIndex((v) => v.id === over.id);
 
     if (oldIndex !== -1 && newIndex !== -1) {
-      const newVideos = arrayMove(youtubeVideos, oldIndex, newIndex);
+      // Swap the two videos in place
+      const newVideos = [...youtubeVideos];
+      [newVideos[oldIndex], newVideos[newIndex]] = [newVideos[newIndex], newVideos[oldIndex]];
       reorderYoutubeVideos(newVideos);
       // Persist reorder to backend
       if (currentYoutubeCollectionId) {
@@ -176,6 +198,10 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
         );
       }
     }
+
+    // Clear drag state
+    setActiveDragId(null);
+    setOverItemId(null);
   }, [isLocked, youtubeVideos, reorderYoutubeVideos, currentYoutubeCollectionId]);
 
   const handleDelete = useCallback((id) => {
@@ -249,11 +275,13 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
           <SortableContext
             items={youtubeVideos.map((v) => v.id)}
-            strategy={verticalListSortingStrategy}
+            strategy={() => null}
           >
             <div className="space-y-2">
               {youtubeVideos.map((video) => (
@@ -262,12 +290,36 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
                   video={video}
                   isSelected={video.id === selectedYoutubeVideoId}
                   isLocked={isLocked}
+                  isDropTarget={video.id === overItemId}
                   onClick={() => selectYoutubeVideo(video.id)}
                   onDelete={() => handleDelete(video.id)}
                 />
               ))}
             </div>
           </SortableContext>
+
+          <DragOverlay dropAnimation={null}>
+            {activeDragVideo ? (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-dark-700 border border-red-500/50 opacity-90 shadow-2xl shadow-red-500/20">
+                <div className="relative w-32 aspect-video rounded-md overflow-hidden flex-shrink-0 bg-dark-600">
+                  {activeDragVideo.thumbnail ? (
+                    <img
+                      src={activeDragVideo.thumbnail}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-dark-600" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-medium text-dark-100 truncate">
+                    {activeDragVideo.title || 'Untitled Video'}
+                  </h4>
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
 
         {/* Add New Button */}

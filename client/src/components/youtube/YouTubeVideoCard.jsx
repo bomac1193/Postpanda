@@ -14,7 +14,7 @@ const STATUS_LABELS = {
   published: 'Published',
 };
 
-function YouTubeVideoCard({ video, isSelected, isLocked, onClick, onDelete }) {
+function YouTubeVideoCard({ video, isSelected, isLocked, isDropTarget, onClick, onDelete }) {
   const {
     attributes,
     listeners,
@@ -30,7 +30,6 @@ function YouTubeVideoCard({ video, isSelected, isLocked, onClick, onDelete }) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
   };
 
   // YouTube title limits: 100 chars max, ~60 visible in search
@@ -43,10 +42,12 @@ function YouTubeVideoCard({ video, isSelected, isLocked, onClick, onDelete }) {
       style={style}
       {...(!isLocked ? { ...attributes, ...listeners } : {})}
       className={`relative bg-dark-700 rounded-lg overflow-hidden transition-all duration-200 group ${
-        isSelected
-          ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-dark-800'
-          : 'hover:ring-2 hover:ring-dark-500'
-      } ${isDragging ? 'z-10 cursor-grabbing' : isLocked ? 'cursor-pointer' : 'cursor-grab'}`}
+        isDropTarget
+          ? 'ring-2 ring-red-400 ring-offset-2 ring-offset-dark-800 bg-red-500/10 scale-[1.02]'
+          : isSelected
+            ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-dark-800'
+            : 'hover:ring-2 hover:ring-dark-500'
+      } ${isDragging ? 'z-10 cursor-grabbing opacity-30' : isLocked ? 'cursor-pointer' : 'cursor-grab'}`}
       onClick={onClick}
     >
       {/* 16:9 Thumbnail */}

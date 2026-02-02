@@ -9,10 +9,8 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useAppStore } from '../../stores/useAppStore';
 import { youtubeApi } from '../../lib/api';
@@ -82,7 +80,9 @@ function YouTubeGridView({ isLocked, onUpload }) {
     const newIndex = youtubeVideos.findIndex((v) => v.id === over.id);
 
     if (oldIndex !== -1 && newIndex !== -1) {
-      const newVideos = arrayMove(youtubeVideos, oldIndex, newIndex);
+      // Swap the two videos in place
+      const newVideos = [...youtubeVideos];
+      [newVideos[oldIndex], newVideos[newIndex]] = [newVideos[newIndex], newVideos[oldIndex]];
       reorderYoutubeVideos(newVideos);
       // Persist reorder to backend
       if (currentYoutubeCollectionId) {
@@ -92,6 +92,10 @@ function YouTubeGridView({ isLocked, onUpload }) {
         );
       }
     }
+
+    // Clear drag state
+    setActiveDragId(null);
+    setOverItemId(null);
   }, [isLocked, youtubeVideos, reorderYoutubeVideos, currentYoutubeCollectionId]);
 
   const handleDelete = useCallback((id) => {
@@ -100,7 +104,20 @@ function YouTubeGridView({ isLocked, onUpload }) {
     }
   }, [deleteYoutubeVideo]);
 
-  const activeVideo = youtubeVideos.find((v) => v.id === selectedYoutubeVideoId);
+  // Drag state for visual feedback
+  const [activeDragId, setActiveDragId] = useState(null);
+  const [overItemId, setOverItemId] = useState(null);
+
+  const activeDragVideo = youtubeVideos.find((v) => v.id === activeDragId);
+
+  const handleDragStart = useCallback((event) => {
+    setActiveDragId(event.active.id);
+  }, []);
+
+  const handleDragOver = useCallback((event) => {
+    const overId = event.over?.id || null;
+    setOverItemId(overId !== activeDragId ? overId : null);
+  }, [activeDragId]);
 
   // Open settings modal
   const openSettingsModal = () => {
@@ -350,11 +367,13 @@ function YouTubeGridView({ isLocked, onUpload }) {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <SortableContext
           items={youtubeVideos.map((v) => v.id)}
-          strategy={rectSortingStrategy}
+          strategy={() => null}
         >
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {youtubeVideos.map((video) => (
@@ -363,6 +382,7 @@ function YouTubeGridView({ isLocked, onUpload }) {
                 video={video}
                 isSelected={video.id === selectedYoutubeVideoId}
                 isLocked={isLocked}
+                isDropTarget={video.id === overItemId}
                 onClick={() => selectYoutubeVideo(video.id)}
                 onDelete={() => handleDelete(video.id)}
               />
@@ -382,12 +402,12 @@ function YouTubeGridView({ isLocked, onUpload }) {
           </div>
         </SortableContext>
 
-        <DragOverlay>
-          {activeVideo ? (
-            <div className="aspect-video bg-dark-600 rounded-lg overflow-hidden opacity-80 ring-2 ring-red-500">
-              {activeVideo.thumbnail ? (
+        <DragOverlay dropAnimation={null}>
+          {activeDragVideo ? (
+            <div className="aspect-video bg-dark-600 rounded-lg overflow-hidden opacity-90 ring-2 ring-red-500 shadow-2xl shadow-red-500/20 scale-105">
+              {activeDragVideo.thumbnail ? (
                 <img
-                  src={activeVideo.thumbnail}
+                  src={activeDragVideo.thumbnail}
                   alt=""
                   className="w-full h-full object-cover"
                 />
