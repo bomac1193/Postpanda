@@ -25,8 +25,8 @@ import {
   Clock,
 } from 'lucide-react';
 
-// ∮ Contour integral — closed-path integration of taste signals
-function ContourIntegralLogo({ className }) {
+// Λ — Lambda mark. Taste as function, mapping signals to archetype.
+function LambdaLogo({ className }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -34,20 +34,12 @@ function ContourIntegralLogo({ className }) {
       className={className}
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Integral curve — the ∫ shape, stretched 8 */}
       <path
-        d="M14.5 2C13 2 11.5 3.2 11.5 5.5L11.5 18.5C11.5 20.8 10 22 8.5 22"
+        d="M4 22L12 3L20 22"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.2"
         strokeLinecap="round"
-      />
-      {/* Circle — the closed-path marker */}
-      <circle
-        cx="12"
-        cy="12"
-        r="3.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -196,7 +188,7 @@ function Sidebar() {
         {!sidebarCollapsed && (
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-sm border border-dark-600 bg-dark-900 flex items-center justify-center">
-              <ContourIntegralLogo className="w-5 h-5 text-dark-100" />
+              <LambdaLogo className="w-5 h-5 text-dark-100" />
             </div>
             <span className="font-display font-semibold text-lg text-white uppercase tracking-widest">
               Slayt
@@ -205,7 +197,7 @@ function Sidebar() {
         )}
         {sidebarCollapsed && (
           <div className="w-9 h-9 rounded-sm border border-dark-600 bg-dark-900 flex items-center justify-center mx-auto group cursor-pointer">
-            <ContourIntegralLogo className="w-5 h-5 text-dark-100 transition-transform group-hover:rotate-12" />
+            <LambdaLogo className="w-5 h-5 text-dark-100 transition-transform group-hover:rotate-12" />
           </div>
         )}
       </div>
