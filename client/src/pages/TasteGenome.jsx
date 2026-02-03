@@ -28,12 +28,12 @@ import {
 
 // ── Bio-Glow Classified Palette ──────────────────────────────────────────────
 // Soft white luminescence against dark institutional backgrounds.
-// No gold, no purple — only cold bio-white glow and muted blood for shadows.
+// Cold bio-white glow with violet accents against dark institutional backgrounds.
 const GLOW = '#d4d4d8';        // zinc-300 — primary bio-glow
 const GLOW_BRIGHT = '#e4e4e7'; // zinc-200 — emphasis glow
 const GLOW_DIM = '#a1a1aa';    // zinc-400 — muted glow
-const BLOOD = '#7f1d1d';       // dark blood — shadow/warning
-const BLOOD_TEXT = '#fca5a5';   // readable blood text
+const VIOLET = '#8b5cf6';      // accent-purple — secondary glow
+const VIOLET_TEXT = '#c4b5fd';  // violet-300 — readable violet text
 const HONE_ACCENT = '#94a3b8';  // slate-400 — honing mode accent
 
 // ── Archetype Icon Map — austere / institutional / classified ─────────────────
@@ -213,7 +213,7 @@ function ArchetypeRow({ archetype, designation, isActive, isPrimary, isSecondary
             {archetype.shadow && (
               <span
                 className="px-2 py-0.5 border rounded-sm text-[11px] uppercase tracking-[0.08em] font-mono"
-                style={{ borderColor: `${BLOOD}88`, color: BLOOD_TEXT }}
+                style={{ borderColor: `${VIOLET}88`, color: VIOLET_TEXT }}
               >
                 Shadow · {archetype.shadow}
               </span>
@@ -288,7 +288,7 @@ function BestWorstQuestion({ question, selection, onSelect }) {
     <div className="bg-dark-900/80 rounded-sm p-6 border" style={{ borderColor: `${GLOW}1a` }}>
       <p className="text-xl text-white mb-2">{question.prompt}</p>
       <p className="text-sm text-dark-400 mb-6">
-        Pick your <span style={{ color: GLOW_BRIGHT }}>best</span> and <span style={{ color: BLOOD_TEXT }}>worst</span> from these cards, then lock to continue.
+        Pick your <span style={{ color: GLOW_BRIGHT }}>best</span> and <span style={{ color: VIOLET_TEXT }}>worst</span> from these cards, then lock to continue.
       </p>
       <div className="grid grid-cols-2 gap-4">
         {question.cards.map((card) => {
@@ -305,10 +305,10 @@ function BestWorstQuestion({ question, selection, onSelect }) {
             tag = 'BEST';
             bg = `${GLOW}06`;
           } else if (isWorst) {
-            borderColor = `${BLOOD}aa`;
-            shadow = `0 0 10px 2px ${BLOOD}44, inset 0 0 6px 0 ${BLOOD}11`;
+            borderColor = `${VIOLET}aa`;
+            shadow = `0 0 10px 2px ${VIOLET}44, inset 0 0 6px 0 ${VIOLET}11`;
             tag = 'WORST';
-            bg = `${BLOOD}08`;
+            bg = `${VIOLET}08`;
           }
 
           return (
@@ -322,9 +322,9 @@ function BestWorstQuestion({ question, selection, onSelect }) {
                 <span
                   className="absolute top-2 right-2 px-2 py-0.5 rounded-sm text-[10px] font-mono font-bold uppercase tracking-[0.2em]"
                   style={{
-                    backgroundColor: isBest ? `${GLOW}11` : `${BLOOD}22`,
-                    color: isBest ? GLOW_BRIGHT : BLOOD_TEXT,
-                    border: `1px solid ${isBest ? `${GLOW}44` : `${BLOOD}66`}`,
+                    backgroundColor: isBest ? `${GLOW}11` : `${VIOLET}22`,
+                    color: isBest ? GLOW_BRIGHT : VIOLET_TEXT,
+                    border: `1px solid ${isBest ? `${GLOW}44` : `${VIOLET}66`}`,
                   }}
                 >
                   {tag}
@@ -695,8 +695,19 @@ function TasteGenome() {
   }
 
   const primaryArch = genome?.archetype?.primary;
-  const secondaryArch = genome?.archetype?.secondary;
+  // Use backend secondary if available, otherwise derive from distribution
+  const GLYPH_MAP = { 'S-0': 'KETH', 'T-1': 'STRATA', 'V-2': 'OMEN', 'L-3': 'SILT', 'C-4': 'CULL', 'N-5': 'LIMN', 'H-6': 'TOLL', 'P-7': 'VAULT', 'D-8': 'WICK', 'F-9': 'ANVIL', 'R-10': 'SCHISM', 'NULL': 'VOID' };
+  const secondaryArch = genome?.archetype?.secondary || (() => {
+    const dist = genome?.archetype?.distribution;
+    const primaryDesignation = primaryArch?.designation;
+    if (!dist || !primaryDesignation) return null;
+    const sorted = Object.entries(dist).sort((a, b) => b[1] - a[1]);
+    const second = sorted.find(([d]) => d !== primaryDesignation);
+    if (!second) return null;
+    return { designation: second[0], confidence: second[1], glyph: GLYPH_MAP[second[0]] || second[0] };
+  })();
   const primaryDossier = primaryArch ? ARCHETYPE_DOSSIER[primaryArch.designation] : null;
+  const secondaryDossier = secondaryArch ? ARCHETYPE_DOSSIER[secondaryArch.designation] : null;
 
   // ── Main Genome View ────────────────────────────────────────────────────────
   return (
@@ -959,7 +970,7 @@ function TasteGenome() {
                 {primaryArch.shadow && (
                   <span
                     className="px-3 py-1 border rounded-sm text-xs uppercase tracking-[0.08em] font-mono"
-                    style={{ borderColor: `${BLOOD}88`, color: BLOOD_TEXT }}
+                    style={{ borderColor: `${VIOLET}88`, color: VIOLET_TEXT }}
                   >
                     Shadow · {primaryArch.shadow}
                   </span>
@@ -1035,15 +1046,22 @@ function TasteGenome() {
                 {showDetails && (
                   <div className="mt-4 space-y-5">
 
-                    {/* Archetype Briefing */}
+                    {/* ── Dominant ── */}
                     {primaryDossier && (
                       <div className="space-y-4">
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: GLOW_DIM }}>Briefing</p>
-                          <p className="text-sm leading-relaxed" style={{ color: '#d4d4d8', fontFamily: 'Georgia, serif' }}>
-                            {primaryDossier.brief}
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <p className="text-xs uppercase tracking-[0.12em] font-mono" style={{ color: GLOW_BRIGHT }}>Dominant</p>
+                          <span className="px-2 py-0.5 rounded-sm border text-xs font-mono" style={{ borderColor: `${GLOW}33`, color: GLOW }}>
+                            {primaryArch.designation}
+                          </span>
+                          <span className="text-sm font-semibold uppercase tracking-[0.08em]" style={{ color: GLOW_BRIGHT }}>
+                            {primaryArch.glyph}
+                          </span>
                         </div>
+
+                        <p className="text-sm leading-relaxed" style={{ color: '#d4d4d8', fontFamily: 'Georgia, serif' }}>
+                          {primaryDossier.brief}
+                        </p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
@@ -1058,11 +1076,11 @@ function TasteGenome() {
                             </ul>
                           </div>
                           <div>
-                            <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: BLOOD_TEXT }}>Weaknesses</p>
+                            <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: VIOLET_TEXT }}>Weaknesses</p>
                             <ul className="space-y-1">
                               {primaryDossier.weaknesses.map((w, i) => (
                                 <li key={i} className="text-sm flex items-start gap-2" style={{ color: '#71717a' }}>
-                                  <span className="mt-1.5 w-1 h-1 rounded-full flex-shrink-0" style={{ backgroundColor: `${BLOOD}cc` }} />
+                                  <span className="mt-1.5 w-1 h-1 rounded-full flex-shrink-0" style={{ backgroundColor: `${VIOLET}cc` }} />
                                   {w}
                                 </li>
                               ))}
@@ -1076,9 +1094,39 @@ function TasteGenome() {
                         </div>
 
                         <div>
-                          <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: BLOOD_TEXT }}>Anti-Patterns — Stay Away</p>
+                          <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: VIOLET_TEXT }}>Anti-Patterns — Stay Away</p>
                           <p className="text-sm leading-relaxed" style={{ color: '#71717a' }}>{primaryDossier.antiPatterns}</p>
                         </div>
+                      </div>
+                    )}
+
+                    {/* ── Subdominant ── */}
+                    {secondaryArch && secondaryDossier && (
+                      <div className="space-y-3 pt-3" style={{ borderTop: `1px solid ${GLOW}11` }}>
+                        <div className="flex items-center gap-3">
+                          <p className="text-xs uppercase tracking-[0.12em] font-mono" style={{ color: VIOLET_TEXT }}>Subdominant</p>
+                          <span className="px-2 py-0.5 rounded-sm border text-xs font-mono" style={{ borderColor: `${VIOLET}44`, color: VIOLET_TEXT }}>
+                            {secondaryArch.designation}
+                          </span>
+                          <span className="text-sm font-semibold uppercase tracking-[0.08em]" style={{ color: GLOW_DIM }}>
+                            {secondaryArch.glyph}
+                          </span>
+                          <span className="text-xs font-mono" style={{ color: '#52525b' }}>
+                            {Math.round((secondaryArch.confidence || 0) * 100)}%
+                          </span>
+                        </div>
+
+                        <p className="text-sm leading-relaxed" style={{ color: '#a1a1aa', fontFamily: 'Georgia, serif' }}>
+                          {secondaryDossier.brief}
+                        </p>
+
+                        <p className="text-sm leading-relaxed" style={{ color: '#a1a1aa', fontFamily: 'Georgia, serif' }}>
+                          <span className="font-mono text-xs" style={{ color: VIOLET_TEXT }}>{secondaryArch.glyph}</span> influences your dominant <span className="font-mono text-xs" style={{ color: GLOW_BRIGHT }}>{primaryArch.glyph}</span> by
+                          pulling toward {secondaryDossier.strengths[0]?.toLowerCase() || 'a complementary instinct'}{secondaryDossier.strengths[1] ? ` and ${secondaryDossier.strengths[1].toLowerCase()}` : ''}.
+                          {primaryDossier?.weaknesses?.[0] && secondaryDossier.strengths?.[0] && (
+                            <> It compensates for the dominant tendency toward {primaryDossier.weaknesses[0].toLowerCase()}, grounding it with {secondaryDossier.strengths[0].toLowerCase()}.</>
+                          )}
+                        </p>
                       </div>
                     )}
 

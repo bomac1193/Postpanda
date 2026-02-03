@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Dna, Target, Activity, ListChecks } from 'lucide-react';
+import { Radio, Crosshair, Activity, ListChecks } from 'lucide-react';
 import { useAppStore } from '../stores/useAppStore';
 import { genomeApi } from '../lib/api';
 
@@ -61,6 +61,45 @@ const BEST_WORST_POOL = [
   { id: 'bw-community', topic: 'community', prompt: 'Community reaction is part of the work.', archetypeHint: 'H-6' },
   { id: 'bw-humor', topic: 'humor', prompt: 'Humor is the delivery vehicle, not a garnish.', archetypeHint: 'N-5' },
   { id: 'bw-vulnerability', topic: 'vulnerability', prompt: 'Vulnerability beats authority.', archetypeHint: 'L-3' },
+  // Situational: how you'd respond in specific creative scenarios
+  { id: 'bw-sit-deadline-ship', topic: 'situation-deadline', prompt: 'Two hours left: ship what you have, raw and unfinished.', archetypeHint: 'F-9' },
+  { id: 'bw-sit-deadline-polish', topic: 'situation-deadline', prompt: 'Two hours left: cut scope and polish what remains.', archetypeHint: 'S-0' },
+  { id: 'bw-sit-viral', topic: 'situation-viral', prompt: 'Your post went viral for the wrong reason: address it head-on.', archetypeHint: 'R-10' },
+  { id: 'bw-sit-viral-ignore', topic: 'situation-viral', prompt: 'Your post went viral for the wrong reason: say nothing and move on.', archetypeHint: 'C-4' },
+  { id: 'bw-sit-collab', topic: 'situation-collab', prompt: 'A collaborator rewrites your intro: accept it if it\u2019s better.', archetypeHint: 'T-1' },
+  { id: 'bw-sit-collab-reject', topic: 'situation-collab', prompt: 'A collaborator rewrites your intro: reject it — voice is non-negotiable.', archetypeHint: 'S-0' },
+  { id: 'bw-sit-blank', topic: 'situation-blank', prompt: 'Staring at a blank page: start with structure and fill in later.', archetypeHint: 'T-1' },
+  { id: 'bw-sit-blank-flow', topic: 'situation-blank', prompt: 'Staring at a blank page: free-write until something catches.', archetypeHint: 'D-8' },
+  { id: 'bw-sit-feedback', topic: 'situation-feedback', prompt: 'Harsh feedback on your best work: rethink the core assumption.', archetypeHint: 'N-5' },
+  { id: 'bw-sit-feedback-hold', topic: 'situation-feedback', prompt: 'Harsh feedback on your best work: hold the line \u2014 they will catch up.', archetypeHint: 'V-2' },
+  { id: 'bw-sit-trend', topic: 'situation-trend', prompt: 'A trend aligns with your niche: ride it with your own angle.', archetypeHint: 'H-6' },
+  { id: 'bw-sit-trend-ignore', topic: 'situation-trend', prompt: 'A trend aligns with your niche: ignore it — trends dilute signal.', archetypeHint: 'P-7' },
+  // Non-verbal / abstract preference: testing aesthetic and sensory instinct
+  { id: 'bw-abs-density', topic: 'abstract-density', prompt: 'A page with only 3 words on it. Nothing else.', archetypeHint: 'C-4' },
+  { id: 'bw-abs-density-full', topic: 'abstract-density', prompt: 'A page packed with 300 words. Dense and complete.', archetypeHint: 'T-1' },
+  { id: 'bw-abs-tempo-fast', topic: 'abstract-tempo', prompt: 'Fast cuts, no pauses, relentless forward motion.', archetypeHint: 'F-9' },
+  { id: 'bw-abs-tempo-slow', topic: 'abstract-tempo', prompt: 'Slow dissolves, held frames, deliberate silence.', archetypeHint: 'D-8' },
+  { id: 'bw-abs-palette-mono', topic: 'abstract-palette', prompt: 'Monochrome with one accent color.', archetypeHint: 'C-4' },
+  { id: 'bw-abs-palette-max', topic: 'abstract-palette', prompt: 'Saturated, layered, maximalist color.', archetypeHint: 'S-0' },
+  { id: 'bw-abs-grid', topic: 'abstract-layout', prompt: 'Rigid grid. Every element snapped to place.', archetypeHint: 'T-1' },
+  { id: 'bw-abs-organic', topic: 'abstract-layout', prompt: 'Organic scatter. Elements placed by feel.', archetypeHint: 'D-8' },
+  { id: 'bw-abs-sound-sharp', topic: 'abstract-sound', prompt: 'Sharp percussive hits between sections.', archetypeHint: 'R-10' },
+  { id: 'bw-abs-sound-drone', topic: 'abstract-sound', prompt: 'Continuous ambient drone underneath everything.', archetypeHint: 'D-8' },
+  // Latent testing: indirect probes that reveal cognitive/creative disposition
+  { id: 'bw-lat-incomplete', topic: 'latent-completion', prompt: 'An unfinished sentence is more powerful than a finished one.', archetypeHint: 'N-5' },
+  { id: 'bw-lat-complete', topic: 'latent-completion', prompt: 'A finished sentence earns more trust than an open question.', archetypeHint: 'T-1' },
+  { id: 'bw-lat-first-draft', topic: 'latent-revision', prompt: 'The first draft is usually closest to the truth.', archetypeHint: 'D-8' },
+  { id: 'bw-lat-tenth-draft', topic: 'latent-revision', prompt: 'The tenth revision is where the real work lives.', archetypeHint: 'S-0' },
+  { id: 'bw-lat-read-room', topic: 'latent-audience', prompt: 'You instinctively know what a room wants to hear.', archetypeHint: 'H-6' },
+  { id: 'bw-lat-ignore-room', topic: 'latent-audience', prompt: 'You say what needs saying regardless of the room.', archetypeHint: 'R-10' },
+  { id: 'bw-lat-archive', topic: 'latent-time', prompt: 'You collect and preserve more than you publish.', archetypeHint: 'P-7' },
+  { id: 'bw-lat-burn', topic: 'latent-time', prompt: 'You publish and move on — old work should burn.', archetypeHint: 'F-9' },
+  { id: 'bw-lat-name-first', topic: 'latent-naming', prompt: 'You name the thing before you build it.', archetypeHint: 'V-2' },
+  { id: 'bw-lat-name-last', topic: 'latent-naming', prompt: 'You build the thing and the name finds itself.', archetypeHint: 'D-8' },
+  { id: 'bw-lat-pattern-break', topic: 'latent-pattern', prompt: 'Breaking a pattern feels like progress.', archetypeHint: 'R-10' },
+  { id: 'bw-lat-pattern-refine', topic: 'latent-pattern', prompt: 'Refining a pattern feels like mastery.', archetypeHint: 'S-0' },
+  { id: 'bw-lat-alone', topic: 'latent-process', prompt: 'Your best ideas come when you\u2019re completely alone.', archetypeHint: 'C-4' },
+  { id: 'bw-lat-friction', topic: 'latent-process', prompt: 'Your best ideas come from friction with other people.', archetypeHint: 'H-6' },
 ];
 
 const slugify = (value) => String(value || '')
@@ -414,7 +453,7 @@ function TasteTraining() {
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-accent-purple border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-dark-400 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -424,8 +463,8 @@ function TasteTraining() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-          <Dna className="w-7 h-7 text-accent-purple" />
-          Subtaste / Training
+          <Radio className="w-7 h-7 text-dark-300" />
+          Subtaste: Training
         </h1>
         <p className="text-dark-400 mt-1">
           High-signal inputs to sharpen your profile. Short, focused, and reaction-forward.
@@ -451,14 +490,13 @@ function TasteTraining() {
       <section className="bg-dark-900 rounded-lg border border-dark-700 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-white flex items-center gap-2 uppercase tracking-[0.12em]">
-            <Target className="w-4 h-4 text-accent-purple" />
+            <Crosshair className="w-4 h-4 text-dark-300" />
             Training Stack
           </h3>
           <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.16em]">Best / Worst</span>
         </div>
         <div className="mb-6">
-          <p className="text-xl text-white mb-1">I would rather...</p>
-          <p className="text-xs text-dark-400 tracking-wide">Pick your best and worst from these cards, then lock to continue.</p>
+          <p className="text-lg text-white font-semibold tracking-wide">Pick your best and worst from these cards, then lock to continue.</p>
         </div>
 
         <div className="grid gap-4">
@@ -554,7 +592,7 @@ function TasteTraining() {
         <section className="bg-dark-900 rounded-lg border border-dark-700 p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2 uppercase tracking-[0.12em]">
-              <Activity className="w-4 h-4 text-accent-purple" />
+              <Activity className="w-4 h-4 text-dark-300" />
               Admin Diagnostics
             </h3>
             {adminBusy && <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.16em]">Working...</span>}
@@ -590,7 +628,7 @@ function TasteTraining() {
           {rawGenome?.distribution && (
             <div>
               <h4 className="text-sm font-semibold text-white flex items-center gap-2 uppercase tracking-[0.12em] mb-3">
-                <ListChecks className="w-4 h-4 text-accent-purple" />
+                <ListChecks className="w-4 h-4 text-dark-300" />
                 Archetype Distribution
               </h4>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -607,7 +645,7 @@ function TasteTraining() {
           {recentSignals?.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-white flex items-center gap-2 uppercase tracking-[0.12em] mb-3">
-                <ListChecks className="w-4 h-4 text-accent-purple" />
+                <ListChecks className="w-4 h-4 text-dark-300" />
                 Recent Signals
               </h4>
               <div className="grid gap-3">

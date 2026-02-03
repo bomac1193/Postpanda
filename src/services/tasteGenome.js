@@ -433,6 +433,10 @@ function recordSignal(genome, signal) {
   // Update archetype distribution from signals
   updateArchetypeFromSignals(genome);
 
+  // Sync directives and patterns from learned keyword scores
+  syncDirectives(genome);
+  syncPatterns(genome);
+
   // Update gamification
   updateGamification(genome, type);
 
@@ -535,7 +539,7 @@ function updateArchetypeFromSignals(genome) {
     ...ARCHETYPES[primary[0]]
   };
 
-  if (secondary[1] > 0.15) {
+  if (secondary[1] > 0.05) {
     genome.archetype.secondary = {
       designation: secondary[0],
       confidence: secondary[1],
@@ -666,6 +670,109 @@ function checkAchievements(genome) {
 }
 
 /**
+ * Sync genome.directives from learned keyword scores.
+ * Extracts top tone, hook, and format keywords into directives so they
+ * propagate through buildTasteContext into generation prompts.
+ */
+function syncDirectives(genome) {
+  if (!genome.keywordScores || Object.keys(genome.keywordScores).length === 0) return;
+
+  const topByCategory = (prefix, limit = 4) => {
+    return Object.entries(genome.keywordScores)
+      .filter(([key, data]) => key.startsWith(prefix) && data.score > 0 && data.count >= 1)
+      .sort((a, b) => b[1].score - a[1].score)
+      .slice(0, limit)
+      .map(([key]) => key.split('.').pop());
+  };
+
+  const avoidByCategory = (prefix, limit = 4) => {
+    return Object.entries(genome.keywordScores)
+      .filter(([key, data]) => key.startsWith(prefix) && data.score < -1 && data.count >= 1)
+      .sort((a, b) => a[1].score - b[1].score)
+      .slice(0, limit)
+      .map(([key]) => key.split('.').pop());
+  };
+
+  const tones = topByCategory('content.tone');
+  const hooks = topByCategory('content.hooks');
+  const styles = topByCategory('visual.style');
+  const moods = topByCategory('visual.mood');
+
+  const avoidTones = avoidByCategory('content.tone');
+  const avoidStyles = avoidByCategory('visual.style');
+  const avoidMoods = avoidByCategory('visual.mood');
+
+  if (!genome.directives) genome.directives = {};
+
+  // Only overwrite if we have learned data; preserve any manual overrides
+  if (tones.length || moods.length) {
+    genome.directives.tone = [...new Set([...tones, ...moods])].slice(0, 6);
+  }
+  if (hooks.length || styles.length) {
+    genome.directives.keywords = [...new Set([...hooks, ...styles])].slice(0, 6);
+  }
+  if (avoidTones.length || avoidStyles.length || avoidMoods.length) {
+    genome.directives.avoid = [...new Set([...avoidTones, ...avoidStyles, ...avoidMoods])].slice(0, 6);
+  }
+}
+
+/**
+ * Sync performancePatterns and aestheticPatterns from keyword scores.
+ * Fills the same fields that intelligenceService.analyzeContent would populate,
+ * but derived from the user's training signals instead of content analysis.
+ */
+function syncPatterns(genome) {
+  if (!genome.keywordScores || Object.keys(genome.keywordScores).length === 0) return;
+
+  const topNames = (prefix, limit = 5) => {
+    return Object.entries(genome.keywordScores)
+      .filter(([key, data]) => key.startsWith(prefix) && data.score > 0)
+      .sort((a, b) => b[1].score - a[1].score)
+      .slice(0, limit)
+      .map(([key]) => key.split('.').pop());
+  };
+
+  const avoidNames = (prefix, limit = 5) => {
+    return Object.entries(genome.keywordScores)
+      .filter(([key, data]) => key.startsWith(prefix) && data.score < -1)
+      .sort((a, b) => a[1].score - b[1].score)
+      .slice(0, limit)
+      .map(([key]) => key.split('.').pop());
+  };
+
+  // Performance patterns
+  const hooks = topNames('content.hooks');
+  const formats = topNames('content.format');
+  const tones = topNames('content.tone');
+  if (hooks.length) genome.performancePatterns.hooks = hooks;
+  if (tones.length) genome.performancePatterns.sentiment = tones;
+  if (formats.length) genome.performancePatterns.bestFormats = formats;
+
+  // Aesthetic patterns
+  const dominantTones = topNames('content.tone');
+  const avoidTones = avoidNames('content.tone');
+  const visualStyles = topNames('visual.style');
+  const moods = topNames('visual.mood');
+
+  if (dominantTones.length) genome.aestheticPatterns.dominantTones = dominantTones;
+  if (avoidTones.length) genome.aestheticPatterns.avoidTones = avoidTones;
+  if (visualStyles.length) genome.aestheticPatterns.visualStyle = visualStyles;
+  if (moods.length) genome.aestheticPatterns.colorPalette = moods; // moods inform palette choices
+
+  // Voice from archetype
+  const primary = genome.archetype?.primary;
+  if (primary) {
+    const voiceMap = {
+      'S-0': 'visionary', 'T-1': 'analytical', 'V-2': 'prophetic',
+      'L-3': 'nurturing', 'C-4': 'editorial', 'N-5': 'integrative',
+      'H-6': 'passionate', 'P-7': 'archival', 'D-8': 'channelling',
+      'F-9': 'direct', 'R-10': 'contrarian', 'NULL': 'receptive'
+    };
+    genome.aestheticPatterns.voice = voiceMap[primary.designation] || genome.aestheticPatterns.voice;
+  }
+}
+
+/**
  * Get top performing keywords from the genome
  */
 function getTopKeywords(genome, category = null, limit = 10) {
@@ -770,5 +877,7 @@ module.exports = {
   getGenomeSummary,
   updateGamification,
   checkAchievements,
-  updateArchetypeFromSignals
+  updateArchetypeFromSignals,
+  syncDirectives,
+  syncPatterns
 };
