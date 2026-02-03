@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { characterApi } from '../lib/api';
 import { useAppStore } from '../stores/useAppStore';
 import GeneratorPanel from '../components/characters/GeneratorPanel';
+import Reliquary from '../components/boveda/Reliquary';
 import {
   Plus,
   Crosshair,
@@ -399,8 +400,8 @@ function Characters() {
   const [loading, setLoading] = useState(true);
   const [editingCharacter, setEditingCharacter] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [showGenerator, setShowGenerator] = useState(false);
   const [generatingFor, setGeneratingFor] = useState(null);
+  const [activeTab, setActiveTab] = useState('generator');
 
   useEffect(() => {
     loadCharacters();
@@ -437,8 +438,15 @@ function Characters() {
   const handleGeneratorAccept = async (data) => {
     const character = await characterApi.create(data);
     setCharacters([character, ...characters]);
-    setShowGenerator(false);
   };
+
+  // Split characters into regular characters and relic characters
+  const regularCharacters = characters.filter(
+    (c) => !c.lcosData?.relics || c.lcosData.relics.length === 0
+  );
+  const relicCharacters = characters.filter(
+    (c) => c.lcosData?.relics && c.lcosData.relics.length > 0
+  );
 
   if (loading) {
     return (
@@ -456,52 +464,81 @@ function Characters() {
           <h1 className="text-2xl font-bold text-white font-display uppercase tracking-widest">Boveda</h1>
           <p className="text-dark-400 mt-1">AI personas for generating content in unique voices</p>
         </div>
-        <button
-          onClick={() => setShowGenerator(!showGenerator)}
-          className="flex items-center gap-2 px-4 py-2 bg-dark-700 border border-zinc-500/30 text-zinc-300 rounded-lg hover:border-zinc-400/50 hover:text-zinc-200 transition-colors"
-          style={{ boxShadow: '0 0 12px 2px rgba(212,212,216,0.06)' }}
-        >
-          <Crosshair className="w-5 h-5" />
-          Generate
-        </button>
       </div>
 
-      {/* Generator Panel */}
-      {showGenerator && (
-        <div className="mb-6">
-          <GeneratorPanel
-            onAccept={handleGeneratorAccept}
-            onClose={() => setShowGenerator(false)}
-          />
-        </div>
-      )}
-
-      {/* Grid */}
-      {characters.length === 0 ? (
-        <div className="text-center py-16 bg-dark-800 rounded-xl border border-dark-700">
-          <User className="w-12 h-12 text-dark-500 mx-auto mb-3" />
-          <h3 className="text-lg font-medium text-white mb-2">Your Boveda is empty</h3>
-          <p className="text-dark-400 mb-4">Generate characters with unique archetypes and personalities</p>
+      {/* Tab Bar */}
+      <div className="flex border-b border-dark-700 mb-6">
+        {[
+          { value: 'generator', label: 'Generator' },
+          { value: 'collection', label: 'Collection' },
+        ].map((tab) => (
           <button
-            onClick={() => setShowGenerator(true)}
-            className="flex items-center gap-2 mx-auto px-4 py-2 bg-dark-700 border border-zinc-500/30 text-zinc-300 rounded-lg hover:border-zinc-400/50 hover:text-zinc-200 transition-colors"
-            style={{ boxShadow: '0 0 12px 2px rgba(212,212,216,0.06)' }}
+            key={tab.value}
+            onClick={() => setActiveTab(tab.value)}
+            className={`px-5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === tab.value
+                ? 'border-zinc-300/60 text-white'
+                : 'border-transparent text-dark-400 hover:text-dark-200'
+            }`}
           >
-            <Crosshair className="w-5 h-5" />
-            Generate
+            {tab.label}
           </button>
-        </div>
+        ))}
+      </div>
+
+      {activeTab === 'generator' ? (
+        /* Generator Tab — GeneratorPanel with Character/Relic mode toggle built in */
+        <GeneratorPanel
+          onAccept={handleGeneratorAccept}
+          onClose={() => setActiveTab('collection')}
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {characters.map((character) => (
-            <CharacterCard
-              key={character._id}
-              character={character}
-              onEdit={setEditingCharacter}
-              onDelete={handleDelete}
-              onGenerate={setGeneratingFor}
-            />
-          ))}
+        /* Collection Tab — Characters section + Reliquary section */
+        <div className="space-y-10">
+          {/* Characters Section */}
+          <section>
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-white font-display uppercase tracking-widest">
+                Characters
+              </h2>
+              <p className="text-dark-400 text-sm mt-1">
+                AI personas generated via character mode
+              </p>
+            </div>
+
+            {regularCharacters.length === 0 ? (
+              <div className="text-center py-12 bg-dark-800 rounded-xl border border-dark-700">
+                <User className="w-10 h-10 text-dark-500 mx-auto mb-3" />
+                <h3 className="text-base font-medium text-white mb-2">No characters yet</h3>
+                <p className="text-dark-400 text-sm mb-4">
+                  Switch to the Generator tab and use Character mode to create some.
+                </p>
+                <button
+                  onClick={() => setActiveTab('generator')}
+                  className="flex items-center gap-2 mx-auto px-4 py-2 bg-dark-700 border border-zinc-500/30 text-zinc-300 rounded-lg hover:border-zinc-400/50 hover:text-zinc-200 transition-colors"
+                  style={{ boxShadow: '0 0 12px 2px rgba(212,212,216,0.06)' }}
+                >
+                  <Crosshair className="w-5 h-5" />
+                  Generate
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {regularCharacters.map((character) => (
+                  <CharacterCard
+                    key={character._id}
+                    character={character}
+                    onEdit={setEditingCharacter}
+                    onDelete={handleDelete}
+                    onGenerate={setGeneratingFor}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Reliquary Section */}
+          <Reliquary characters={characters} loading={loading} />
         </div>
       )}
 

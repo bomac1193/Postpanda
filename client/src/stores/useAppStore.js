@@ -84,6 +84,9 @@ export const useAppStore = create(
         threads: { connected: false, account: null },
       },
 
+      // Reliquary pack unlocks
+      reliquaryUnlocks: {}, // { [packId]: { unlockedAt: ISO string } }
+
       // UI state
       sidebarCollapsed: false,
       activePanel: 'grid', // 'grid' | 'editor' | 'calendar' | 'ai' | 'settings'
@@ -664,6 +667,14 @@ export const useAppStore = create(
         }
       })),
 
+      // Reliquary actions
+      unlockPack: (packId) => set((state) => ({
+        reliquaryUnlocks: {
+          ...state.reliquaryUnlocks,
+          [packId]: { unlockedAt: new Date().toISOString() },
+        },
+      })),
+
       // UI actions
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -780,6 +791,8 @@ export const useAppStore = create(
         currentYoutubeCollectionId: state.currentYoutubeCollectionId,
         activeFolioId: state.activeFolioId,
         activeProjectId: state.activeProjectId,
+        // Reliquary unlocks
+        reliquaryUnlocks: state.reliquaryUnlocks,
         // Reel collections - just the current selection
         currentReelCollectionId: state.currentReelCollectionId,
         // Rollouts - persist selection (data should come from backend)
@@ -803,6 +816,8 @@ export const useAppStore = create(
           currentRolloutId: persistedState?.currentRolloutId || currentState.currentRolloutId,
           // Preserve profile selection (profiles list comes from backend)
           currentProfileId: persistedState?.currentProfileId || currentState.currentProfileId,
+          // Reliquary unlocks
+          reliquaryUnlocks: persistedState?.reliquaryUnlocks || currentState.reliquaryUnlocks,
         };
       },
     }
