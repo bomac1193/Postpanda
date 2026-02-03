@@ -3,7 +3,6 @@ import { useAppStore } from '../stores/useAppStore';
 import { genomeApi } from '../lib/api';
 import {
   Dna,
-  ChevronRight,
   Zap,
   Lock,
   CheckCircle2,
@@ -34,7 +33,6 @@ const GLOW_BRIGHT = '#e4e4e7'; // zinc-200 — emphasis glow
 const GLOW_DIM = '#a1a1aa';    // zinc-400 — muted glow
 const VIOLET = '#8b5cf6';      // accent-purple — secondary glow
 const VIOLET_TEXT = '#c4b5fd';  // violet-300 — readable violet text
-const HONE_ACCENT = '#94a3b8';  // slate-400 — honing mode accent
 
 // ── Archetype Icon Map — austere / institutional / classified ─────────────────
 const ARCHETYPE_ICONS = {
@@ -269,77 +267,6 @@ function AchievementBadge({ achievement, unlocked }) {
   );
 }
 
-function BestWorstQuestion({ question, selection, onSelect }) {
-  const { best, worst } = selection || {};
-
-  const handleCardClick = (cardId) => {
-    if (best === cardId) {
-      onSelect(question.id, { best: null, worst });
-    } else if (worst === cardId) {
-      onSelect(question.id, { best, worst: null });
-    } else if (!best) {
-      onSelect(question.id, { best: cardId, worst });
-    } else if (!worst) {
-      onSelect(question.id, { best, worst: cardId });
-    }
-  };
-
-  return (
-    <div className="bg-dark-900/80 rounded-sm p-6 border" style={{ borderColor: `${GLOW}1a` }}>
-      <p className="text-xl text-white mb-2">{question.prompt}</p>
-      <p className="text-sm text-dark-400 mb-6">
-        Pick your <span style={{ color: GLOW_BRIGHT }}>best</span> and <span style={{ color: VIOLET_TEXT }}>worst</span> from these cards, then lock to continue.
-      </p>
-      <div className="grid grid-cols-2 gap-4">
-        {question.cards.map((card) => {
-          const isBest = best === card.id;
-          const isWorst = worst === card.id;
-          let borderColor = '#27272a';
-          let shadow = 'none';
-          let tag = null;
-          let bg = '#0a0a0c';
-
-          if (isBest) {
-            borderColor = `${GLOW}66`;
-            shadow = `0 0 10px 2px ${GLOW}1a, inset 0 0 6px 0 ${GLOW}08`;
-            tag = 'BEST';
-            bg = `${GLOW}06`;
-          } else if (isWorst) {
-            borderColor = `${VIOLET}aa`;
-            shadow = `0 0 10px 2px ${VIOLET}44, inset 0 0 6px 0 ${VIOLET}11`;
-            tag = 'WORST';
-            bg = `${VIOLET}08`;
-          }
-
-          return (
-            <button
-              key={card.id}
-              onClick={() => handleCardClick(card.id)}
-              className="relative p-4 rounded-sm border text-left transition-all hover:border-dark-500"
-              style={{ borderColor, boxShadow: shadow, backgroundColor: bg }}
-            >
-              {tag && (
-                <span
-                  className="absolute top-2 right-2 px-2 py-0.5 rounded-sm text-[10px] font-mono font-bold uppercase tracking-[0.2em]"
-                  style={{
-                    backgroundColor: isBest ? `${GLOW}11` : `${VIOLET}22`,
-                    color: isBest ? GLOW_BRIGHT : VIOLET_TEXT,
-                    border: `1px solid ${isBest ? `${GLOW}44` : `${VIOLET}66`}`,
-                  }}
-                >
-                  {tag}
-                </span>
-              )}
-              <p className="font-medium text-white pr-14">{card.label}</p>
-              <p className="text-sm text-dark-400 mt-1">{card.description}</p>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function TasteGenome() {
   const currentProfileId = useAppStore((state) => state.currentProfileId);
   const activeFolioId = useAppStore((state) => state.activeFolioId);
@@ -349,14 +276,6 @@ function TasteGenome() {
   const [activeTab, setActiveTab] = useState('genome');
   const [genome, setGenome] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [quizQuestions, setQuizQuestions] = useState([]);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [quizResponses, setQuizResponses] = useState({});
-  const [submittingQuiz, setSubmittingQuiz] = useState(false);
-  const [quizMode, setQuizMode] = useState('standard');
-  const [quizAnsweredCount, setQuizAnsweredCount] = useState(0);
-  const [quizTotalPool, setQuizTotalPool] = useState(18);
   const [allArchetypes, setAllArchetypes] = useState({});
   const [gamification, setGamification] = useState(null);
   const [allAchievements, setAllAchievements] = useState([]);
@@ -469,55 +388,6 @@ function TasteGenome() {
     }
   };
 
-  const startQuiz = async () => {
-    try {
-      const result = await genomeApi.getQuizQuestions(currentProfileId || null);
-      if (result.mode === 'complete') {
-        setQuizQuestions([]);
-        setQuizMode('complete');
-        setShowQuiz(true);
-        setQuizAnsweredCount(result.answeredCount || 0);
-        setQuizTotalPool(result.totalPool || 18);
-        return;
-      }
-      setQuizQuestions(result.questions || []);
-      setQuizMode(result.mode || 'standard');
-      setQuizAnsweredCount(result.answeredCount || 0);
-      setQuizTotalPool(result.totalPool || 18);
-      setShowQuiz(true);
-      setCurrentQuestion(0);
-      setQuizResponses({});
-    } catch (error) {
-      console.error('Failed to load quiz:', error);
-    }
-  };
-
-  const handleCardSelect = (questionId, selection) => {
-    setQuizResponses({
-      ...quizResponses,
-      [questionId]: selection
-    });
-  };
-
-  const submitQuiz = async () => {
-    setSubmittingQuiz(true);
-    try {
-      const responses = Object.entries(quizResponses).map(([questionId, sel]) => ({
-        questionId,
-        best: sel.best,
-        worst: sel.worst
-      }));
-      const result = await genomeApi.submitQuiz(responses, currentProfileId || null);
-      setGenome(result.summary?.genome || genome);
-      setShowQuiz(false);
-      loadGenome();
-    } catch (error) {
-      console.error('Failed to submit quiz:', error);
-    } finally {
-      setSubmittingQuiz(false);
-    }
-  };
-
   const parseList = (text) =>
     text
       .split(/[\n,]/)
@@ -560,18 +430,6 @@ function TasteGenome() {
     }
   };
 
-  const nextQuestion = () => {
-    if (currentQuestion < quizQuestions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    }
-  };
-
-  const prevQuestion = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-    }
-  };
-
   // ── Shared button style helper ──────────────────────────────────────────────
   const glowBtnStyle = {
     borderColor: `${GLOW}44`,
@@ -585,112 +443,6 @@ function TasteGenome() {
     return (
       <div className="p-6 flex items-center justify-center h-64">
         <div className="animate-spin w-8 h-8 border-2 border-t-transparent rounded-full" style={{ borderColor: GLOW_DIM, borderTopColor: 'transparent' }} />
-      </div>
-    );
-  }
-
-  // ── Quiz View — Complete state ──────────────────────────────────────────────
-  if (showQuiz && quizMode === 'complete') {
-    return (
-      <div className="p-6 max-w-2xl mx-auto text-center py-16">
-        <Dna className="w-16 h-16 mx-auto mb-4" style={{ color: GLOW_DIM }} />
-        <h2 className="text-xl font-semibold text-white mb-2 font-mono uppercase tracking-widest">Genome Fully Calibrated</h2>
-        <p className="text-dark-400 max-w-md mx-auto mb-6">
-          All questions answered. Your archetype distribution is as refined as it can get from the quiz alone.
-          Keep using Folio and the content studio to evolve your genome further.
-        </p>
-        <button
-          onClick={() => setShowQuiz(false)}
-          className="px-6 py-3 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all inline-flex items-center gap-2"
-          style={glowBtnStyle}
-          onMouseEnter={glowBtnHover}
-          onMouseLeave={glowBtnLeave}
-        >
-          Back to Genome
-        </button>
-      </div>
-    );
-  }
-
-  // ── Quiz View — Active questions ────────────────────────────────────────────
-  if (showQuiz && quizQuestions.length > 0) {
-    const question = quizQuestions[currentQuestion];
-    const isLastQuestion = currentQuestion === quizQuestions.length - 1;
-    const currentSel = quizResponses[question.id];
-    const isLocked = currentSel?.best && currentSel?.worst;
-    const allAnswered = quizQuestions.every(q => quizResponses[q.id]?.best && quizResponses[q.id]?.worst);
-    const accentColor = quizMode === 'honing' ? HONE_ACCENT : GLOW;
-    const totalProgress = quizAnsweredCount + currentQuestion + 1;
-
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h1 className="text-xl font-bold text-white font-mono uppercase tracking-widest">
-                {quizMode === 'honing' ? 'Deep Honing' : 'Discover Your Archetype'}
-              </h1>
-              {quizMode === 'honing' && (
-                <p className="text-xs mt-1 font-mono uppercase tracking-widest" style={{ color: HONE_ACCENT }}>
-                  Probing areas of uncertainty
-                </p>
-              )}
-            </div>
-            <span className="text-sm text-dark-400 font-mono">
-              {currentQuestion + 1}/{quizQuestions.length}
-            </span>
-          </div>
-          <div className="h-1 bg-dark-700/60 rounded-full overflow-hidden">
-            <div
-              className="h-full transition-all"
-              style={{ width: `${Math.min(100, (totalProgress / quizTotalPool) * 100)}%`, background: `linear-gradient(90deg, ${accentColor}88, ${accentColor})` }}
-            />
-          </div>
-          <p className="text-[11px] text-dark-500 font-mono mt-1 text-right">
-            {quizAnsweredCount + Object.keys(quizResponses).filter(k => quizResponses[k]?.best && quizResponses[k]?.worst).length}/{quizTotalPool} total
-          </p>
-        </div>
-
-        <BestWorstQuestion
-          question={question}
-          selection={quizResponses[question.id]}
-          onSelect={handleCardSelect}
-        />
-
-        <div className="flex justify-between mt-6">
-          <button
-            onClick={prevQuestion}
-            disabled={currentQuestion === 0}
-            className="px-4 py-2 text-dark-400 hover:text-white disabled:opacity-50 transition-colors font-mono uppercase tracking-widest text-sm"
-          >
-            Back
-          </button>
-          {isLastQuestion ? (
-            <button
-              onClick={submitQuiz}
-              disabled={!allAnswered || submittingQuiz}
-              className="px-6 py-2 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all disabled:opacity-50 flex items-center gap-2"
-              style={glowBtnStyle}
-              onMouseEnter={glowBtnHover}
-              onMouseLeave={glowBtnLeave}
-            >
-              {submittingQuiz ? 'Analyzing...' : 'Reveal Archetype'}
-              <Dna className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              onClick={nextQuestion}
-              disabled={!isLocked}
-              className="px-6 py-2 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all disabled:opacity-50 flex items-center gap-2"
-              style={glowBtnStyle}
-              onMouseEnter={glowBtnHover}
-              onMouseLeave={glowBtnLeave}
-            >
-              Lock & Continue
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          )}
-        </div>
       </div>
     );
   }
@@ -735,16 +487,6 @@ function TasteGenome() {
             </div>
           )}
         </div>
-        <button
-          onClick={startQuiz}
-          className="px-4 py-2 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all flex items-center gap-2"
-          style={glowBtnStyle}
-          onMouseEnter={glowBtnHover}
-          onMouseLeave={glowBtnLeave}
-        >
-          <Scan className="w-4 h-4" />
-          {genome ? 'Retake Quiz' : 'Discover Archetype'}
-        </button>
       </div>
 
       {/* Tabs */}
@@ -895,20 +637,10 @@ function TasteGenome() {
       {activeTab === 'genome' && !genome && (
         <div className="text-center py-16 bg-dark-900/80 rounded-sm border" style={{ borderColor: `${GLOW}11` }}>
           <Dna className="w-16 h-16 mx-auto mb-4" style={{ color: '#27272a' }} />
-          <h2 className="text-xl font-semibold text-white mb-2 font-mono uppercase tracking-widest">Discover Your Creative Archetype</h2>
+          <h2 className="text-xl font-semibold text-white mb-2 font-mono uppercase tracking-widest">No Genome Yet</h2>
           <p className="text-dark-500 max-w-md mx-auto mb-6">
-            Take the archetype quiz to unlock your unique taste genome and get personalized content recommendations.
+            Go to <a href="/profiles" className="underline" style={{ color: GLOW }}>Profiles</a> to take the archetype quiz and unlock your unique taste genome.
           </p>
-          <button
-            onClick={startQuiz}
-            className="px-6 py-3 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all inline-flex items-center gap-2"
-            style={glowBtnStyle}
-            onMouseEnter={glowBtnHover}
-            onMouseLeave={glowBtnLeave}
-          >
-            <Scan className="w-5 h-5" />
-            Start Quiz
-          </button>
         </div>
       )}
 
