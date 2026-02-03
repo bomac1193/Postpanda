@@ -37,7 +37,7 @@ function Header() {
     <header className="h-16 bg-dark-800/80 backdrop-blur-sm border-b border-dark-700 flex items-center justify-between px-6 sticky top-0 z-30">
       {/* Page Title */}
       <div>
-        <h1 className="text-xl font-display font-semibold text-dark-100">{title}</h1>
+        <h1 className="text-xl font-display font-semibold text-dark-100 uppercase tracking-widest">{title}</h1>
       </div>
 
       {/* Actions */}

@@ -227,7 +227,7 @@ function Profiles() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-display font-semibold text-dark-100 mb-2">
+          <h1 className="text-2xl font-display font-semibold text-dark-100 mb-2 uppercase tracking-widest">
             Profiles
           </h1>
           <p className="text-dark-400">

@@ -124,7 +124,7 @@ function Login() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-display font-bold text-dark-100 mb-2">
+          <h1 className="text-3xl font-display font-bold text-dark-100 mb-2 uppercase tracking-widest">
             Slayt
           </h1>
           <p className="text-dark-400">AI-Powered Social Media Command Center</p>

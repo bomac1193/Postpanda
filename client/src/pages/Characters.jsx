@@ -443,7 +443,7 @@ function Characters() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Characters</h1>
+          <h1 className="text-2xl font-bold text-white font-display uppercase tracking-widest">Characters</h1>
           <p className="text-dark-400 mt-1">AI personas for generating content in unique voices</p>
         </div>
         <button

@@ -522,7 +522,7 @@ function ContentStudio() {
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-3 font-display uppercase tracking-widest">
           <Sparkles className="w-7 h-7 text-accent-purple" />
           Subtaste · Folio
         </h1>

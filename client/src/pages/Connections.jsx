@@ -224,7 +224,7 @@ function Connections() {
     <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-display font-semibold text-dark-100 mb-2">
+        <h1 className="text-2xl font-display font-semibold text-dark-100 mb-2 uppercase tracking-widest">
           Platform Connections
         </h1>
         <p className="text-dark-400">

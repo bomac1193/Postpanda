@@ -98,7 +98,7 @@ function ProEditor() {
         <div className="flex-1 bg-dark-900 flex items-center justify-center">
           <div className="text-center">
             <Wand2 className="w-16 h-16 text-dark-600 mx-auto mb-4" />
-            <h2 className="text-xl font-medium text-dark-300 mb-2">Pro Editor</h2>
+            <h2 className="text-xl font-medium text-dark-300 mb-2 font-display uppercase tracking-widest">Pro Editor</h2>
             <p className="text-dark-500 max-w-md">
               Advanced editing with curves, levels, HSL control, text overlays,
               layers, and professional effects. Coming soon.

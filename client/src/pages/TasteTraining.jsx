@@ -462,7 +462,7 @@ function TasteTraining() {
     <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-3 font-display uppercase tracking-widest">
           <Radio className="w-7 h-7 text-dark-300" />
           Subtaste: Training
         </h1>

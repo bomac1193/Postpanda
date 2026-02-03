@@ -249,7 +249,7 @@ function Settings() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-display font-semibold text-dark-100 mb-2">
+        <h1 className="text-2xl font-display font-semibold text-dark-100 mb-2 uppercase tracking-widest">
           Settings
         </h1>
         <p className="text-dark-400">

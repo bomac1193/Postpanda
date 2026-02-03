@@ -352,7 +352,7 @@ function Calendar() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-display font-semibold text-dark-100">
+          <h2 className="text-2xl font-display font-semibold text-dark-100 uppercase tracking-widest">
             {MONTHS[month]} {year}
           </h2>
           <div className="flex items-center gap-1">

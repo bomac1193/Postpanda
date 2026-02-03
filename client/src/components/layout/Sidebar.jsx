@@ -207,7 +207,7 @@ function Sidebar() {
             <div className="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
               <MagicWandLogo className="w-5 h-5 text-white" />
             </div>
-            <span className="font-display font-semibold text-lg text-white tracking-tight">
+            <span className="font-display font-semibold text-lg text-white uppercase tracking-widest">
               Slayt
             </span>
           </div>

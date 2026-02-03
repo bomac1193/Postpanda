@@ -622,7 +622,7 @@ function RolloutPlanner() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-display font-semibold text-white">Rollout Planner</h1>
+          <h1 className="text-2xl font-display font-semibold text-white uppercase tracking-widest">Rollout Planner</h1>
           <p className="text-dark-400 text-sm mt-1">Organize your campaign phases</p>
         </div>
       </div>
