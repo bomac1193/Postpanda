@@ -3,101 +3,235 @@ import { useAppStore } from '../stores/useAppStore';
 import { genomeApi } from '../lib/api';
 import {
   Dna,
-  Sparkles,
-  Trophy,
-  Flame,
-  Target,
   ChevronRight,
   Zap,
   Lock,
   CheckCircle2,
   ChevronDown,
-  Star,
-  TrendingUp,
   Award,
-  Layers,
   Eye,
-  Compass,
   Shield,
-  Lightbulb,
-  Heart,
-  Hexagon,
-  Aperture,
   Activity,
+  Crosshair,
+  FileText,
+  Scan,
+  Fingerprint,
+  CircleDot,
+  Radio,
+  Radiation,
+  ScanLine,
+  Hash,
+  Disc,
+  Flame,
+  Trophy,
 } from 'lucide-react';
 
-// Map archetype designations to icons
+// ── Bio-Glow Classified Palette ──────────────────────────────────────────────
+// Soft white luminescence against dark institutional backgrounds.
+// No gold, no purple — only cold bio-white glow and muted blood for shadows.
+const GLOW = '#d4d4d8';        // zinc-300 — primary bio-glow
+const GLOW_BRIGHT = '#e4e4e7'; // zinc-200 — emphasis glow
+const GLOW_DIM = '#a1a1aa';    // zinc-400 — muted glow
+const BLOOD = '#7f1d1d';       // dark blood — shadow/warning
+const BLOOD_TEXT = '#fca5a5';   // readable blood text
+const HONE_ACCENT = '#94a3b8';  // slate-400 — honing mode accent
+
+// ── Archetype Icon Map — austere / institutional / classified ─────────────────
 const ARCHETYPE_ICONS = {
-  'T-1': Layers,
-  'V-2': Eye,
-  'L-3': Compass,
-  'C-4': Shield,
-  'N-5': Heart,
-  'H-6': TrendingUp,
-  'P-7': Star,
-  'D-8': Zap,
-  'F-9': Lightbulb,
-  'R-10': Target,
-  'S-0': Hexagon,
-  'NULL': Aperture,
+  'S-0': Radiation,    // Standard-Bearer — radiating influence
+  'T-1': ScanLine,     // System-Seer — scanning structure
+  'V-2': Scan,         // Early Witness — early detection
+  'L-3': Disc,         // Patient Cultivator — slow rotation
+  'C-4': Crosshair,    // Essential Editor — precision targeting
+  'N-5': Radio,        // Border Illuminator — cross-frequency
+  'H-6': Fingerprint,  // Relentless Advocate — indelible mark
+  'P-7': FileText,     // Living Archive — the dossier
+  'D-8': CircleDot,    // Hollow Channel — empty center
+  'F-9': Hash,         // Manifestor — building blocks
+  'R-10': Zap,         // Productive Fracture — break point
+  'NULL': Eye,         // Receptive Presence — pure observation
 };
 
-// Map achievement IDs to icons
 const ACHIEVEMENT_ICONS = {
   'first-score': Eye,
-  'ten-scores': Target,
+  'ten-scores': Crosshair,
   'fifty-scores': Award,
   'first-publish': Zap,
-  'ten-published': TrendingUp,
-  'first-hook': Lightbulb,
-  'hook-master': Star,
+  'ten-published': Hash,
+  'first-hook': Scan,
+  'hook-master': Radiation,
   'streak-3': Flame,
   'streak-7': Flame,
   'streak-30': Trophy,
-  'style-explorer': Compass,
-  'hook-explorer': Layers,
+  'style-explorer': Radio,
+  'hook-explorer': ScanLine,
   'glyph-revealed': Dna,
 };
 
-function ArchetypeCard({ archetype, isActive, confidence }) {
-  const IconComponent = ARCHETYPE_ICONS[archetype.designation] || Hexagon;
+// ── Archetype Dossier — full briefing per designation ─────────────────────────
+// Each entry: what the archetype is, strengths, weaknesses, content style, anti-patterns.
+const ARCHETYPE_DOSSIER = {
+  'S-0': {
+    brief: 'The Standard-Bearer sets benchmarks. Your taste defines what quality looks like before others can articulate why. You don\'t follow trends — you establish the reference points others eventually decode.',
+    strengths: ['Defining quality standards', 'Visionary taste that ages well', 'Natural authority on what "good" looks like', 'Content that becomes the template others copy'],
+    weaknesses: ['Paralysis when nothing meets your standard', 'Difficulty shipping imperfect work', 'Dismissing valid work that doesn\'t match your framework'],
+    contentStyle: 'High-production, reference-grade content. Manifestos, definitive guides, aesthetic mood-boards that set the tone for a space. Evergreen pieces that people bookmark and return to.',
+    antiPatterns: 'Avoid reactive trend commentary, low-effort remixes, "me too" content. Short-form hot takes dilute your authority. Don\'t chase algorithms — let them chase you.',
+  },
+  'T-1': {
+    brief: 'The System-Seer reverse-engineers excellence. You see the invisible scaffolding behind great work — the production logic, the structural decisions, the architecture that holds it together.',
+    strengths: ['Deconstructing why things work', 'Building repeatable frameworks', 'Identifying patterns across domains', 'Teaching through systematic analysis'],
+    weaknesses: ['Over-engineering simple problems', 'Getting lost in the blueprint without building', 'Valuing structure over soul', 'Analysis paralysis'],
+    contentStyle: 'Long-form breakdowns, system maps, "how it\'s built" deep dives. Framework posts, process documentation, architectural walkthroughs. Tutorial series with layered complexity.',
+    antiPatterns: 'Avoid surface-level tips, brainrot loops, and unstructured stream-of-consciousness. Don\'t rush to publish before the framework is coherent. Skip trend-surfing listicles.',
+  },
+  'V-2': {
+    brief: 'The Early Witness has temporal vision. You found the artist at 500 plays. You sense what\'s coming before it arrives — not because you follow trends, but because you feel the pressure change.',
+    strengths: ['Early signal detection', 'Prophetic taste that validates over time', 'Curating the genuinely new', 'Building audience trust through prescience'],
+    weaknesses: ['Being right too soon and dismissed for it', 'Impatience with mainstream adoption curves', 'Abandoning finds once they gain traction', 'Obscurity as identity'],
+    contentStyle: 'Discovery-focused curation, "heard it here first" features, emerging trend analysis with receipts. Niche spotlights, underground roundups, future-casting.',
+    antiPatterns: 'Avoid covering what\'s already peaked. Don\'t do retrospective "best of" content — leave that to archivists. Skip mass-appeal compilations and safe recommendations.',
+  },
+  'L-3': {
+    brief: 'The Patient Cultivator invests in long arcs. Where others chase quick wins, you see the slow compounding of quality over years. You nurture potential through sustained attention.',
+    strengths: ['Long-term relationship building', 'Seeing potential before proof', 'Compounding creative returns', 'Depth over breadth'],
+    weaknesses: ['Patience that becomes enabling of mediocrity', 'Sunk-cost attachment to failing projects', 'Missing windows of relevance', 'Under-valuing urgency'],
+    contentStyle: 'Serialized content, ongoing documentaries, behind-the-scenes build logs. Multi-part series that reward loyal followers. Slow-reveal narratives, progress journals.',
+    antiPatterns: 'Avoid one-off viral plays, disposable content, and anything designed for a single spike. Don\'t optimize for first-impression metrics. Skip rapid-fire posting cadences.',
+  },
+  'C-4': {
+    brief: 'The Essential Editor knows what shouldn\'t exist. Your power is subtractive — you improve work by removing everything that doesn\'t serve it. Precision, not volume.',
+    strengths: ['Ruthless editorial instinct', 'Clarity through subtraction', 'High signal-to-noise ratio', 'Making complex things feel simple'],
+    weaknesses: ['Nihilistic rejection of good-enough work', 'Editing becomes procrastination', 'Cutting soul along with fat', 'Difficulty collaborating with additive thinkers'],
+    contentStyle: 'Minimalist, high-density content. Tight captions, curated selections, distilled insights. "One thing" posts, edited-down compilations, precision hooks.',
+    antiPatterns: 'Avoid verbose explainers, padded content, and filler for algorithm length. Don\'t create content that needs to be "watched until the end." Skip quantity-over-quality posting.',
+  },
+  'N-5': {
+    brief: 'The Border Illuminator reveals connections between opposites. You thrive at intersections — finding how disparate fields, styles, and ideas secretly inform each other.',
+    strengths: ['Cross-pollination between domains', 'Surprising juxtapositions', 'Translating between audiences', 'Making niche ideas accessible'],
+    weaknesses: ['Refusing to commit to a lane', 'Scattering focus across too many intersections', 'Over-complicating simple concepts', 'Losing depth for breadth'],
+    contentStyle: 'Cross-genre mashups, "X meets Y" features, interdisciplinary essays. Bridge content that introduces one audience to another\'s world. Remixes with unexpected sources.',
+    antiPatterns: 'Avoid single-niche tunnel vision, pure genre content, and anything that only speaks to one tribe. Don\'t simplify to the point of losing the tension between ideas.',
+  },
+  'H-6': {
+    brief: 'The Relentless Advocate converts skeptics. Your enthusiasm is a force — not hype, but genuine conviction that compels attention and changes minds.',
+    strengths: ['Infectious enthusiasm', 'Converting indifferent audiences', 'Building movements around ideas', 'Passionate storytelling'],
+    weaknesses: ['Missionary zeal that alienates', 'Difficulty accepting criticism of championed work', 'Burnout from constant advocacy', 'Blind spots for favored subjects'],
+    contentStyle: 'Passionate recommendations, "you need to know about this" posts, persuasive reviews, community-building content. Call-to-action pieces, rallying cries, manifestos.',
+    antiPatterns: 'Avoid neutral, uncommitted takes. Don\'t do lukewarm reviews or fence-sitting analysis. Skip content where you don\'t have genuine conviction — your audience reads insincerity.',
+  },
+  'P-7': {
+    brief: 'The Living Archive holds deep lineage knowledge. You know where things come from, what influenced what, and why the canon matters. Your memory is the collection.',
+    strengths: ['Encyclopedic contextual knowledge', 'Tracing influence chains', 'Preserving overlooked work', 'Providing historical depth to current trends'],
+    weaknesses: ['Knowledge that never circulates', 'Gatekeeping through obscurity', 'Overvaluing precedent over innovation', 'Hoarding over sharing'],
+    contentStyle: 'Reference posts, deep lineage threads, "the history of X" pieces. Annotated bibliographies, influence maps, archive dives. Educational long-form with rich sourcing.',
+    antiPatterns: 'Avoid content without context or sourcing. Don\'t do hot takes without historical grounding. Skip ephemeral formats that can\'t carry your depth — stories and 15-second clips underserve you.',
+  },
+  'D-8': {
+    brief: 'The Hollow Channel lets taste move through them. You don\'t impose — you receive, and your recommendations carry an uncanny accuracy because you\'re not filtering through ego.',
+    strengths: ['Uncanny recommendation instinct', 'Ego-free curation', 'Channeling the zeitgeist naturally', 'Creating space for others\' expression'],
+    weaknesses: ['Losing stable identity', 'Difficulty articulating your own taste', 'Being mistaken for lacking conviction', 'Absorbing others\' creative toxins'],
+    contentStyle: 'Mood-driven curation, intuitive playlists, atmosphere-first content. Stream-of-consciousness posts, ambient collections, "vibe" compilations that feel uncannily right.',
+    antiPatterns: 'Avoid heavily branded, personality-forward content. Don\'t force a consistent editorial voice — your power is that it shifts. Skip rigid content calendars and formulaic templates.',
+  },
+  'F-9': {
+    brief: 'The Manifestor turns vision into tangible reality. Ideas are worthless to you until they\'re shipped. You have an action bias that converts abstract taste into concrete output.',
+    strengths: ['Rapid execution', 'Shipping consistently', 'Turning ideas into products', 'Bias toward action over deliberation'],
+    weaknesses: ['Only valuing shipped things', 'Sacrificing quality for output', 'Impatience with conceptual work', 'Burnout from relentless production'],
+    contentStyle: 'High-volume, polished output. Finished projects, build-in-public logs, launch announcements. Portfolio-style content, case studies, before/after transformations.',
+    antiPatterns: 'Avoid pure theory posts, endless ideation without output, and "coming soon" content. Don\'t tease without delivering. Skip planning-focused content — show the result.',
+  },
+  'R-10': {
+    brief: 'The Productive Fracture breaks assumptions open. You reveal what\'s hidden by destroying the frame. Your contrarian instinct isn\'t negative — it\'s generative disruption.',
+    strengths: ['Exposing hidden assumptions', 'Generative disruption', 'Forcing necessary conversations', 'Originality through negation'],
+    weaknesses: ['Reflexive opposition as identity', 'Breaking things that didn\'t need breaking', 'Alienating potential allies', 'Contrarianism without construction'],
+    contentStyle: 'Hot takes with substance, "actually, here\'s why that\'s wrong" pieces, counter-narratives. Debunking content, assumption-challenging threads, provocative reframes.',
+    antiPatterns: 'Avoid agreeable, consensus content. Don\'t do "10 tips" posts or safe recommendations. Skip content where you\'re not challenging something — your audience comes for the friction.',
+  },
+  'NULL': {
+    brief: 'The Receptive Presence absorbs without distortion. Pure reception — you take in everything and let it settle. Your value is in what you notice, not what you broadcast.',
+    strengths: ['Deep listening', 'Noticing what others miss', 'Holding space for complexity', 'Receiving without judgment'],
+    weaknesses: ['Intake with no output', 'Difficulty sharing what you absorb', 'Appearing passive when you\'re processing', 'Accumulation without expression'],
+    contentStyle: 'Observational content, quiet photography, ambient documentation. Minimalist captions that let the work breathe. Collections with little commentary — trust the audience.',
+    antiPatterns: 'Avoid loud, personality-driven content. Don\'t force opinions or hot takes. Skip high-energy presentation styles and performance-based formats. Your strength is stillness.',
+  },
+};
+
+// ── Collapsible archetype accordion row ───────────────────────────────────────
+function ArchetypeRow({ archetype, designation, isActive, isPrimary, isSecondary, distribution, primaryDesignation }) {
+  const [expanded, setExpanded] = useState(false);
+  const IconComponent = ARCHETYPE_ICONS[designation] || CircleDot;
+  const pct = Math.round((distribution || 0) * 100);
+  const glowColor = isActive ? GLOW_BRIGHT : GLOW_DIM;
 
   return (
     <div
-      className={`relative rounded-lg p-4 border transition-all ${
-        isActive
-          ? 'bg-dark-900 border-accent-purple/60 shadow-[0_0_0_1px_rgba(139,92,246,0.3)]'
-          : 'bg-dark-900 border-dark-700'
-      }`}
+      className="border rounded-sm transition-all"
+      style={{
+        borderColor: isActive ? `${GLOW}66` : 'rgba(39,39,42,0.6)',
+        boxShadow: isActive ? `0 0 8px 1px ${GLOW}18, inset 0 0 4px 0 ${GLOW}08` : 'none',
+      }}
     >
-      {isActive && (
-        <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-accent-purple text-white text-xs rounded-sm font-semibold tracking-wide">
-          {Math.round(confidence * 100)}%
+      <button
+        onClick={() => setExpanded((s) => !s)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-dark-800/40 transition-colors"
+      >
+        <div
+          className="w-8 h-8 rounded-sm border flex items-center justify-center flex-shrink-0"
+          style={{ borderColor: isActive ? `${GLOW}44` : '#27272a', backgroundColor: isActive ? `${GLOW}08` : '#0a0a0c' }}
+        >
+          <IconComponent className="w-4 h-4" style={{ color: isActive ? GLOW_BRIGHT : '#52525b' }} />
+        </div>
+        <span className="text-[11px] text-dark-400 font-mono uppercase tracking-[0.28em] w-12 flex-shrink-0">
+          {designation}
+        </span>
+        <span className="font-bold text-white uppercase tracking-tight flex-1 truncate" style={{ color: isActive ? GLOW_BRIGHT : '#d4d4d8' }}>
+          {archetype.glyph || archetype.title}
+        </span>
+        <span className="text-xs text-dark-500 font-mono mr-2">{archetype.title}</span>
+        <span className="text-sm font-mono font-semibold w-12 text-right" style={{ color: isActive ? GLOW_BRIGHT : '#71717a' }}>{pct}%</span>
+        <ChevronDown
+          className={`w-4 h-4 transition-transform flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}
+          style={{ color: '#52525b' }}
+        />
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 pt-1 space-y-3 border-t border-dark-700/40 animate-fade-in">
+          {archetype.essence && (
+            <p className="text-sm text-dark-200 leading-relaxed" style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
+              {archetype.essence}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {archetype.creativeMode && (
+              <span className="px-2 py-0.5 border rounded-sm text-[11px] uppercase tracking-[0.12em] font-mono"
+                style={{ borderColor: `${GLOW}33`, color: GLOW_DIM }}>
+                {archetype.creativeMode}
+              </span>
+            )}
+            {archetype.shadow && (
+              <span
+                className="px-2 py-0.5 border rounded-sm text-[11px] uppercase tracking-[0.08em] font-mono"
+                style={{ borderColor: `${BLOOD}88`, color: BLOOD_TEXT }}
+              >
+                Shadow · {archetype.shadow}
+              </span>
+            )}
+          </div>
+          {isSecondary && primaryDesignation && (
+            <p className="text-xs text-dark-400 leading-relaxed">
+              Secondary influence at {pct}% — tempers your primary <span className="font-mono text-dark-200">{primaryDesignation}</span> with{' '}
+              {archetype.title ? archetype.title.toLowerCase() : 'its'} sensibility.
+            </p>
+          )}
+          {!isPrimary && !isSecondary && pct > 0 && (
+            <p className="text-xs text-dark-500 leading-relaxed">
+              Background resonance at {pct}% — a latent thread in your genome.
+            </p>
+          )}
         </div>
       )}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-sm border border-dark-600 bg-dark-800 flex items-center justify-center">
-            <IconComponent className="w-5 h-5 text-dark-200" />
-          </div>
-          <div>
-            <p className="text-[11px] text-dark-400 font-mono uppercase tracking-[0.28em]">
-              {archetype.designation}
-            </p>
-            <h3 className="font-bold text-white tracking-tight uppercase">{archetype.glyph || archetype.title}</h3>
-            <p className="text-xs text-dark-400">{archetype.title}</p>
-          </div>
-        </div>
-        {archetype.sigil && (
-          <span className="text-[11px] text-dark-300 font-mono uppercase tracking-[0.18em]">
-            {archetype.sigil}
-          </span>
-        )}
-      </div>
-      <p className="text-sm text-dark-300 mb-3 line-clamp-2">{archetype.essence}</p>
-      <span className="inline-flex px-2 py-0.5 border border-dark-600 rounded-sm text-[11px] text-dark-200 uppercase tracking-[0.12em]">
-        {archetype.creativeMode}
-      </span>
     </div>
   );
 }
@@ -107,49 +241,100 @@ function AchievementBadge({ achievement, unlocked }) {
 
   return (
     <div
-      className={`relative p-3 rounded-lg border transition-all ${
+      className={`relative p-3 rounded-sm border transition-all ${
         unlocked
-          ? 'bg-dark-700 border-accent-purple/30'
-          : 'bg-dark-800 border-dark-700 opacity-50'
+          ? 'bg-dark-800/80 border-dark-600/60'
+          : 'bg-dark-900 border-dark-700/40 opacity-40'
       }`}
+      style={unlocked ? { boxShadow: `0 0 6px 1px ${GLOW}0d` } : {}}
     >
       <div className="flex items-center gap-3">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${unlocked ? 'bg-accent-purple/20' : 'bg-dark-700'}`}>
-          <IconComponent className={`w-4 h-4 ${unlocked ? 'text-accent-purple' : 'text-dark-500'}`} />
+        <div
+          className="w-8 h-8 rounded-sm flex items-center justify-center"
+          style={{ backgroundColor: unlocked ? `${GLOW}0d` : '#0a0a0c' }}
+        >
+          <IconComponent className="w-4 h-4" style={{ color: unlocked ? GLOW : '#27272a' }} />
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-white text-sm truncate">{achievement.name}</h4>
-          <p className="text-xs text-dark-400 truncate">{achievement.description}</p>
+          <h4 className="font-medium text-sm truncate" style={{ color: unlocked ? GLOW_BRIGHT : '#52525b' }}>{achievement.name}</h4>
+          <p className="text-xs text-dark-500 truncate">{achievement.description}</p>
         </div>
         {unlocked ? (
-          <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: GLOW_DIM }} />
         ) : (
-          <Lock className="w-4 h-4 text-dark-500 flex-shrink-0" />
+          <Lock className="w-4 h-4 text-dark-600 flex-shrink-0" />
         )}
       </div>
     </div>
   );
 }
 
-function QuizQuestion({ question, onAnswer, selectedAnswer }) {
+function BestWorstQuestion({ question, selection, onSelect }) {
+  const { best, worst } = selection || {};
+
+  const handleCardClick = (cardId) => {
+    if (best === cardId) {
+      onSelect(question.id, { best: null, worst });
+    } else if (worst === cardId) {
+      onSelect(question.id, { best, worst: null });
+    } else if (!best) {
+      onSelect(question.id, { best: cardId, worst });
+    } else if (!worst) {
+      onSelect(question.id, { best, worst: cardId });
+    }
+  };
+
   return (
-    <div className="bg-dark-800 rounded-xl p-6 border border-dark-700">
-      <p className="text-xl text-white mb-6">{question.prompt}</p>
+    <div className="bg-dark-900/80 rounded-sm p-6 border" style={{ borderColor: `${GLOW}1a` }}>
+      <p className="text-xl text-white mb-2">{question.prompt}</p>
+      <p className="text-sm text-dark-400 mb-6">
+        Pick your <span style={{ color: GLOW_BRIGHT }}>best</span> and <span style={{ color: BLOOD_TEXT }}>worst</span> from these cards, then lock to continue.
+      </p>
       <div className="grid grid-cols-2 gap-4">
-        {question.options.map((option) => (
-          <button
-            key={option.value}
-            onClick={() => onAnswer(question.id, option.value, question.weights[option.value])}
-            className={`p-4 rounded-xl border text-left transition-all ${
-              selectedAnswer === option.value
-                ? 'bg-accent-purple/20 border-accent-purple'
-                : 'bg-dark-700 border-dark-600 hover:border-dark-500'
-            }`}
-          >
-            <p className="font-medium text-white">{option.label}</p>
-            <p className="text-sm text-dark-400 mt-1">{option.description}</p>
-          </button>
-        ))}
+        {question.cards.map((card) => {
+          const isBest = best === card.id;
+          const isWorst = worst === card.id;
+          let borderColor = '#27272a';
+          let shadow = 'none';
+          let tag = null;
+          let bg = '#0a0a0c';
+
+          if (isBest) {
+            borderColor = `${GLOW}66`;
+            shadow = `0 0 10px 2px ${GLOW}1a, inset 0 0 6px 0 ${GLOW}08`;
+            tag = 'BEST';
+            bg = `${GLOW}06`;
+          } else if (isWorst) {
+            borderColor = `${BLOOD}aa`;
+            shadow = `0 0 10px 2px ${BLOOD}44, inset 0 0 6px 0 ${BLOOD}11`;
+            tag = 'WORST';
+            bg = `${BLOOD}08`;
+          }
+
+          return (
+            <button
+              key={card.id}
+              onClick={() => handleCardClick(card.id)}
+              className="relative p-4 rounded-sm border text-left transition-all hover:border-dark-500"
+              style={{ borderColor, boxShadow: shadow, backgroundColor: bg }}
+            >
+              {tag && (
+                <span
+                  className="absolute top-2 right-2 px-2 py-0.5 rounded-sm text-[10px] font-mono font-bold uppercase tracking-[0.2em]"
+                  style={{
+                    backgroundColor: isBest ? `${GLOW}11` : `${BLOOD}22`,
+                    color: isBest ? GLOW_BRIGHT : BLOOD_TEXT,
+                    border: `1px solid ${isBest ? `${GLOW}44` : `${BLOOD}66`}`,
+                  }}
+                >
+                  {tag}
+                </span>
+              )}
+              <p className="font-medium text-white pr-14">{card.label}</p>
+              <p className="text-sm text-dark-400 mt-1">{card.description}</p>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -161,6 +346,7 @@ function TasteGenome() {
   const activeProjectId = useAppStore((state) => state.activeProjectId);
   const setActiveFolio = useAppStore((state) => state.setActiveFolio);
   const setActiveProject = useAppStore((state) => state.setActiveProject);
+  const [activeTab, setActiveTab] = useState('genome');
   const [genome, setGenome] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showQuiz, setShowQuiz] = useState(false);
@@ -168,6 +354,9 @@ function TasteGenome() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [quizResponses, setQuizResponses] = useState({});
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
+  const [quizMode, setQuizMode] = useState('standard');
+  const [quizAnsweredCount, setQuizAnsweredCount] = useState(0);
+  const [quizTotalPool, setQuizTotalPool] = useState(18);
   const [allArchetypes, setAllArchetypes] = useState({});
   const [gamification, setGamification] = useState(null);
   const [allAchievements, setAllAchievements] = useState([]);
@@ -180,6 +369,7 @@ function TasteGenome() {
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [prefMessage, setPrefMessage] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showAllArchetypes, setShowAllArchetypes] = useState(false);
   const [signals, setSignals] = useState([]);
   const [govMetrics, setGovMetrics] = useState({
     onBrand: 0,
@@ -199,7 +389,6 @@ function TasteGenome() {
       const result = await genomeApi.get(currentProfileId || null);
       if (result.hasGenome) {
         setGenome(result.genome);
-        // Governance metrics depend on signals + genome
         await loadSignals(result.genome);
       }
       const gamResult = await genomeApi.getGamification(currentProfileId || null);
@@ -212,12 +401,11 @@ function TasteGenome() {
     }
   };
 
-  // Governance metrics from signals (recent, on-brand, off-brand)
   const computeGovernance = (signalsList, g) => {
     if (!g) return;
     const primary = g?.archetype?.primary?.designation;
     const now = Date.now();
-    const horizon = 14 * 24 * 60 * 60 * 1000; // 14 days
+    const horizon = 14 * 24 * 60 * 60 * 1000;
     const recentSignals = (signalsList || []).filter((s) => {
       if (!s.timestamp) return false;
       const ts = new Date(s.timestamp).getTime();
@@ -228,20 +416,18 @@ function TasteGenome() {
     const offBrand = recentSignals.filter((s) => s.data?.archetypeHint && s.data.archetypeHint !== primary).length;
     const total = recentSignals.length || 1;
 
-    // Velocity: blend confidence with signal cadence (cap at 1) then scale to a 5-point headline metric
     const signalsPerDay = total / 14;
-    const cadence = Math.min(1, signalsPerDay / 5); // 5 signals/day → cap
+    const cadence = Math.min(1, signalsPerDay / 5);
     const confidence = g?.archetype?.confidence || 0;
-    const velocityScore = Math.round((confidence * 0.6 + cadence * 0.4) * 5 * 10) / 10; // e.g., up to ~5.0
+    const velocityScore = Math.round((confidence * 0.6 + cadence * 0.4) * 5 * 10) / 10;
 
-    // Trust: blend confidence with on-brand ratio
     const onBrandRatio = onBrand / (onBrand + offBrand || 1);
     const trustScore = Math.round(((confidence * 0.5 + onBrandRatio * 0.5) * 100));
 
     setGovMetrics({
       onBrand,
       offBrand,
-      recent: total === 1 ? 0 : total, // if only filler, show 0
+      recent: total === 1 ? 0 : total,
       velocityScore,
       trustScore,
     });
@@ -258,7 +444,6 @@ function TasteGenome() {
     }
   };
 
-  // Lightweight refresh without global loading overlay
   const refreshGenomeQuietly = async () => {
     try {
       const result = await genomeApi.get(currentProfileId || null);
@@ -285,8 +470,19 @@ function TasteGenome() {
 
   const startQuiz = async () => {
     try {
-      const result = await genomeApi.getQuizQuestions();
+      const result = await genomeApi.getQuizQuestions(currentProfileId || null);
+      if (result.mode === 'complete') {
+        setQuizQuestions([]);
+        setQuizMode('complete');
+        setShowQuiz(true);
+        setQuizAnsweredCount(result.answeredCount || 0);
+        setQuizTotalPool(result.totalPool || 18);
+        return;
+      }
       setQuizQuestions(result.questions || []);
+      setQuizMode(result.mode || 'standard');
+      setQuizAnsweredCount(result.answeredCount || 0);
+      setQuizTotalPool(result.totalPool || 18);
       setShowQuiz(true);
       setCurrentQuestion(0);
       setQuizResponses({});
@@ -295,20 +491,20 @@ function TasteGenome() {
     }
   };
 
-  const handleQuizAnswer = (questionId, value, weights) => {
+  const handleCardSelect = (questionId, selection) => {
     setQuizResponses({
       ...quizResponses,
-      [questionId]: { answer: value, weights }
+      [questionId]: selection
     });
   };
 
   const submitQuiz = async () => {
     setSubmittingQuiz(true);
     try {
-      const responses = Object.entries(quizResponses).map(([questionId, data]) => ({
+      const responses = Object.entries(quizResponses).map(([questionId, sel]) => ({
         questionId,
-        answer: data.answer,
-        weights: data.weights
+        best: sel.best,
+        worst: sel.worst
       }));
       const result = await genomeApi.submitQuiz(responses, currentProfileId || null);
       setGenome(result.summary?.genome || genome);
@@ -375,48 +571,96 @@ function TasteGenome() {
     }
   };
 
+  // ── Shared button style helper ──────────────────────────────────────────────
+  const glowBtnStyle = {
+    borderColor: `${GLOW}44`,
+    color: GLOW,
+    boxShadow: `0 0 8px 1px ${GLOW}11`,
+  };
+  const glowBtnHover = (e) => { e.currentTarget.style.boxShadow = `0 0 14px 3px ${GLOW}22`; };
+  const glowBtnLeave = (e) => { e.currentTarget.style.boxShadow = `0 0 8px 1px ${GLOW}11`; };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-accent-purple border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-t-transparent rounded-full" style={{ borderColor: GLOW_DIM, borderTopColor: 'transparent' }} />
       </div>
     );
   }
 
-  // Quiz View
+  // ── Quiz View — Complete state ──────────────────────────────────────────────
+  if (showQuiz && quizMode === 'complete') {
+    return (
+      <div className="p-6 max-w-2xl mx-auto text-center py-16">
+        <Dna className="w-16 h-16 mx-auto mb-4" style={{ color: GLOW_DIM }} />
+        <h2 className="text-xl font-semibold text-white mb-2 font-mono uppercase tracking-widest">Genome Fully Calibrated</h2>
+        <p className="text-dark-400 max-w-md mx-auto mb-6">
+          All questions answered. Your archetype distribution is as refined as it can get from the quiz alone.
+          Keep using Folio and the content studio to evolve your genome further.
+        </p>
+        <button
+          onClick={() => setShowQuiz(false)}
+          className="px-6 py-3 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all inline-flex items-center gap-2"
+          style={glowBtnStyle}
+          onMouseEnter={glowBtnHover}
+          onMouseLeave={glowBtnLeave}
+        >
+          Back to Genome
+        </button>
+      </div>
+    );
+  }
+
+  // ── Quiz View — Active questions ────────────────────────────────────────────
   if (showQuiz && quizQuestions.length > 0) {
     const question = quizQuestions[currentQuestion];
     const isLastQuestion = currentQuestion === quizQuestions.length - 1;
-    const allAnswered = Object.keys(quizResponses).length === quizQuestions.length;
+    const currentSel = quizResponses[question.id];
+    const isLocked = currentSel?.best && currentSel?.worst;
+    const allAnswered = quizQuestions.every(q => quizResponses[q.id]?.best && quizResponses[q.id]?.worst);
+    const accentColor = quizMode === 'honing' ? HONE_ACCENT : GLOW;
+    const totalProgress = quizAnsweredCount + currentQuestion + 1;
 
     return (
       <div className="p-6 max-w-2xl mx-auto">
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-xl font-bold text-white">Discover Your Archetype</h1>
+            <div>
+              <h1 className="text-xl font-bold text-white font-mono uppercase tracking-widest">
+                {quizMode === 'honing' ? 'Deep Honing' : 'Discover Your Archetype'}
+              </h1>
+              {quizMode === 'honing' && (
+                <p className="text-xs mt-1 font-mono uppercase tracking-widest" style={{ color: HONE_ACCENT }}>
+                  Probing areas of uncertainty
+                </p>
+              )}
+            </div>
             <span className="text-sm text-dark-400 font-mono">
               {currentQuestion + 1}/{quizQuestions.length}
             </span>
           </div>
-          <div className="h-1 bg-dark-700 rounded-full overflow-hidden">
+          <div className="h-1 bg-dark-700/60 rounded-full overflow-hidden">
             <div
-              className="h-full bg-accent-purple transition-all"
-              style={{ width: `${((currentQuestion + 1) / quizQuestions.length) * 100}%` }}
+              className="h-full transition-all"
+              style={{ width: `${Math.min(100, (totalProgress / quizTotalPool) * 100)}%`, background: `linear-gradient(90deg, ${accentColor}88, ${accentColor})` }}
             />
           </div>
+          <p className="text-[11px] text-dark-500 font-mono mt-1 text-right">
+            {quizAnsweredCount + Object.keys(quizResponses).filter(k => quizResponses[k]?.best && quizResponses[k]?.worst).length}/{quizTotalPool} total
+          </p>
         </div>
 
-        <QuizQuestion
+        <BestWorstQuestion
           question={question}
-          onAnswer={handleQuizAnswer}
-          selectedAnswer={quizResponses[question.id]?.answer}
+          selection={quizResponses[question.id]}
+          onSelect={handleCardSelect}
         />
 
         <div className="flex justify-between mt-6">
           <button
             onClick={prevQuestion}
             disabled={currentQuestion === 0}
-            className="px-4 py-2 text-dark-400 hover:text-white disabled:opacity-50 transition-colors"
+            className="px-4 py-2 text-dark-400 hover:text-white disabled:opacity-50 transition-colors font-mono uppercase tracking-widest text-sm"
           >
             Back
           </button>
@@ -424,18 +668,24 @@ function TasteGenome() {
             <button
               onClick={submitQuiz}
               disabled={!allAnswered || submittingQuiz}
-              className="px-6 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all disabled:opacity-50 flex items-center gap-2"
+              style={glowBtnStyle}
+              onMouseEnter={glowBtnHover}
+              onMouseLeave={glowBtnLeave}
             >
               {submittingQuiz ? 'Analyzing...' : 'Reveal Archetype'}
-              <Sparkles className="w-4 h-4" />
+              <Dna className="w-4 h-4" />
             </button>
           ) : (
             <button
               onClick={nextQuestion}
-              disabled={!quizResponses[question.id]}
-              className="px-6 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+              disabled={!isLocked}
+              className="px-6 py-2 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all disabled:opacity-50 flex items-center gap-2"
+              style={glowBtnStyle}
+              onMouseEnter={glowBtnHover}
+              onMouseLeave={glowBtnLeave}
             >
-              Next
+              Lock & Continue
               <ChevronRight className="w-4 h-4" />
             </button>
           )}
@@ -444,384 +694,564 @@ function TasteGenome() {
     );
   }
 
-  // Main Genome View
+  const primaryArch = genome?.archetype?.primary;
+  const secondaryArch = genome?.archetype?.secondary;
+  const primaryDossier = primaryArch ? ARCHETYPE_DOSSIER[primaryArch.designation] : null;
+
+  // ── Main Genome View ────────────────────────────────────────────────────────
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <Dna className="w-7 h-7 text-accent-purple" />
-            Subtaste · Taste Genome
+            <Dna className="w-7 h-7" style={{ color: GLOW, filter: `drop-shadow(0 0 4px ${GLOW}44)` }} />
+            <span className="font-mono uppercase tracking-widest">Subtaste · Taste Genome</span>
           </h1>
-          <p className="text-dark-400 mt-1">Your creative DNA profile, wired into Folio and the content studio.</p>
-          {genome?.archetype?.primary && (
+          <p className="text-dark-500 mt-1 text-sm">Your creative DNA profile, wired into Folio and the content studio.</p>
+          {primaryArch && (
             <div className="mt-2 flex items-center gap-3">
-              <span className="px-3 py-1 bg-dark-900 border border-dark-700 rounded-sm text-xs text-dark-100 font-mono tracking-[0.3em] uppercase">
-                {genome.archetype.primary.designation}
+              <span
+                className="px-3 py-1 bg-dark-900 border rounded-sm text-xs font-mono tracking-[0.3em] uppercase"
+                style={{ borderColor: `${GLOW}44`, color: GLOW }}
+              >
+                {primaryArch.designation}
               </span>
-              <span className="text-lg text-white font-black uppercase tracking-[0.08em]">
-                {genome.archetype.primary.glyph}
+              <span className="text-lg font-black uppercase tracking-[0.08em]" style={{ color: GLOW_BRIGHT }}>
+                {primaryArch.glyph}
               </span>
-              {genome.archetype.primary.sigil && (
-                <span className="text-xs text-dark-300 font-mono uppercase tracking-[0.14em]">
-                  {genome.archetype.primary.sigil}
-                </span>
-              )}
             </div>
           )}
         </div>
         <button
           onClick={startQuiz}
-          className="px-4 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors flex items-center gap-2"
+          className="px-4 py-2 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all flex items-center gap-2"
+          style={glowBtnStyle}
+          onMouseEnter={glowBtnHover}
+          onMouseLeave={glowBtnLeave}
         >
-          <Sparkles className="w-4 h-4" />
+          <Scan className="w-4 h-4" />
           {genome ? 'Retake Quiz' : 'Discover Archetype'}
         </button>
       </div>
 
-      {/* Governance & Velocity */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-        <div className="p-4 bg-dark-900 border border-dark-700 rounded-lg">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-dark-400 uppercase tracking-[0.14em]">Resonance Velocity</span>
-            <Zap className="w-4 h-4 text-accent-purple" />
-          </div>
-          <p className="text-2xl font-bold text-white">{govMetrics.velocityScore.toFixed(1)}</p>
-          <p className="text-xs text-dark-400">Confidence × recent signal cadence (last 14d)</p>
-        </div>
-        <div className="p-4 bg-dark-900 border border-dark-700 rounded-lg">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-dark-400 uppercase tracking-[0.14em]">Trust / On-Brand</span>
-            <Shield className="w-4 h-4 text-accent-purple" />
-          </div>
-          <p className="text-2xl font-bold text-white">{govMetrics.trustScore}%</p>
-          <p className="text-xs text-dark-400">
-            On-brand ratio ({govMetrics.onBrand} vs {govMetrics.offBrand} off-brand hints)
-          </p>
-        </div>
-        <div className="p-4 bg-dark-900 border border-dark-700 rounded-lg">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-dark-400 uppercase tracking-[0.14em]">Recent Signals</span>
-            <Activity className="w-4 h-4 text-accent-purple" />
-          </div>
-          <p className="text-2xl font-bold text-white">{govMetrics.recent || 0}</p>
-          <p className="text-xs text-dark-400">Last 14 days logged (choice/likert)</p>
-        </div>
+      {/* Tabs */}
+      <div className="flex items-center gap-1 mb-6 border-b border-dark-700/60">
+        {[
+          { id: 'genome', label: 'Genome' },
+          { id: 'tuning', label: 'Tuning' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2.5 text-sm font-mono uppercase tracking-widest transition-colors relative ${
+              activeTab === tab.id
+                ? 'text-white'
+                : 'text-dark-500 hover:text-dark-300'
+            }`}
+          >
+            {tab.label}
+            {activeTab === tab.id && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ backgroundColor: GLOW_DIM }} />
+            )}
+          </button>
+        ))}
       </div>
 
-      {/* Subtaste inputs only (training moved to /training) */}
-      <div className="grid grid-cols-1 gap-4 mb-6">
-        <div className="bg-dark-900 rounded-lg border border-dark-700 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2 uppercase tracking-[0.12em]">
-              <Heart className="w-4 h-4 text-accent-purple" />
-              Subtaste Inputs
-            </h3>
-            <span className="text-[11px] text-dark-500 font-mono uppercase tracking-[0.16em]">Profile-aware</span>
+      {/* ── Tuning Tab ───────────────────────────────────────────────────────── */}
+      {activeTab === 'tuning' && (
+        <div className="space-y-6">
+          <div className="bg-dark-900/80 rounded-sm border p-4" style={{ borderColor: `${GLOW}11` }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-white flex items-center gap-2 uppercase tracking-[0.12em] font-mono">
+                <FileText className="w-4 h-4" style={{ color: GLOW_DIM }} />
+                Subtaste Inputs
+              </h3>
+              <span className="text-[11px] text-dark-600 font-mono uppercase tracking-[0.16em]">Profile-aware</span>
+            </div>
+            <p className="text-sm text-dark-400 mb-4">
+              Supply high-signal influences. Stored against your profile and Folio IDs.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block text-xs text-dark-500 mb-1">Active Folio</label>
+                <input
+                  type="text"
+                  value={activeFolioId || ''}
+                  onChange={(e) => setActiveFolio(e.target.value || null)}
+                  className="input w-full"
+                  placeholder="folio workspace id or slug"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-dark-500 mb-1">Active Project</label>
+                <input
+                  type="text"
+                  value={activeProjectId || ''}
+                  onChange={(e) => setActiveProject(e.target.value || null)}
+                  className="input w-full"
+                  placeholder="project id (optional)"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-dark-500 mb-1">Authors / thinkers</label>
+                <textarea
+                  value={preferences.authors}
+                  onChange={(e) => setPreferences({ ...preferences, authors: e.target.value })}
+                  className="input w-full min-h-[70px] resize-none"
+                  placeholder="Ursula Le Guin, Paul Graham, James Clear..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-dark-500 mb-1">Topics & niches</label>
+                <textarea
+                  value={preferences.topics}
+                  onChange={(e) => setPreferences({ ...preferences, topics: e.target.value })}
+                  className="input w-full min-h-[70px] resize-none"
+                  placeholder="AI agents, film color grading, creator economy..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-dark-500 mb-1">Books / media</label>
+                <textarea
+                  value={preferences.books}
+                  onChange={(e) => setPreferences({ ...preferences, books: e.target.value })}
+                  className="input w-full min-h-[70px] resize-none"
+                  placeholder="Story by McKee, The War of Art, Dark Forest..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-dark-500 mb-1">Voices to emulate</label>
+                <textarea
+                  value={preferences.influences}
+                  onChange={(e) => setPreferences({ ...preferences, influences: e.target.value })}
+                  className="input w-full min-h-[70px] resize-none"
+                  placeholder="MrBeast pacing, Ali Abdaal clarity, ContraPoints depth..."
+                />
+              </div>
+            </div>
+            {prefMessage && <p className="text-xs text-dark-400 mt-2">{prefMessage}</p>}
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={handleSavePreferences}
+                disabled={savingPrefs}
+                className="px-4 py-2 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all disabled:opacity-50 flex items-center gap-2"
+                style={glowBtnStyle}
+                onMouseEnter={glowBtnHover}
+                onMouseLeave={glowBtnLeave}
+              >
+                {savingPrefs ? 'Saving...' : 'Save to Taste Genome'}
+              </button>
+            </div>
           </div>
-          <p className="text-sm text-dark-300 mb-4">
-            Supply high-signal influences. Stored against your profile and Folio IDs.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-            <div>
-              <label className="block text-xs text-dark-400 mb-1">Active Folio</label>
-              <input
-                type="text"
-                value={activeFolioId || ''}
-                onChange={(e) => setActiveFolio(e.target.value || null)}
-                className="input w-full"
-                placeholder="folio workspace id or slug"
-              />
+
+          {/* Governance & Velocity */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-4 bg-dark-900/80 border rounded-sm" style={{ borderColor: `${GLOW}11` }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-dark-500 uppercase tracking-[0.14em] font-mono">Resonance Velocity</span>
+                <Activity className="w-4 h-4" style={{ color: GLOW_DIM }} />
+              </div>
+              <p className="text-2xl font-bold text-white font-mono">{govMetrics.velocityScore.toFixed(1)}</p>
+              <p className="text-xs text-dark-500">Confidence × recent signal cadence (last 14d)</p>
             </div>
-            <div>
-              <label className="block text-xs text-dark-400 mb-1">Active Project</label>
-              <input
-                type="text"
-                value={activeProjectId || ''}
-                onChange={(e) => setActiveProject(e.target.value || null)}
-                className="input w-full"
-                placeholder="project id (optional)"
-              />
+            <div className="p-4 bg-dark-900/80 border rounded-sm" style={{ borderColor: `${GLOW}11` }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-dark-500 uppercase tracking-[0.14em] font-mono">Trust / On-Brand</span>
+                <Shield className="w-4 h-4" style={{ color: GLOW_DIM }} />
+              </div>
+              <p className="text-2xl font-bold text-white font-mono">{govMetrics.trustScore}%</p>
+              <p className="text-xs text-dark-500">
+                On-brand ratio ({govMetrics.onBrand} vs {govMetrics.offBrand} off-brand hints)
+              </p>
             </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-dark-400 mb-1">Authors / thinkers</label>
-              <textarea
-                value={preferences.authors}
-                onChange={(e) => setPreferences({ ...preferences, authors: e.target.value })}
-                className="input w-full min-h-[70px] resize-none"
-                placeholder="Ursula Le Guin, Paul Graham, James Clear..."
-              />
+            <div className="p-4 bg-dark-900/80 border rounded-sm" style={{ borderColor: `${GLOW}11` }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-dark-500 uppercase tracking-[0.14em] font-mono">Recent Signals</span>
+                <Scan className="w-4 h-4" style={{ color: GLOW_DIM }} />
+              </div>
+              <p className="text-2xl font-bold text-white font-mono">{govMetrics.recent || 0}</p>
+              <p className="text-xs text-dark-500">Last 14 days logged (choice/likert)</p>
             </div>
-            <div>
-              <label className="block text-xs text-dark-400 mb-1">Topics & niches</label>
-              <textarea
-                value={preferences.topics}
-                onChange={(e) => setPreferences({ ...preferences, topics: e.target.value })}
-                className="input w-full min-h-[70px] resize-none"
-                placeholder="AI agents, film color grading, creator economy..."
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-dark-400 mb-1">Books / media</label>
-              <textarea
-                value={preferences.books}
-                onChange={(e) => setPreferences({ ...preferences, books: e.target.value })}
-                className="input w-full min-h-[70px] resize-none"
-                placeholder="Story by McKee, The War of Art, Dark Forest..."
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-dark-400 mb-1">Voices to emulate</label>
-              <textarea
-                value={preferences.influences}
-                onChange={(e) => setPreferences({ ...preferences, influences: e.target.value })}
-                className="input w-full min-h-[70px] resize-none"
-                placeholder="MrBeast pacing, Ali Abdaal clarity, ContraPoints depth..."
-              />
-            </div>
-          </div>
-          {prefMessage && <p className="text-xs text-dark-300 mt-2">{prefMessage}</p>}
-          <div className="mt-3 flex justify-end">
-            <button
-              onClick={handleSavePreferences}
-              disabled={savingPrefs}
-              className="px-4 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              {savingPrefs ? 'Saving...' : 'Save to Taste Genome'}
-            </button>
           </div>
         </div>
-      </div>
+      )}
 
-      {!genome ? (
-        // No genome yet
-        <div className="text-center py-16 bg-dark-800 rounded-xl border border-dark-700">
-          <Dna className="w-16 h-16 text-dark-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-white mb-2">Discover Your Creative Archetype</h2>
-          <p className="text-dark-400 max-w-md mx-auto mb-6">
-            Take a quick 3-question quiz to unlock your unique taste genome and get personalized content recommendations.
+      {/* ── Genome Tab — No genome yet ─────────────────────────────────────── */}
+      {activeTab === 'genome' && !genome && (
+        <div className="text-center py-16 bg-dark-900/80 rounded-sm border" style={{ borderColor: `${GLOW}11` }}>
+          <Dna className="w-16 h-16 mx-auto mb-4" style={{ color: '#27272a' }} />
+          <h2 className="text-xl font-semibold text-white mb-2 font-mono uppercase tracking-widest">Discover Your Creative Archetype</h2>
+          <p className="text-dark-500 max-w-md mx-auto mb-6">
+            Take the archetype quiz to unlock your unique taste genome and get personalized content recommendations.
           </p>
           <button
             onClick={startQuiz}
-            className="px-6 py-3 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors inline-flex items-center gap-2"
+            className="px-6 py-3 border rounded-sm font-mono uppercase tracking-widest text-sm transition-all inline-flex items-center gap-2"
+            style={glowBtnStyle}
+            onMouseEnter={glowBtnHover}
+            onMouseLeave={glowBtnLeave}
           >
-            <Sparkles className="w-5 h-5" />
+            <Scan className="w-5 h-5" />
             Start Quiz
           </button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Primary Archetype */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Main Archetype Card */}
-            {genome.archetype?.primary && (
-              <div className="bg-dark-900 rounded-lg p-6 border border-dark-700">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="w-18 min-w-[72px] h-18 min-h-[72px] rounded-sm border border-dark-700 bg-dark-800 flex items-center justify-center">
-                    {(() => {
-                      const IconComponent = ARCHETYPE_ICONS[genome.archetype.primary.designation] || Hexagon;
-                      return <IconComponent className="w-8 h-8 text-dark-200" />;
-                    })()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-dark-400 font-mono tracking-[0.3em] uppercase mb-1">
-                      {genome.archetype.primary.designation}
-                    </p>
-                    <h2 className="text-4xl font-black text-white uppercase font-mono tracking-[0.16em] leading-tight">
-                      {genome.archetype.primary.glyph}
-                    </h2>
-                    <p className="text-sm text-dark-300 font-semibold mt-1 uppercase tracking-[0.08em]">
-                      {genome.archetype.primary.title}
-                      {genome.archetype.primary.sigil ? ` · ${genome.archetype.primary.sigil}` : ''}
-                    </p>
-                  </div>
-                  <div className="ml-auto text-right">
-                    <p className="text-3xl font-bold text-white">
-                      {Math.round((genome.archetype.primary.confidence || 0) * 100)}%
-                    </p>
-                    <p className="text-xs text-dark-400 tracking-wide">confidence</p>
-                  </div>
+      )}
+
+      {/* ── Genome Tab — Has genome ────────────────────────────────────────── */}
+      {activeTab === 'genome' && genome && (
+        <div className="space-y-6">
+
+          {/* ── Primary Archetype Dossier — full width ── */}
+          {primaryArch && (
+            <div
+              className="bg-dark-900/80 rounded-sm p-6 border"
+              style={{ borderColor: `${GLOW}33`, boxShadow: `0 0 12px 2px ${GLOW}0d, inset 0 0 6px 0 ${GLOW}05` }}
+            >
+              <div className="flex items-start gap-4 mb-4">
+                <div
+                  className="w-18 min-w-[72px] h-18 min-h-[72px] rounded-sm border bg-dark-900 flex items-center justify-center"
+                  style={{ borderColor: `${GLOW}33` }}
+                >
+                  {(() => {
+                    const IconComponent = ARCHETYPE_ICONS[primaryArch.designation] || CircleDot;
+                    return <IconComponent className="w-8 h-8" style={{ color: GLOW, filter: `drop-shadow(0 0 6px ${GLOW}44)` }} />;
+                  })()}
                 </div>
-                <p className="text-dark-200 mb-4 leading-relaxed">{genome.archetype.primary.essence}</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 border border-dark-600 text-dark-100 rounded-sm text-xs uppercase tracking-[0.12em]">
-                    {genome.archetype.primary.creativeMode}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-mono tracking-[0.3em] uppercase mb-1" style={{ color: GLOW_DIM }}>
+                    {primaryArch.designation}
+                  </p>
+                  <h2 className="text-4xl font-black uppercase font-mono tracking-[0.16em] leading-tight" style={{ color: GLOW_BRIGHT }}>
+                    {primaryArch.glyph}
+                  </h2>
+                  <p className="text-sm font-semibold mt-1 uppercase tracking-[0.08em]" style={{ color: GLOW_DIM }}>
+                    {primaryArch.title}
+                  </p>
+                </div>
+                <div className="ml-auto text-right">
+                  <p className="text-3xl font-bold font-mono" style={{ color: GLOW }}>
+                    {Math.round((primaryArch.confidence || 0) * 100)}%
+                  </p>
+                  <p className="text-xs tracking-wide font-mono uppercase" style={{ color: '#52525b' }}>confidence</p>
+                </div>
+              </div>
+
+              {/* Essence */}
+              {primaryArch.essence && (
+                <p
+                  className="mb-4 leading-relaxed"
+                  style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', color: GLOW_DIM }}
+                >
+                  {primaryArch.essence}
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span
+                  className="px-3 py-1 border rounded-sm text-xs uppercase tracking-[0.12em] font-mono"
+                  style={{ borderColor: `${GLOW}33`, color: GLOW }}
+                >
+                  {primaryArch.creativeMode}
+                </span>
+                {primaryArch.shadow && (
+                  <span
+                    className="px-3 py-1 border rounded-sm text-xs uppercase tracking-[0.08em] font-mono"
+                    style={{ borderColor: `${BLOOD}88`, color: BLOOD_TEXT }}
+                  >
+                    Shadow · {primaryArch.shadow}
                   </span>
-                  {genome.archetype.primary.shadow && (
-                    <span className="px-3 py-1 border border-dark-700 text-dark-300 rounded-sm text-xs uppercase tracking-[0.08em]">
-                      Shadow · {genome.archetype.primary.shadow}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
-            )}
 
-            {/* Secondary Archetype */}
-            {genome.archetype?.secondary && (
-              <div className="bg-dark-900 rounded-lg p-4 border border-dark-700">
-                <p className="text-xs text-dark-400 mb-2 uppercase tracking-[0.14em]">Secondary Influence</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-sm border border-dark-700 bg-dark-800 flex items-center justify-center">
-                    {(() => {
-                      const IconComponent = ARCHETYPE_ICONS[genome.archetype.secondary.designation] || Hexagon;
-                      return <IconComponent className="w-5 h-5 text-dark-200" />;
-                    })()}
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-dark-300">
-                      {genome.archetype.secondary.designation}
-                    </p>
-                    <h3 className="font-semibold text-white uppercase tracking-[0.08em]">{genome.archetype.secondary.glyph}</h3>
-                    <p className="text-xs text-dark-400">
-                      {Math.round((genome.archetype.secondary.confidence || 0) * 100)}% influence
-                    </p>
-                  </div>
+              {/* Twin narrative */}
+              {secondaryArch && (
+                <p className="text-sm leading-relaxed border-t pt-3" style={{ borderColor: `${GLOW}11`, color: GLOW_DIM }}>
+                  Your primary archetype <span className="font-mono" style={{ color: GLOW_BRIGHT }}>{primaryArch.glyph}</span> is tempered by a secondary{' '}
+                  <span className="font-mono" style={{ color: GLOW_BRIGHT }}>{secondaryArch.glyph}</span> influence at{' '}
+                  {Math.round((secondaryArch.confidence || 0) * 100)}%. This blend grounds your {primaryArch.title?.toLowerCase() || 'primary'} drive with{' '}
+                  {secondaryArch.title?.toLowerCase() || 'secondary'} sensibility — a dual-frequency signature unique to your genome.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Secondary Archetype Card — full width ── */}
+          {secondaryArch && (
+            <div
+              className="bg-dark-900/80 rounded-sm p-4 border"
+              style={{ borderColor: `${GLOW}1a`, boxShadow: `0 0 8px 1px ${GLOW}08` }}
+            >
+              <p className="text-xs mb-2 uppercase tracking-[0.14em] font-mono" style={{ color: '#52525b' }}>Secondary Influence</p>
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-12 h-12 rounded-sm border bg-dark-900 flex items-center justify-center"
+                  style={{ borderColor: `${GLOW}22` }}
+                >
+                  {(() => {
+                    const IconComponent = ARCHETYPE_ICONS[secondaryArch.designation] || CircleDot;
+                    return <IconComponent className="w-5 h-5" style={{ color: GLOW_DIM, filter: `drop-shadow(0 0 4px ${GLOW}33)` }} />;
+                  })()}
                 </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-mono uppercase tracking-[0.2em]" style={{ color: '#52525b' }}>
+                    {secondaryArch.designation}
+                  </p>
+                  <h3 className="font-semibold uppercase tracking-[0.08em]" style={{ color: GLOW }}>{secondaryArch.glyph}</h3>
+                  <p className="text-xs" style={{ color: '#52525b' }}>
+                    {Math.round((secondaryArch.confidence || 0) * 100)}% influence
+                  </p>
+                </div>
+                {secondaryArch.essence && (
+                  <p
+                    className="hidden md:block text-xs max-w-xs leading-relaxed"
+                    style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', color: '#52525b' }}
+                  >
+                    {secondaryArch.essence.length > 120 ? secondaryArch.essence.slice(0, 120) + '...' : secondaryArch.essence}
+                  </p>
+                )}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* All Archetypes */}
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-4">All Archetypes</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {Object.entries(allArchetypes).map(([designation, archetype]) => (
-                  <ArchetypeCard
-                    key={designation}
-                    archetype={{ ...archetype, designation }}
-                    isActive={genome.archetype?.primary?.designation === designation}
-                    confidence={genome.archetype?.distribution?.[designation] || 0}
+          {/* ── Full Genome Detail + Tier/Achievements side-by-side ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Left — Full Genome Detail dossier */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-dark-900/80 rounded-sm border p-4" style={{ borderColor: `${GLOW}11` }}>
+                <button
+                  onClick={() => setShowDetails((s) => !s)}
+                  className="w-full flex items-center justify-between text-left"
+                >
+                  <span className="text-sm font-semibold text-white uppercase tracking-[0.12em] font-mono">Full Genome Detail</span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${showDetails ? 'rotate-180' : ''}`}
+                    style={{ color: '#52525b' }}
                   />
-                ))}
+                </button>
+                {showDetails && (
+                  <div className="mt-4 space-y-5">
+
+                    {/* Archetype Briefing */}
+                    {primaryDossier && (
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: GLOW_DIM }}>Briefing</p>
+                          <p className="text-sm leading-relaxed" style={{ color: '#d4d4d8', fontFamily: 'Georgia, serif' }}>
+                            {primaryDossier.brief}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: GLOW_DIM }}>Strengths</p>
+                            <ul className="space-y-1">
+                              {primaryDossier.strengths.map((s, i) => (
+                                <li key={i} className="text-sm flex items-start gap-2" style={{ color: '#a1a1aa' }}>
+                                  <span className="mt-1.5 w-1 h-1 rounded-full flex-shrink-0" style={{ backgroundColor: GLOW_DIM }} />
+                                  {s}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: BLOOD_TEXT }}>Weaknesses</p>
+                            <ul className="space-y-1">
+                              {primaryDossier.weaknesses.map((w, i) => (
+                                <li key={i} className="text-sm flex items-start gap-2" style={{ color: '#71717a' }}>
+                                  <span className="mt-1.5 w-1 h-1 rounded-full flex-shrink-0" style={{ backgroundColor: `${BLOOD}cc` }} />
+                                  {w}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: GLOW_DIM }}>Content Style — Lean Into</p>
+                          <p className="text-sm leading-relaxed" style={{ color: '#a1a1aa' }}>{primaryDossier.contentStyle}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: BLOOD_TEXT }}>Anti-Patterns — Stay Away</p>
+                          <p className="text-sm leading-relaxed" style={{ color: '#71717a' }}>{primaryDossier.antiPatterns}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Distribution */}
+                    {genome?.archetype?.distribution && (
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: GLOW_DIM }}>Distribution</p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {Object.entries(genome.archetype.distribution).map(([designation, prob]) => {
+                            const isP = designation === primaryArch?.designation;
+                            return (
+                              <div
+                                key={designation}
+                                className="rounded-sm border p-2 text-sm flex items-center justify-between font-mono"
+                                style={{
+                                  borderColor: isP ? `${GLOW}33` : '#1c1c1e',
+                                  backgroundColor: '#0a0a0c',
+                                  boxShadow: isP ? `0 0 6px 1px ${GLOW}0d` : 'none',
+                                }}
+                              >
+                                <span className="tracking-[0.12em]" style={{ color: isP ? GLOW : '#52525b' }}>{designation}</span>
+                                <span className="font-semibold" style={{ color: isP ? GLOW_BRIGHT : '#71717a' }}>{Math.round(prob * 100)}%</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Top Keywords */}
+                    {genome?.keywords && (
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.12em] mb-2 font-mono" style={{ color: GLOW_DIM }}>Top Keywords</p>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(genome.keywords?.content?.tone || {})
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 6)
+                            .map(([kw, score]) => (
+                              <span
+                                key={kw}
+                                className="px-2 py-1 rounded-sm border text-xs font-mono"
+                                style={{ borderColor: '#1c1c1e', color: GLOW_DIM }}
+                                title={String(score)}
+                              >
+                                {kw}
+                              </span>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Full Genome Detail */}
-            <div className="bg-dark-900 rounded-lg border border-dark-700 p-4">
-              <button
-                onClick={() => setShowDetails((s) => !s)}
-                className="w-full flex items-center justify-between text-left"
-              >
-                <span className="text-sm font-semibold text-white uppercase tracking-[0.12em]">Full Genome Detail</span>
-                <ChevronDown className={`w-4 h-4 text-dark-400 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
-              </button>
-              {showDetails && (
-                <div className="mt-4 space-y-3">
-                  {genome?.archetype?.distribution && (
-                    <div>
-                      <p className="text-xs text-dark-400 uppercase tracking-[0.12em] mb-2">Distribution</p>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {Object.entries(genome.archetype.distribution).map(([designation, prob]) => (
-                          <div key={designation} className="rounded border border-dark-700 p-2 bg-dark-950 text-sm text-dark-200 flex items-center justify-between">
-                            <span className="font-mono tracking-[0.12em]">{designation}</span>
-                            <span className="text-white font-semibold">{Math.round(prob * 100)}%</span>
-                          </div>
-                        ))}
-                      </div>
+            {/* Right — Tier, Achievements, Keywords */}
+            <div className="space-y-6">
+              {/* XP & Tier */}
+              {gamification && (
+                <div className="bg-dark-900/80 rounded-sm p-4 border" style={{ borderColor: `${GLOW}11` }}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div
+                      className="w-12 h-12 rounded-sm flex items-center justify-center"
+                      style={{ backgroundColor: `${GLOW}08` }}
+                    >
+                      <Award className="w-6 h-6" style={{ color: GLOW_DIM, filter: `drop-shadow(0 0 4px ${GLOW}33)` }} />
                     </div>
-                  )}
-                  {genome?.keywords && (
                     <div>
-                      <p className="text-xs text-dark-400 uppercase tracking-[0.12em] mb-2">Top Keywords</p>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(genome.keywords?.content?.tone || {})
-                          .sort((a, b) => b[1] - a[1])
-                          .slice(0, 6)
-                          .map(([kw, score]) => (
-                            <span key={kw} className="px-2 py-1 rounded border border-dark-700 text-xs text-dark-100" title={String(score)}>
-                              {kw}
-                            </span>
-                          ))}
-                      </div>
+                      <p className="text-sm font-mono uppercase tracking-widest" style={{ color: '#52525b' }}>Current Tier</p>
+                      <h3 className="font-semibold" style={{ color: GLOW }}>{gamification.tier?.name || 'Nascent'}</h3>
                     </div>
-                  )}
+                  </div>
+
+                  <div className="mb-4">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-mono uppercase tracking-widest" style={{ color: '#52525b' }}>XP</span>
+                      <span className="font-mono" style={{ color: GLOW }}>{gamification.xp || 0}</span>
+                    </div>
+                    <div className="h-2 bg-dark-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full transition-all rounded-full"
+                        style={{
+                          width: `${Math.min(100, (gamification.xp || 0) / 20)}%`,
+                          background: `linear-gradient(90deg, ${GLOW}55, ${GLOW}aa)`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1.5" style={{ color: GLOW_DIM }}>
+                      <Flame className="w-4 h-4" />
+                      <span className="font-mono">{gamification.streak || 0} day streak</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Achievements */}
+              <div className="bg-dark-900/80 rounded-sm p-4 border" style={{ borderColor: `${GLOW}11` }}>
+                <h3 className="font-semibold text-white mb-4 flex items-center gap-2 font-mono uppercase tracking-widest text-sm">
+                  <Trophy className="w-5 h-5" style={{ color: GLOW_DIM, filter: `drop-shadow(0 0 3px ${GLOW}33)` }} />
+                  Achievements
+                </h3>
+                <div className="space-y-2">
+                  {allAchievements.slice(0, 6).map((achievement) => (
+                    <AchievementBadge
+                      key={achievement.id}
+                      achievement={achievement}
+                      unlocked={gamification?.achievements?.some(a => a.id === achievement.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Top Keywords */}
+              {genome?.keywords && (
+                <div className="bg-dark-900/80 rounded-sm p-4 border" style={{ borderColor: `${GLOW}11` }}>
+                  <h3 className="font-semibold text-white mb-3 flex items-center gap-2 font-mono uppercase tracking-widest text-sm">
+                    <Crosshair className="w-5 h-5" style={{ color: GLOW_DIM, filter: `drop-shadow(0 0 3px ${GLOW}33)` }} />
+                    Top Keywords
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(genome.keywords.visual || {})
+                      .flatMap(([cat, keywords]) =>
+                        Object.entries(keywords)
+                          .filter(([, score]) => score > 0.5)
+                          .map(([kw, score]) => ({ keyword: kw, score }))
+                      )
+                      .sort((a, b) => b.score - a.score)
+                      .slice(0, 10)
+                      .map(({ keyword, score }) => (
+                        <span
+                          key={keyword}
+                          className="px-2 py-1 rounded-sm text-sm font-mono border"
+                          style={{ borderColor: '#1c1c1e', color: GLOW_DIM, backgroundColor: '#0a0a0c' }}
+                          title={`Score: ${score.toFixed(2)}`}
+                        >
+                          {keyword}
+                        </span>
+                      ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Sidebar - Gamification */}
-          <div className="space-y-6">
-            {/* XP & Tier */}
-            {gamification && (
-              <div className="bg-dark-800 rounded-xl p-4 border border-dark-700">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-accent-purple/20 flex items-center justify-center">
-                    <Award className="w-6 h-6 text-accent-purple" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-dark-400">Current Tier</p>
-                    <h3 className="font-semibold text-white">{gamification.tier?.name || 'Nascent'}</h3>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-dark-400">XP</span>
-                    <span className="text-white font-mono">{gamification.xp || 0}</span>
-                  </div>
-                  <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-accent-purple transition-all"
-                      style={{ width: `${Math.min(100, (gamification.xp || 0) / 20)}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1.5 text-orange-400">
-                    <Flame className="w-4 h-4" />
-                    <span>{gamification.streak || 0} day streak</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Achievements */}
-            <div className="bg-dark-800 rounded-xl p-4 border border-dark-700">
-              <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-accent-purple" />
-                Achievements
-              </h3>
-              <div className="space-y-2">
-                {allAchievements.slice(0, 6).map((achievement) => (
-                  <AchievementBadge
-                    key={achievement.id}
-                    achievement={achievement}
-                    unlocked={gamification?.achievements?.some(a => a.id === achievement.id)}
+          {/* ── All Archetypes — Collapsible Section — full width ── */}
+          <div className="bg-dark-900/80 rounded-sm border p-4" style={{ borderColor: `${GLOW}11` }}>
+            <button
+              onClick={() => setShowAllArchetypes((s) => !s)}
+              className="w-full flex items-center justify-between text-left"
+            >
+              <h3 className="text-sm font-semibold text-white uppercase tracking-[0.14em] font-mono">All Archetypes</h3>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${showAllArchetypes ? 'rotate-180' : ''}`}
+                style={{ color: '#52525b' }}
+              />
+            </button>
+            {showAllArchetypes && (
+              <div className="mt-3 space-y-1">
+                {Object.entries(allArchetypes).map(([designation, archetype]) => (
+                  <ArchetypeRow
+                    key={designation}
+                    archetype={archetype}
+                    designation={designation}
+                    isActive={primaryArch?.designation === designation}
+                    isPrimary={primaryArch?.designation === designation}
+                    isSecondary={secondaryArch?.designation === designation}
+                    distribution={genome.archetype?.distribution?.[designation] || 0}
+                    primaryDesignation={primaryArch?.designation}
                   />
                 ))}
-              </div>
-            </div>
-
-            {/* Top Keywords */}
-            {genome?.keywords && (
-              <div className="bg-dark-800 rounded-xl p-4 border border-dark-700">
-                <h3 className="font-semibold text-white mb-3 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-green-400" />
-                  Top Keywords
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(genome.keywords.visual || {})
-                    .flatMap(([cat, keywords]) =>
-                      Object.entries(keywords)
-                        .filter(([, score]) => score > 0.5)
-                        .map(([kw, score]) => ({ keyword: kw, score }))
-                    )
-                    .sort((a, b) => b.score - a.score)
-                    .slice(0, 10)
-                    .map(({ keyword, score }) => (
-                      <span
-                        key={keyword}
-                        className="px-2 py-1 bg-dark-700 rounded text-sm text-dark-200"
-                        title={`Score: ${score.toFixed(2)}`}
-                      >
-                        {keyword}
-                      </span>
-                    ))}
-                </div>
               </div>
             )}
           </div>

@@ -10,6 +10,7 @@ const User = require('../models/User');
 const Profile = require('../models/Profile');
 const tasteGenome = require('../services/tasteGenome');
 const { buildTasteContext, materialize1193Schema } = require('../services/tasteContextService');
+const { QUIZ_POOL, HONING_TEMPLATES, CATEGORIES } = require('../data/quizPool');
 
 async function getTarget(profileId, userId) {
   if (profileId) {
@@ -142,7 +143,7 @@ router.post('/folio-signal', auth, async (req, res) => {
 
 /**
  * POST /api/genome/quiz
- * Process archetype quiz responses
+ * Process archetype quiz responses (best/worst card format + backward compat)
  */
 router.post('/quiz', auth, async (req, res) => {
   try {
@@ -159,35 +160,70 @@ router.post('/quiz', auth, async (req, res) => {
 
     let genome = target.tasteGenome || tasteGenome.createGenome(req.userId);
 
-    // Process each quiz response as a signal
+    // Process each quiz response
     responses.forEach(response => {
-      const archetypeWeights = response.weights || {};
-
-      genome = tasteGenome.recordSignal(genome, {
-        type: 'choice',
-        value: response.questionId,
-        metadata: {
-          questionId: response.questionId,
-          answer: response.answer,
-          archetypeWeights
-        }
-      });
-
-      // Directly apply archetype weights from quiz
-      Object.entries(archetypeWeights).forEach(([designation, weight]) => {
-        const signal = {
+      // Backward compat: old binary format has response.answer
+      if (response.answer !== undefined) {
+        const archetypeWeights = response.weights || {};
+        genome = tasteGenome.recordSignal(genome, {
           type: 'choice',
-          value: response.answer,
+          value: response.questionId,
+          metadata: {
+            questionId: response.questionId,
+            answer: response.answer,
+            archetypeWeights
+          }
+        });
+        Object.entries(archetypeWeights).forEach(([designation, weight]) => {
+          genome.signals.push({
+            type: 'choice',
+            value: response.answer,
+            weight: 1.0,
+            archetypeWeights: { [designation]: weight },
+            timestamp: new Date()
+          });
+        });
+        return;
+      }
+
+      // New best/worst card format: { questionId, best, worst }
+      const question = [...QUIZ_POOL, ...Object.values(HONING_TEMPLATES).flat()]
+        .find(q => q.id === response.questionId);
+      if (!question) return;
+
+      const bestCard = question.cards.find(c => c.id === response.best);
+      const worstCard = question.cards.find(c => c.id === response.worst);
+
+      // Best card: +1.0 multiplier
+      if (bestCard) {
+        genome.signals.push({
+          type: 'choice',
+          value: bestCard.id,
           weight: 1.0,
-          archetypeWeights: { [designation]: weight },
+          archetypeWeights: { ...bestCard.weights },
+          metadata: { questionId: response.questionId, selection: 'best' },
           timestamp: new Date()
-        };
-        genome.signals.push(signal);
-      });
+        });
+      }
+
+      // Worst card: −0.5 multiplier
+      if (worstCard) {
+        const negWeights = {};
+        Object.entries(worstCard.weights).forEach(([d, w]) => {
+          negWeights[d] = w * -0.5;
+        });
+        genome.signals.push({
+          type: 'choice',
+          value: worstCard.id,
+          weight: 1.0,
+          archetypeWeights: negWeights,
+          metadata: { questionId: response.questionId, selection: 'worst' },
+          timestamp: new Date()
+        });
+      }
     });
 
     // Re-classify after quiz
-    // Force update archetype distribution
     const distribution = {};
     Object.keys(tasteGenome.ARCHETYPES).forEach(d => { distribution[d] = 0; });
 
@@ -262,53 +298,137 @@ router.post('/quiz', auth, async (req, res) => {
 
 /**
  * GET /api/genome/quiz/questions
- * Get the archetype quiz questions
+ * Serve best/worst card questions — filters answered, supports honing mode
  */
-router.get('/quiz/questions', auth, (req, res) => {
-  // Initial 3-question binary quiz (from Subtaste progressive profiling)
-  const questions = [
-    {
-      id: 'q1',
-      prompt: 'When you discover something incredible, do you...',
-      category: 'social',
-      options: [
-        { label: 'Keep it close', value: 'keep', description: 'Let it be your secret' },
-        { label: 'Spread the word', value: 'share', description: 'Tell everyone about it' }
-      ],
-      weights: {
-        keep: { 'NULL': 0.7, 'P-7': 0.5, 'L-3': 0.3, 'D-8': 0.4 },
-        share: { 'H-6': 0.8, 'F-9': 0.4, 'N-5': 0.3 }
+router.get('/quiz/questions', auth, async (req, res) => {
+  try {
+    const { profileId } = req.query;
+    const target = await getTarget(profileId, req.userId);
+    const genome = target?.tasteGenome;
+
+    // Extract answered question IDs from signals
+    const answeredIds = new Set();
+    if (genome && genome.signals) {
+      genome.signals.forEach(s => {
+        const qid = s.metadata?.questionId;
+        if (qid && (qid.startsWith('bw-') || qid.startsWith('hone-'))) {
+          answeredIds.add(qid);
+        }
+      });
+    }
+
+    const answeredCount = answeredIds.size;
+    const totalPool = QUIZ_POOL.length;
+
+    // Filter to unanswered static questions
+    const unanswered = QUIZ_POOL.filter(q => !answeredIds.has(q.id));
+
+    if (unanswered.length > 0) {
+      // Determine how many to serve
+      let selected;
+
+      if (answeredCount === 0) {
+        // First quiz: one per category (up to 5), randomly chosen
+        const byCategory = {};
+        unanswered.forEach(q => {
+          if (!byCategory[q.category]) byCategory[q.category] = [];
+          byCategory[q.category].push(q);
+        });
+        selected = [];
+        const cats = Object.keys(byCategory);
+        // Shuffle categories
+        for (let i = cats.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [cats[i], cats[j]] = [cats[j], cats[i]];
+        }
+        for (const cat of cats.slice(0, 5)) {
+          const pool = byCategory[cat];
+          selected.push(pool[Math.floor(Math.random() * pool.length)]);
+        }
+      } else {
+        // Retake: prioritize categories with highest entropy in distribution
+        if (genome?.archetype?.distribution) {
+          const dist = genome.archetype.distribution;
+          // Compute per-category entropy (archetypes touched by each category)
+          const catEntropy = {};
+          for (const cat of CATEGORIES) {
+            const catQuestions = QUIZ_POOL.filter(q => q.category === cat);
+            const touched = new Set();
+            catQuestions.forEach(q => q.cards.forEach(c => {
+              Object.keys(c.weights).forEach(d => touched.add(d));
+            }));
+            let entropy = 0;
+            for (const d of touched) {
+              const p = dist[d] || 0;
+              if (p > 0) entropy -= p * Math.log(p);
+            }
+            catEntropy[cat] = entropy;
+          }
+          // Sort unanswered by category entropy (highest first)
+          unanswered.sort((a, b) => (catEntropy[b.category] || 0) - (catEntropy[a.category] || 0));
+        }
+        selected = unanswered.slice(0, 5);
       }
-    },
-    {
-      id: 'q2',
-      prompt: 'Your creative instinct is to be...',
-      category: 'temporal',
-      options: [
-        { label: 'Ahead of the curve', value: 'ahead', description: 'First to find what\'s next' },
-        { label: 'Deep within tradition', value: 'tradition', description: 'Master what already exists' }
-      ],
-      weights: {
-        ahead: { 'V-2': 0.7, 'S-0': 0.5, 'R-10': 0.4 },
-        tradition: { 'P-7': 0.6, 'T-1': 0.5, 'L-3': 0.4 }
-      }
-    },
-    {
-      id: 'q3',
-      prompt: 'When creating content, you prefer to...',
-      category: 'creative',
-      options: [
-        { label: 'Plan every detail', value: 'structure', description: 'Structure and strategy first' },
-        { label: 'Discover as you go', value: 'discover', description: 'Follow intuition and flow' }
-      ],
-      weights: {
-        structure: { 'T-1': 0.7, 'C-4': 0.5, 'F-9': 0.4 },
-        discover: { 'D-8': 0.6, 'NULL': 0.5, 'V-2': 0.3, 'N-5': 0.3 }
+
+      return res.json({
+        success: true,
+        questions: selected,
+        mode: 'standard',
+        answeredCount,
+        totalPool,
+      });
+    }
+
+    // Pool exhausted — honing mode
+    const distribution = genome?.archetype?.distribution || {};
+    const designations = Object.keys(distribution);
+
+    // Find confused pairs (smallest probability gap)
+    const pairs = [];
+    for (let i = 0; i < designations.length; i++) {
+      for (let j = i + 1; j < designations.length; j++) {
+        const gap = Math.abs((distribution[designations[i]] || 0) - (distribution[designations[j]] || 0));
+        pairs.push({ a: designations[i], b: designations[j], gap });
       }
     }
-  ];
+    pairs.sort((a, b) => a.gap - b.gap);
 
-  res.json({ success: true, questions });
+    // Find honing questions for top confused pairs
+    const honingQuestions = [];
+    for (const pair of pairs) {
+      if (honingQuestions.length >= 3) break;
+      const key1 = `${pair.a}_${pair.b}`;
+      const key2 = `${pair.b}_${pair.a}`;
+      const templates = HONING_TEMPLATES[key1] || HONING_TEMPLATES[key2] || [];
+      for (const tmpl of templates) {
+        if (!answeredIds.has(tmpl.id) && honingQuestions.length < 3) {
+          honingQuestions.push(tmpl);
+        }
+      }
+    }
+
+    if (honingQuestions.length > 0) {
+      return res.json({
+        success: true,
+        questions: honingQuestions,
+        mode: 'honing',
+        answeredCount,
+        totalPool,
+      });
+    }
+
+    // All honing exhausted
+    return res.json({
+      success: true,
+      questions: [],
+      mode: 'complete',
+      answeredCount,
+      totalPool,
+    });
+  } catch (error) {
+    console.error('[Genome] Quiz questions error:', error);
+    res.status(500).json({ error: 'Failed to load quiz questions' });
+  }
 });
 
 /**

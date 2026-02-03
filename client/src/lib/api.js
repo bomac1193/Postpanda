@@ -774,9 +774,10 @@ export const genomeApi = {
     return data;
   },
 
-  // Get quiz questions
-  async getQuizQuestions() {
-    const { data } = await api.get('/api/genome/quiz/questions');
+  // Get quiz questions (filtered by answered, per-profile)
+  async getQuizQuestions(profileId = null) {
+    const params = profileId ? `?profileId=${profileId}` : '';
+    const { data } = await api.get(`/api/genome/quiz/questions${params}`);
     return data;
   },
 
