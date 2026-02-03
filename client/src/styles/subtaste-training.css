@@ -206,10 +206,25 @@
 }
 
 .subtaste-training .training-stack__desc {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
   margin-bottom: var(--space-6);
   line-height: 1.6;
+}
+
+.subtaste-training .training-stack__prompt {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 400;
+  font-style: italic;
+  color: var(--bone);
+  letter-spacing: var(--tracking-tight);
+  margin-bottom: 4px;
+}
+
+.subtaste-training .training-stack__instruction {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  letter-spacing: var(--tracking-wide);
 }
 
 .subtaste-training .training-cards {

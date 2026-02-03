@@ -469,6 +469,9 @@ Output format: #tag1 #tag2 #tag3 ... #tag${count}`;
 
       const taste = tasteContext || {};
       const lexicon = taste.lexicon || { prefer: [], avoid: [] };
+      const perfPatterns = taste.performancePatterns || {};
+      const aesPatterns = taste.aestheticPatterns || {};
+      const voiceSig = taste.voiceSignature || 'conversational';
 
       // Prefer multimodal generation when we have an image URL.
       const mediaUrl = content?.mediaUrl || content?.imageUrl || content?.thumbnailUrl || null;
@@ -482,6 +485,10 @@ Audience: ${profile.targetAudience}
 Goals: ${profile.goals}
 Taste Glyph: ${taste.glyph || 'VOID'}
 Archetype Confidence: ${taste.confidence || 0}
+Voice: ${voiceSig}
+Preferred Hooks: ${(perfPatterns.hooks || []).join(', ') || 'varied'}
+Preferred Formats: ${(perfPatterns.bestFormats || []).join(', ') || 'any'}
+Visual Style: ${(aesPatterns.visualStyle || []).join(', ') || 'unspecified'}
 Preferred Lexicon: ${lexicon.prefer.join(', ') || 'minimal, authoritative'}
 Avoid Lexicon: ${lexicon.avoid.join(', ') || 'generic, clickbait'}
 
@@ -489,6 +496,7 @@ Rules:
 - Return ONLY valid JSON: {"captions":["...","...","..."]}
 - No code fences, no markdown
 - No placeholders, no generic templates
+- Match the Voice and use Preferred Hooks where natural
 - Be specific to what is visible in the image and align to the Taste Glyph`;
 
           const response = await this.callOpenAIMultimodal([
@@ -525,6 +533,12 @@ Audience: ${profile.targetAudience}
 Goals: ${profile.goals}
 Taste Glyph: ${taste.glyph || 'VOID'}
 Archetype Confidence: ${taste.confidence || 0}
+Voice: ${voiceSig}
+Preferred Hooks: ${(perfPatterns.hooks || []).join(', ') || 'varied'}
+Preferred Formats: ${(perfPatterns.bestFormats || []).join(', ') || 'any'}
+Dominant Tones: ${(aesPatterns.dominantTones || []).join(', ') || 'authentic'}
+Tones to Avoid: ${(aesPatterns.avoidTones || []).join(', ') || 'none'}
+Visual Style: ${(aesPatterns.visualStyle || []).join(', ') || 'unspecified'}
 Preferred Lexicon: ${lexicon.prefer.join(', ') || 'minimal, authoritative'}
 Avoid Lexicon: ${lexicon.avoid.join(', ') || 'generic, clickbait'}
 
@@ -532,6 +546,7 @@ Requirements:
 - ${tone} tone
 - ${lengthGuide[length]} length
 - Always reflect the Taste Glyph and stay on-brand
+- Match the Voice and use Preferred Hooks where natural
 - Use preferred lexicon; avoid banned terms and generic templates
 - No placeholders, no cliches; be specific to the archetype and niche
 

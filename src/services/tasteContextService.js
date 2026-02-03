@@ -26,20 +26,30 @@ async function buildTasteContext({ userId, profileId }) {
     .filter(Boolean)
     .slice(0, 10);
 
+  // Pull learned keywords from genome keyword scores into the lexicon
+  const topKeywords = tasteGenome.getTopKeywords(genome, null, 8).map(k => k.keyword);
+  const avoidKeywords = tasteGenome.getAvoidKeywords(genome, 6).map(k => k.keyword);
+
   const lexicon = {
     prefer: [
       primary?.glyph,
       primary?.designation,
       ...(genome.directives?.tone || []),
       ...(genome.directives?.keywords || []),
+      ...topKeywords,
     ].filter(Boolean),
     avoid: [
       ...(genome.directives?.avoid || []),
+      ...avoidKeywords,
       'generic',
       'placeholder',
       'clickbait'
     ],
   };
+
+  // Deduplicate
+  lexicon.prefer = [...new Set(lexicon.prefer)];
+  lexicon.avoid = [...new Set(lexicon.avoid)];
 
   return {
     glyph: primary?.glyph || 'VOID',
@@ -53,11 +63,16 @@ async function buildTasteContext({ userId, profileId }) {
     })),
     recentTopics,
     lexicon,
+    topKeywords,
+    avoidKeywords,
     directives: genome?.directives || {
       tone: ['minimal', 'authoritative'],
       keywords: ['taste', 'resonance'],
       avoid: ['generic', 'templated'],
     },
+    performancePatterns: genome?.performancePatterns || {},
+    aestheticPatterns: genome?.aestheticPatterns || {},
+    voiceSignature: genome?.aestheticPatterns?.voice || 'conversational',
   };
 }
 
