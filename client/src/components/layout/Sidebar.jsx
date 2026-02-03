@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 // Λ — Lambda mark. Taste as function, mapping signals to archetype.
-// Asymmetric: heavy left downstroke (the pen), light right upstroke (the signal).
+// Apex offset left — not a perfect isosceles. Designed, not generated.
 function LambdaLogo({ className }) {
   return (
     <svg
@@ -35,19 +35,12 @@ function LambdaLogo({ className }) {
       className={className}
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Left leg — heavy downstroke, the nib, the bow drawn back */}
       <path
-        d="M5 22L11.5 3"
+        d="M4 22L10.5 3L20 22"
         stroke="currentColor"
-        strokeWidth="2.8"
+        strokeWidth="2.6"
         strokeLinecap="round"
-      />
-      {/* Right leg — light upstroke, the signal released */}
-      <path
-        d="M11.5 3L19 22"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

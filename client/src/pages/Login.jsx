@@ -126,8 +126,7 @@ function Login() {
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-sm border border-dark-600 bg-dark-900 flex items-center justify-center mx-auto mb-4">
             <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 text-dark-100" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5 22L11.5 3" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" />
-              <path d="M11.5 3L19 22" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <path d="M4 22L10.5 3L20 22" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
           <h1 className="text-3xl font-display font-bold text-dark-100 mb-2 uppercase tracking-widest">
