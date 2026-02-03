@@ -30,6 +30,14 @@ export function GeneratedRelicCard({ character }) {
   const essence = lcos.arcana?.coreDesire || null;
   const samplePost = lcos.samplePost || null;
 
+  // Classification line — order + system archetype, narrative style
+  const orderName = lcos.order?.name || null;
+  const systemName = lcos.arcana?.system || null;
+  const archetypeName = lcos.arcana?.archetype || null;
+  const classification = orderName && archetypeName
+    ? `${orderName} · ${systemName ? systemName + ' ' : ''}${archetypeName}`
+    : null;
+
   return (
     <div
       className="bg-dark-800 rounded-xl border border-zinc-500/20 p-5 transition-all"
@@ -37,8 +45,11 @@ export function GeneratedRelicCard({ character }) {
     >
       <h3 className="font-semibold text-white text-sm mb-1">{objectName}</h3>
 
+      {classification && (
+        <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-1">{classification}</p>
+      )}
       {essence && (
-        <p className="text-[10px] uppercase tracking-widest text-dark-500 mb-3">{essence}</p>
+        <p className="text-[11px] italic text-dark-400 mb-3">{essence}</p>
       )}
 
       {origin && (

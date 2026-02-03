@@ -44,6 +44,14 @@ const COLOR_OPTIONS = [
 ];
 
 function CharacterCard({ character, onEdit, onDelete, onGenerate }) {
+  // Prefer archetype-derived tags from lcosData over raw system personaTags
+  const lcos = character.lcosData;
+  const displayTags = lcos?.subtaste
+    ? [lcos.subtaste.label, lcos.subtaste.code]
+    : lcos?.arcana?.archetype
+      ? [lcos.arcana.archetype]
+      : character.personaTags?.slice(0, 3) || [];
+
   return (
     <div className="bg-dark-800 rounded-xl border border-dark-700 p-4 hover:border-dark-600 transition-colors">
       <div className="flex items-start gap-3">
@@ -63,9 +71,9 @@ function CharacterCard({ character, onEdit, onDelete, onGenerate }) {
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-white truncate">{character.name}</h3>
           <p className="text-sm text-dark-400 capitalize">{character.voice} voice</p>
-          {character.personaTags?.length > 0 && (
+          {displayTags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
-              {character.personaTags.slice(0, 3).map((tag, i) => (
+              {displayTags.map((tag, i) => (
                 <span key={i} className="px-2 py-0.5 bg-dark-700 rounded text-xs text-dark-300">
                   {tag}
                 </span>
@@ -441,12 +449,10 @@ function Characters() {
   };
 
   // Split characters into regular characters and relic characters
-  const regularCharacters = characters.filter(
-    (c) => !c.lcosData?.relics || c.lcosData.relics.length === 0
-  );
-  const relicCharacters = characters.filter(
-    (c) => c.lcosData?.relics && c.lcosData.relics.length > 0
-  );
+  // Relics have lcosData.relics array OR lcosData.pseudonym (always set for relic mode)
+  const isRelic = (c) =>
+    (c.lcosData?.relics && c.lcosData.relics.length > 0) || !!c.lcosData?.pseudonym;
+  const regularCharacters = characters.filter((c) => !isRelic(c));
 
   if (loading) {
     return (

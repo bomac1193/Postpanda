@@ -8,9 +8,9 @@ export default function Reliquary({ characters = [], loading = false }) {
   const reliquaryUnlocks = useAppStore((s) => s.reliquaryUnlocks);
   const unlockPack = useAppStore((s) => s.unlockPack);
 
-  // Filter to characters that have relic data
+  // Filter to characters that have relic data (relics array or pseudonym)
   const relicCharacters = characters.filter(
-    (c) => c.lcosData?.relics && c.lcosData.relics.length > 0
+    (c) => (c.lcosData?.relics && c.lcosData.relics.length > 0) || !!c.lcosData?.pseudonym
   );
 
   // Per-pack password state
