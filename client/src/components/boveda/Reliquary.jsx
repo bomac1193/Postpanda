@@ -4,7 +4,7 @@ import { RELIC_PACKS, tryUnlockPack } from '../../lib/reliquary';
 import RelicCard, { GeneratedRelicCard } from './RelicCard';
 import { Lock, Unlock, Package } from 'lucide-react';
 
-export default function Reliquary({ characters = [], loading = false }) {
+export default function Reliquary({ characters = [], loading = false, onEditArchetype }) {
   const reliquaryUnlocks = useAppStore((s) => s.reliquaryUnlocks);
   const unlockPack = useAppStore((s) => s.unlockPack);
 
@@ -76,7 +76,7 @@ export default function Reliquary({ characters = [], loading = false }) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {relicCharacters.map((character) => (
-              <GeneratedRelicCard key={character._id || character.id} character={character} />
+              <GeneratedRelicCard key={character._id || character.id} character={character} onEditArchetype={onEditArchetype} />
             ))}
           </div>
         )}

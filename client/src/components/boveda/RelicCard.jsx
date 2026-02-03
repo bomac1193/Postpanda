@@ -19,7 +19,7 @@ export default function RelicCard({ relic }) {
 // Generated relic card — narrative-driven, archetype woven into backstory
 // lcosData.relics is an array like [{ object, origin, era, ... }]
 // Archetype data (arcana, order, personality) informs the story, not shown as raw tags
-export function GeneratedRelicCard({ character }) {
+export function GeneratedRelicCard({ character, onEditArchetype }) {
   const lcos = character.lcosData || {};
   const relic = lcos.relics?.[0] || {};
   const objectName = relic.object || character.name || 'Unknown Relic';
@@ -75,6 +75,15 @@ export function GeneratedRelicCard({ character }) {
           <span className="text-[10px] uppercase tracking-widest text-dark-500">Sample Post</span>
           <p className="text-xs text-dark-400 italic mt-1 line-clamp-3">"{samplePost}"</p>
         </div>
+      )}
+
+      {onEditArchetype && (
+        <button
+          onClick={() => onEditArchetype(character)}
+          className="mt-3 w-full text-[10px] uppercase tracking-widest text-dark-500 hover:text-dark-300 transition-colors py-1"
+        >
+          Change Archetype
+        </button>
       )}
     </div>
   );

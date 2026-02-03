@@ -4,6 +4,12 @@ import { useAppStore } from '../stores/useAppStore';
 import GeneratorPanel from '../components/characters/GeneratorPanel';
 import Reliquary from '../components/boveda/Reliquary';
 import {
+  ARCHETYPE_SYSTEM_LIST,
+  ORDER_TYPE_LIST,
+  getArchetypesForSystem,
+  buildArcanaFromSelection,
+} from '../lib/characterGenerator';
+import {
   Plus,
   Crosshair,
   Trash2,
@@ -15,6 +21,7 @@ import {
   X,
   Copy,
   Check,
+  Dna,
 } from 'lucide-react';
 
 const VOICE_OPTIONS = [
@@ -43,7 +50,7 @@ const COLOR_OPTIONS = [
   '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#f43f5e',
 ];
 
-function CharacterCard({ character, onEdit, onDelete, onGenerate }) {
+function CharacterCard({ character, onEdit, onDelete, onGenerate, onEditArchetype }) {
   // Prefer archetype-derived tags from lcosData over raw system personaTags
   const lcos = character.lcosData;
   const displayTags = lcos?.subtaste
@@ -96,6 +103,13 @@ function CharacterCard({ character, onEdit, onDelete, onGenerate }) {
         >
           <Sparkles className="w-4 h-4" />
           Generate
+        </button>
+        <button
+          onClick={() => onEditArchetype(character)}
+          className="p-2 text-dark-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors"
+          title="Change archetype"
+        >
+          <Dna className="w-4 h-4" />
         </button>
         <button
           onClick={() => onEdit(character)}
@@ -403,12 +417,162 @@ function GenerateModal({ character, onClose }) {
   );
 }
 
+function ArchetypeModal({ character, onClose, onSave }) {
+  const lcos = character.lcosData || {};
+  const [order, setOrder] = useState(lcos.order?.name || ORDER_TYPE_LIST[0]);
+  const [system, setSystem] = useState(lcos.arcana?.system || ARCHETYPE_SYSTEM_LIST[0]);
+  const [archetypeKey, setArchetypeKey] = useState(
+    lcos.arcana?.archetype?.replace(/ /g, '_').toLowerCase() || ''
+  );
+  const [saving, setSaving] = useState(false);
+
+  const archetypes = getArchetypesForSystem(system);
+  // Reset archetype selection when system changes
+  const currentArchetype = archetypes.find(a => a.value === archetypeKey);
+
+  const handleSystemChange = (newSystem) => {
+    setSystem(newSystem);
+    const newArchetypes = getArchetypesForSystem(newSystem);
+    setArchetypeKey(newArchetypes[0]?.value || '');
+  };
+
+  const handleSave = async () => {
+    if (!archetypeKey) return;
+    setSaving(true);
+    try {
+      const newArcana = buildArcanaFromSelection(system, archetypeKey);
+      if (!newArcana) return;
+
+      const updatedLcos = {
+        ...lcos,
+        order: { name: order, ideology: lcos.order?.ideology || '' },
+        arcana: newArcana,
+      };
+      await onSave({
+        lcosData: updatedLcos,
+        personaTags: [newArcana.archetype],
+        toneAllowed: newArcana.goldenGifts || [],
+        toneForbidden: newArcana.shadowThemes || [],
+      });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-dark-800 rounded-2xl w-full max-w-lg overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-dark-700">
+          <h2 className="text-lg font-semibold text-white">Change Archetype</h2>
+          <button onClick={onClose} className="p-2 text-dark-400 hover:text-white rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Order */}
+          <div>
+            <label className="block text-xs text-dark-400 mb-1.5 uppercase tracking-wider">Order</label>
+            <div className="flex flex-wrap gap-1.5">
+              {ORDER_TYPE_LIST.map((o) => (
+                <button
+                  key={o}
+                  type="button"
+                  onClick={() => setOrder(o)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors ${
+                    order === o
+                      ? 'bg-zinc-300/10 text-zinc-200 border border-zinc-400/40'
+                      : 'bg-dark-700 text-dark-300 hover:bg-dark-600 hover:text-white border border-transparent'
+                  }`}
+                >
+                  {o}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* System */}
+          <div>
+            <label className="block text-xs text-dark-400 mb-1.5 uppercase tracking-wider">System</label>
+            <div className="flex flex-wrap gap-1.5">
+              {ARCHETYPE_SYSTEM_LIST.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => handleSystemChange(s)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors ${
+                    system === s
+                      ? 'bg-zinc-300/10 text-zinc-200 border border-zinc-400/40'
+                      : 'bg-dark-700 text-dark-300 hover:bg-dark-600 hover:text-white border border-transparent'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Archetype */}
+          <div>
+            <label className="block text-xs text-dark-400 mb-1.5 uppercase tracking-wider">Archetype</label>
+            <div className="flex flex-wrap gap-1.5">
+              {archetypes.map((a) => (
+                <button
+                  key={a.value}
+                  type="button"
+                  onClick={() => setArchetypeKey(a.value)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors ${
+                    archetypeKey === a.value
+                      ? 'bg-zinc-300/10 text-zinc-200 border border-zinc-400/40'
+                      : 'bg-dark-700 text-dark-300 hover:bg-dark-600 hover:text-white border border-transparent'
+                  }`}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Preview */}
+          {currentArchetype && (
+            <div className="p-3 bg-dark-900/50 rounded-lg border border-dark-700 space-y-1">
+              <p className="text-sm text-white capitalize">{currentArchetype.label}</p>
+              <p className="text-xs text-dark-400">{currentArchetype.meaning}</p>
+              <p className="text-xs text-dark-500 italic">{currentArchetype.coreDesire}</p>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {currentArchetype.gifts?.map((g, i) => (
+                  <span key={i} className="px-1.5 py-0.5 bg-dark-700 rounded text-[10px] text-dark-300">{g}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 p-4 border-t border-dark-700">
+          <button onClick={onClose} className="px-4 py-2 text-dark-300 hover:text-white transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !archetypeKey}
+            className="px-4 py-2 bg-zinc-200 text-dark-900 rounded-lg hover:bg-white transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Apply'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Characters() {
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingCharacter, setEditingCharacter] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [generatingFor, setGeneratingFor] = useState(null);
+  const [editingArchetype, setEditingArchetype] = useState(null);
   const [activeTab, setActiveTab] = useState('generator');
 
   useEffect(() => {
@@ -446,6 +610,12 @@ function Characters() {
   const handleGeneratorAccept = async (data) => {
     const character = await characterApi.create(data);
     setCharacters([character, ...characters]);
+  };
+
+  const handleArchetypeUpdate = async (updates) => {
+    const updated = await characterApi.update(editingArchetype._id, updates);
+    setCharacters(characters.map(c => c._id === updated._id ? updated : c));
+    setEditingArchetype(null);
   };
 
   // Split characters into regular characters and relic characters
@@ -537,6 +707,7 @@ function Characters() {
                     onEdit={setEditingCharacter}
                     onDelete={handleDelete}
                     onGenerate={setGeneratingFor}
+                    onEditArchetype={setEditingArchetype}
                   />
                 ))}
               </div>
@@ -544,7 +715,7 @@ function Characters() {
           </section>
 
           {/* Reliquary Section */}
-          <Reliquary characters={characters} loading={loading} />
+          <Reliquary characters={characters} loading={loading} onEditArchetype={setEditingArchetype} />
         </div>
       )}
 
@@ -566,6 +737,13 @@ function Characters() {
         <GenerateModal
           character={generatingFor}
           onClose={() => setGeneratingFor(null)}
+        />
+      )}
+      {editingArchetype && (
+        <ArchetypeModal
+          character={editingArchetype}
+          onClose={() => setEditingArchetype(null)}
+          onSave={handleArchetypeUpdate}
         />
       )}
     </div>

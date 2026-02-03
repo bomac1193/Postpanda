@@ -914,8 +914,26 @@ function generateSampleTweet(rng) {
   return randomChoice(rng, MODERN_RELIC_TWEETS[category]);
 }
 
-function generateRelicPseudonym(rng) {
-  return randomChoice(rng, RELIC_PSEUDONYMS);
+function generateRelicPseudonym(rng, order, arcana, personality) {
+  const orderName = order.charAt(0).toUpperCase() + order.slice(1);
+  const archetypeName = arcana.archetype.replace(/_/g, ' ');
+  const gift = arcana.goldenGifts?.[0] || 'truth';
+  const shadow = arcana.shadowThemes?.[0] || 'silence';
+  const tone = personality?.voiceTone || 'quiet';
+
+  // Build epithet-style pseudonyms from the relic's actual traits
+  const patterns = [
+    `The ${orderName}'s ${gift.charAt(0).toUpperCase() + gift.slice(1)}`,
+    `${archetypeName} in Disguise`,
+    `The ${shadow.charAt(0).toUpperCase() + shadow.slice(1)} Keeper`,
+    `${orderName}-touched`,
+    `Voice of ${arcana.meaning.split(' - ')[0] || arcana.meaning}`,
+    `The ${tone.split(' ').pop().charAt(0).toUpperCase() + tone.split(' ').pop().slice(1)} Vessel`,
+    `${gift.charAt(0).toUpperCase() + gift.slice(1)} Incarnate`,
+    `The ${orderName} Remnant`,
+  ];
+
+  return randomChoice(rng, patterns);
 }
 
 function generateRelicName(rng, relic) {
@@ -1417,7 +1435,7 @@ export function generateCharacter(params = {}) {
     const relic = params.lockedRelic || generateRelicObject(rng, era);
     relics = [relic];
     finalName = generateRelicName(rng, relic);
-    pseudonym = generateRelicPseudonym(rng);
+    pseudonym = generateRelicPseudonym(rng, order, arcana, personality);
     backstory = generateRelicBackstory(rng, relic, arcana, order, era);
     sacredNumber = getArchetypeNumber(arcana.archetype, rng);
     if (era === 'modern') {
@@ -1499,3 +1517,32 @@ export const GENDER_OPTIONS = [
   { value: 'feminine', label: 'Feminine' },
   { value: 'neutral', label: 'Neutral' },
 ];
+
+// Exported for archetype editing UI
+export const ARCHETYPE_SYSTEM_LIST = ARCHETYPE_SYSTEMS;
+export const ORDER_TYPE_LIST = ORDER_TYPES;
+
+export function getArchetypesForSystem(system) {
+  switch (system) {
+    case 'tarot': return Object.keys(TAROT_ARCHETYPES_DATA).map(k => ({ value: k, label: k.replace(/_/g, ' '), ...TAROT_ARCHETYPES_DATA[k] }));
+    case 'jung': return Object.keys(JUNG_ARCHETYPES).map(k => ({ value: k, label: k.replace(/_/g, ' '), ...JUNG_ARCHETYPES[k] }));
+    case 'kabbalah': return Object.keys(KABBALAH_ARCHETYPES).map(k => ({ value: k, label: k.replace(/_/g, ' '), ...KABBALAH_ARCHETYPES[k] }));
+    case 'orisha': return Object.keys(ORISHA_ARCHETYPES).map(k => ({ value: k, label: k.replace(/_/g, ' '), ...ORISHA_ARCHETYPES[k] }));
+    case 'norse': return Object.keys(NORSE_ARCHETYPES).map(k => ({ value: k, label: k.replace(/_/g, ' '), ...NORSE_ARCHETYPES[k] }));
+    default: return [];
+  }
+}
+
+export function buildArcanaFromSelection(system, archetypeKey) {
+  const archetypes = getArchetypesForSystem(system);
+  const data = archetypes.find(a => a.value === archetypeKey);
+  if (!data) return null;
+  return {
+    system,
+    archetype: archetypeKey.replace(/_/g, ' '),
+    meaning: data.meaning,
+    coreDesire: data.coreDesire,
+    shadowThemes: data.shadow,
+    goldenGifts: data.gifts,
+  };
+}
