@@ -19,6 +19,7 @@ import ContentStudio from './pages/ContentStudio';
 import FolioCollections from './pages/FolioCollections';
 import TasteGenome from './pages/TasteGenome';
 import TasteTraining from './pages/TasteTraining';
+import TemplateLibrary from './pages/TemplateLibrary';
 
 // ── Λ Splash ────────────────────────────────────────────────────────────────
 function Splash({ fadingOut }) {
@@ -123,6 +124,7 @@ function App() {
           <Route path="collections" element={<FolioCollections />} />
           <Route path="genome" element={<TasteGenome />} />
           <Route path="training" element={<TasteTraining />} />
+          <Route path="templates" element={<TemplateLibrary />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

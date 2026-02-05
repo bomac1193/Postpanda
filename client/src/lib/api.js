@@ -897,12 +897,57 @@ export const templateApi = {
   },
 
   async rate(templateId, rating) {
-    const { data} = await api.post(`/api/templates/${templateId}/rate`, { rating });
+    const { data} = await api.post(`/api/templates/${templateId}`, { rating });
     return data.template;
   },
 
   async getStats() {
     const { data } = await api.get('/api/templates/stats/summary');
+    return data;
+  }
+};
+
+// Performance API - Conviction Loop (Performance Tracking & Genome Feedback)
+export const performanceApi = {
+  async fetchMetrics(contentId) {
+    const { data } = await api.post(`/api/performance/fetch/${contentId}`);
+    return data;
+  },
+
+  async validateConviction(contentId) {
+    const { data } = await api.post(`/api/performance/validate/${contentId}`);
+    return data;
+  },
+
+  async applyFeedback(validation, profileId) {
+    const { data } = await api.post('/api/performance/feedback', {
+      validation,
+      profileId
+    });
+    return data;
+  },
+
+  async processLoop(contentId, profileId) {
+    const { data } = await api.post(`/api/performance/process-loop/${contentId}`, {
+      profileId
+    });
+    return data;
+  },
+
+  async batchFetch(contentIds) {
+    const { data } = await api.post('/api/performance/batch-fetch', {
+      contentIds
+    });
+    return data;
+  },
+
+  async getLearningProgress(profileId) {
+    const { data } = await api.get(`/api/performance/stats/${profileId}`);
+    return data;
+  },
+
+  async resetLearning(profileId) {
+    const { data } = await api.post(`/api/performance/reset-learning/${profileId}`);
     return data;
   }
 };

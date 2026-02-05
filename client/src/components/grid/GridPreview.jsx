@@ -3,7 +3,7 @@ import { User, Upload, ZoomIn, ZoomOut, X, Check, Camera, RotateCcw, Save, GripV
 import PostAIGenerator from './PostAIGenerator';
 import { setInternalDragActive } from '../../utils/dragState';
 import { generateVideoThumbnail, formatDuration } from '../../utils/videoUtils';
-import { contentApi, gridApi, reelCollectionApi, rolloutApi, convictionApi } from '../../lib/api';
+import { contentApi, gridApi, reelCollectionApi, rolloutApi, convictionApi, templateApi } from '../../lib/api';
 import api from '../../lib/api';
 import { GridConvictionOverlay, GridAestheticScore } from '../conviction';
 import ReelPlayer from './ReelPlayer';
@@ -844,6 +844,38 @@ function PostPreviewModal({ post, onClose, onSave }) {
     }
   };
 
+  const handleSaveAsTemplate = async () => {
+    if (!templateName.trim()) {
+      alert('Please enter a template name');
+      return;
+    }
+
+    if (!activeGrid) {
+      alert('No active grid to save as template');
+      return;
+    }
+
+    try {
+      setSavingTemplate(true);
+
+      await templateApi.createFromGrid(activeGrid, {
+        name: templateName.trim(),
+        description: templateDescription.trim(),
+        isPublic: false // Can add a checkbox for this later
+      });
+
+      alert('Template saved successfully!');
+      setShowTemplateModal(false);
+      setTemplateName('');
+      setTemplateDescription('');
+    } catch (error) {
+      console.error('Failed to save template:', error);
+      alert('Failed to save template: ' + error.message);
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   // Simulated engagement numbers (for preview purposes)
   const likes = Math.floor(Math.random() * 5000) + 500;
   const comments = Math.floor(Math.random() * 200) + 20;
@@ -1500,6 +1532,10 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
   const [loadingConviction, setLoadingConviction] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [aestheticPanelExpanded, setAestheticPanelExpanded] = useState(true);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   // Reels state
   const reels = useAppStore((state) => state.reels);
@@ -3555,6 +3591,16 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
             </button>
 
             <button
+              onClick={() => setShowTemplateModal(true)}
+              className="px-3 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-1.5 bg-gradient-to-r from-accent-purple to-pink-600 text-white border border-accent-purple/30 hover:from-accent-purple-dark hover:to-pink-700"
+              title="Save current grid as a reusable template"
+              disabled={!activeGrid || postsWithConviction.length === 0}
+            >
+              <FolderPlus className="w-3 h-3" />
+              <span>Save Template</span>
+            </button>
+
+            <button
               onClick={() => setShowDebugInfo(!showDebugInfo)}
               className={`px-3 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-1.5 ${
                 showDebugInfo
@@ -4728,6 +4774,115 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
             setRolloutPickerCollectionId(null);
           }}
         />
+      )}
+
+      {/* Save as Template Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6">
+          <div className="bg-dark-800 rounded-lg max-w-md w-full border border-dark-700">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <FolderPlus className="w-6 h-6 text-accent-purple" />
+                  Save as Template
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowTemplateModal(false);
+                    setTemplateName('');
+                    setTemplateDescription('');
+                  }}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Template Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    placeholder="e.g., Summer Vibes Grid"
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-accent-purple"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    value={templateDescription}
+                    onChange={(e) => setTemplateDescription(e.target.value)}
+                    placeholder="Describe what makes this grid template special..."
+                    rows={3}
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-accent-purple resize-none"
+                  />
+                </div>
+
+                {/* Template Info */}
+                <div className="bg-dark-900 rounded-lg p-4 border border-dark-700">
+                  <div className="text-sm text-gray-400 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span>Grid Size:</span>
+                      <span className="text-white font-medium">{cols}x{rows}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Total Slots:</span>
+                      <span className="text-white font-medium">{postsWithConviction.length}</span>
+                    </div>
+                    {postsWithConviction.length > 0 && postsWithConviction.some(p => p.conviction) && (
+                      <div className="flex items-center justify-between">
+                        <span>Avg Conviction:</span>
+                        <span className="text-green-400 font-medium">
+                          {Math.round(
+                            postsWithConviction.reduce((sum, p) => sum + (p.conviction?.score || 0), 0) /
+                            postsWithConviction.filter(p => p.conviction).length
+                          )}/100
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setShowTemplateModal(false);
+                      setTemplateName('');
+                      setTemplateDescription('');
+                    }}
+                    className="flex-1 px-4 py-2 bg-dark-700 text-gray-300 rounded-lg hover:bg-dark-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveAsTemplate}
+                    disabled={savingTemplate || !templateName.trim()}
+                    className="flex-1 px-4 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {savingTemplate ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save Template
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Post Preview Modal disabled in favour of right-hand panel */}

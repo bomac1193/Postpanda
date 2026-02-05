@@ -22,6 +22,7 @@ import {
   PenTool,
   CalendarDays as CalendarIcon,
   Clock,
+  Sparkles,
 } from 'lucide-react';
 
 // Λ — Lambda mark. Taste as function, mapping signals to archetype.
@@ -55,6 +56,7 @@ const navItems = [
   { path: '/editor/pro', icon: Wand2, label: 'Editor Pro' },
   { path: '/genome', icon: Crosshair, label: 'Genome' },
   { path: '/training', icon: Radio, label: 'Training' },
+  { path: '/templates', icon: Sparkles, label: 'Templates' },
   { path: '/studio', icon: FolderOpen, label: 'Folio' },
   { path: '/characters', icon: UserCircle2, label: 'Boveda' },
   { path: '/library', icon: FolderOpen, label: 'Gallery' },
