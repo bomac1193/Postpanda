@@ -254,6 +254,154 @@ router.get('/learning-progress', auth, async (req, res) => {
 });
 
 /**
+ * GET /api/performance/validations/:profileId
+ * Get validation history for a profile
+ */
+router.get('/validations/:profileId', auth, async (req, res) => {
+  try {
+    const { profileId } = req.params;
+    const { timeRange = '30d', limit = 50, offset = 0 } = req.query;
+
+    const Content = require('../models/Content');
+
+    // Calculate date filter
+    let dateFilter = {};
+    if (timeRange !== 'all') {
+      const days = parseInt(timeRange);
+      if (!isNaN(days)) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        dateFilter = { 'convictionValidation.validatedAt': { $gte: startDate } };
+      }
+    }
+
+    // Find content with validations for this profile
+    const validations = await Content.find({
+      user: profileId,
+      'convictionValidation': { $exists: true, $ne: null },
+      ...dateFilter
+    })
+      .select('convictionValidation image caption publishedAt')
+      .sort({ 'convictionValidation.validatedAt': -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(offset))
+      .lean();
+
+    // Transform to validation format
+    const formattedValidations = validations.map(content => ({
+      _id: content._id,
+      ...content.convictionValidation,
+      content: {
+        image: content.image,
+        caption: content.caption
+      },
+      validatedAt: content.convictionValidation?.validatedAt || content.publishedAt
+    }));
+
+    res.json({
+      success: true,
+      validations: formattedValidations,
+      count: formattedValidations.length,
+      timeRange,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+  } catch (error) {
+    console.error('Error getting validation history:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/performance/genome-history/:profileId
+ * Get genome evolution timeline for a profile
+ */
+router.get('/genome-history/:profileId', auth, async (req, res) => {
+  try {
+    const { profileId } = req.params;
+    const { timeRange = '30d' } = req.query;
+
+    const Profile = require('../models/Profile');
+    const Content = require('../models/Content');
+
+    // Calculate date filter
+    let dateFilter = {};
+    if (timeRange !== 'all') {
+      const days = parseInt(timeRange);
+      if (!isNaN(days)) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
+        dateFilter = { 'convictionValidation.feedback.appliedAt': { $gte: startDate } };
+      }
+    }
+
+    // Find validations that resulted in genome updates
+    const updates = await Content.find({
+      user: profileId,
+      'convictionValidation.feedback.shouldUpdateGenome': true,
+      ...dateFilter
+    })
+      .select('convictionValidation publishedAt')
+      .sort({ 'convictionValidation.feedback.appliedAt': -1 })
+      .lean();
+
+    // Transform to timeline format
+    const timeline = updates.map(content => {
+      const validation = content.convictionValidation;
+      const feedback = validation.feedback;
+
+      // Extract key changes from signals
+      const keyChanges = feedback.signals?.map(signal => ({
+        label: signal.archetype || signal.component || 'Adjustment',
+        delta: signal.adjustment || 0
+      })) || [];
+
+      // Extract archetype changes
+      const archetypeChanges = feedback.signals
+        ?.filter(s => s.archetype)
+        .map(signal => ({
+          archetype: signal.archetype,
+          confidenceChange: signal.adjustment || 0
+        })) || [];
+
+      return {
+        _id: content._id,
+        timestamp: feedback.appliedAt || content.publishedAt,
+        event: getEventDescription(validation),
+        summary: `Genome updated based on ${validation.validation.predictionQuality} prediction`,
+        keyChanges,
+        archetypeChanges,
+        adjustments: feedback.signals?.map(s => ({
+          component: s.component || s.archetype,
+          before: 0, // Would need to store historical values
+          after: s.adjustment || 0
+        })),
+        reason: `Content ${validation.actual.engagementScore > validation.predicted.convictionScore ? 'outperformed' : 'underperformed'} prediction`,
+        validationId: content._id
+      };
+    });
+
+    res.json({
+      success: true,
+      history: timeline,
+      count: timeline.length,
+      timeRange
+    });
+  } catch (error) {
+    console.error('Error getting genome history:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to describe event
+function getEventDescription(validation) {
+  const delta = validation.actual.engagementScore - validation.predicted.convictionScore;
+  if (Math.abs(delta) < 10) return 'Minor Adjustment';
+  if (delta > 0) return 'Performance Exceeded Prediction';
+  return 'Performance Below Prediction';
+}
+
+/**
  * POST /api/performance/reset-learning
  * Reset learning data for a profile (admin/testing)
  */

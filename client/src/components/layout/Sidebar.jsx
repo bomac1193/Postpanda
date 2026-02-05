@@ -23,6 +23,7 @@ import {
   CalendarDays as CalendarIcon,
   Clock,
   Sparkles,
+  TrendingUp,
 } from 'lucide-react';
 
 // Λ — Lambda mark. Taste as function, mapping signals to archetype.
@@ -57,6 +58,7 @@ const navItems = [
   { path: '/genome', icon: Crosshair, label: 'Genome' },
   { path: '/training', icon: Radio, label: 'Training' },
   { path: '/templates', icon: Sparkles, label: 'Templates' },
+  { path: '/learning', icon: TrendingUp, label: 'Learning' },
   { path: '/studio', icon: FolderOpen, label: 'Folio' },
   { path: '/characters', icon: UserCircle2, label: 'Boveda' },
   { path: '/library', icon: FolderOpen, label: 'Gallery' },

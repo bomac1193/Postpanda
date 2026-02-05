@@ -946,6 +946,20 @@ export const performanceApi = {
     return data;
   },
 
+  async getValidationHistory(profileId, options = {}) {
+    const { data } = await api.get(`/api/performance/validations/${profileId}`, {
+      params: options // timeRange, limit, offset
+    });
+    return data;
+  },
+
+  async getGenomeHistory(profileId, options = {}) {
+    const { data } = await api.get(`/api/performance/genome-history/${profileId}`, {
+      params: options // timeRange
+    });
+    return data;
+  },
+
   async resetLearning(profileId) {
     const { data } = await api.post(`/api/performance/reset-learning/${profileId}`);
     return data;

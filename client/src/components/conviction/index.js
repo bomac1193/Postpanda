@@ -5,3 +5,8 @@ export { default as ArchetypeFlow } from './ArchetypeFlow';
 export { default as GridConvictionOverlay } from './GridConvictionOverlay';
 export { default as GridAestheticScore } from './GridAestheticScore';
 export { default as CalendarConvictionPanel } from './CalendarConvictionPanel';
+
+// Learning Dashboard components
+export { default as LearningProgressChart } from './LearningProgressChart';
+export { default as ValidationHistoryTable } from './ValidationHistoryTable';
+export { default as GenomeEvolutionTimeline } from './GenomeEvolutionTimeline';
