@@ -823,4 +823,35 @@ export const genomeApi = {
   }
 };
 
+// Conviction API - Taste-aware scoring and gating
+export const convictionApi = {
+  async calculateSingle(contentId, profileId) {
+    const { data } = await api.post('/api/conviction/calculate', {
+      contentId, profileId
+    });
+    return data;
+  },
+
+  async batchCalculate(contentIds, profileId) {
+    const { data } = await api.post('/api/conviction/batch-calculate', {
+      contentIds, profileId
+    });
+    return data;
+  },
+
+  async getStats(profileId) {
+    const { data } = await api.get('/api/conviction/stats', {
+      params: { profileId }
+    });
+    return data;
+  },
+
+  async checkGating(contentId, threshold, strictMode = false) {
+    const { data } = await api.post('/api/conviction/check-gating', {
+      contentId, threshold, strictMode
+    });
+    return data;
+  }
+};
+
 export default api;

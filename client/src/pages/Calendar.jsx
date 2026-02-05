@@ -17,9 +17,14 @@ import {
   Layers,
   Youtube,
   Film,
+  Sparkles,
+  TrendingUp,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useAppStore } from '../stores/useAppStore';
-import { postingApi, collectionApi, contentApi, rolloutApi, gridApi, reelCollectionApi } from '../lib/api';
+import { postingApi, collectionApi, contentApi, rolloutApi, gridApi, reelCollectionApi, convictionApi } from '../lib/api';
+import { ConvictionBadge, ConvictionTrend, ArchetypeFlow, CalendarConvictionPanel } from '../components/conviction';
 
 // TikTok icon component
 function TikTokIcon({ className }) {
@@ -70,14 +75,59 @@ function Calendar() {
   // Show legend
   const [showLegend, setShowLegend] = useState(true);
 
-  // Fetch scheduled posts from backend
+  // Conviction features
+  const [showConvictionInsights, setShowConvictionInsights] = useState(false);
+  const [convictionGatingWarning, setConvictionGatingWarning] = useState(null);
+  const [calculatingConviction, setCalculatingConviction] = useState(false);
+
+  // Get conviction settings and cache from store
+  const { calendarConvictionView, updateCalendarConvictionView, getCachedConviction, setCachedConviction, getCurrentProfile } = useAppStore();
+
+  // Fetch scheduled posts from backend with conviction scores
   const fetchScheduledPosts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await postingApi.getScheduled();
       const posts = Array.isArray(data) ? data : data.posts || data.scheduled || [];
-      setScheduledPosts(posts);
+
+      // Batch calculate conviction scores for posts
+      if (posts.length > 0 && calendarConvictionView.showScores) {
+        const currentProfile = getCurrentProfile();
+        const profileId = currentProfile?._id || currentProfile?.id;
+        const contentIds = posts.map(p => p.contentId || p._id || p.id).filter(Boolean);
+
+        if (contentIds.length > 0) {
+          try {
+            const convictionResults = await convictionApi.batchCalculate(contentIds, profileId);
+
+            // Merge conviction data into posts
+            const postsWithConviction = posts.map(post => {
+              const postId = post.contentId || post._id || post.id;
+              const convictionData = convictionResults.results?.find(r => r.contentId === postId);
+
+              if (convictionData) {
+                setCachedConviction(postId, convictionData.conviction);
+                return {
+                  ...post,
+                  conviction: convictionData.conviction
+                };
+              }
+
+              return post;
+            });
+
+            setScheduledPosts(postsWithConviction);
+          } catch (convErr) {
+            console.warn('Failed to batch calculate conviction:', convErr);
+            setScheduledPosts(posts);
+          }
+        } else {
+          setScheduledPosts(posts);
+        }
+      } else {
+        setScheduledPosts(posts);
+      }
     } catch (err) {
       console.error('Failed to fetch scheduled posts:', err);
       // Don't show error for empty/404 - just show empty calendar
@@ -88,7 +138,7 @@ function Calendar() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [calendarConvictionView.showScores, getCachedConviction, setCachedConviction, getCurrentProfile]);
 
   // Fetch rollout events for calendar
   const fetchRolloutEvents = useCallback(async () => {
@@ -199,23 +249,60 @@ function Calendar() {
     setShowScheduleModal(true);
   }, [fetchAvailableContent, fetchCollectionsAndRollouts]);
 
-  // Handle scheduling a post
+  // Handle scheduling a post with conviction check
   const handleSchedulePost = useCallback(async () => {
     if (!selectedContent || !scheduleDate || !scheduleTime) return;
 
     setScheduling(true);
+    setConvictionGatingWarning(null);
+
     try {
+      const contentId = selectedContent._id || selectedContent.id;
+      const currentProfile = getCurrentProfile();
+      const profileId = currentProfile?._id || currentProfile?.id;
+
+      // Calculate conviction score before scheduling
+      setCalculatingConviction(true);
+      let conviction = getCachedConviction(contentId);
+
+      if (!conviction) {
+        try {
+          const result = await convictionApi.calculateSingle(contentId, profileId);
+          conviction = result.conviction;
+          setCachedConviction(contentId, conviction);
+        } catch (convErr) {
+          console.warn('Failed to calculate conviction, proceeding without gating:', convErr);
+          // Continue without conviction if API fails
+        }
+      }
+
+      setCalculatingConviction(false);
+
+      // Check gating if conviction was calculated
+      if (conviction && conviction.score < 40) {
+        setConvictionGatingWarning({
+          score: conviction.score,
+          tier: conviction.tier,
+          message: `This content has low conviction (${Math.round(conviction.score)}/100). Consider reviewing before scheduling.`
+        });
+        setScheduling(false);
+        return; // Block scheduling
+      }
+
+      // Proceed with scheduling
       const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
-      await postingApi.schedulePost(selectedContent._id || selectedContent.id, selectedPlatforms, scheduledAt.toISOString());
+      await postingApi.schedulePost(contentId, selectedPlatforms, scheduledAt.toISOString());
       setShowScheduleModal(false);
+      setConvictionGatingWarning(null);
       fetchScheduledPosts();
     } catch (err) {
       console.error('Failed to schedule post:', err);
       alert('Failed to schedule post. Please try again.');
     } finally {
       setScheduling(false);
+      setCalculatingConviction(false);
     }
-  }, [selectedContent, scheduleDate, scheduleTime, selectedPlatforms, fetchScheduledPosts]);
+  }, [selectedContent, scheduleDate, scheduleTime, selectedPlatforms, fetchScheduledPosts, getCachedConviction, setCachedConviction, getCurrentProfile]);
 
   const togglePlatform = (platform) => {
     setSelectedPlatforms((prev) =>
@@ -399,6 +486,23 @@ function Calendar() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
+          {/* Conviction controls */}
+          <button
+            onClick={() => updateCalendarConvictionView({ showScores: !calendarConvictionView.showScores })}
+            className={`btn-ghost ${calendarConvictionView.showScores ? 'text-green-400' : 'text-dark-400'}`}
+            title={calendarConvictionView.showScores ? 'Hide Conviction Scores' : 'Show Conviction Scores'}
+          >
+            {calendarConvictionView.showScores ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          </button>
+
+          <button
+            onClick={() => setShowConvictionInsights(!showConvictionInsights)}
+            className={`btn-ghost ${showConvictionInsights ? 'text-green-400' : 'text-dark-400'}`}
+            title={showConvictionInsights ? 'Hide Insights' : 'Show Insights'}
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
+
           <button onClick={handleOpenScheduleModal} className="btn-primary">
             <Plus className="w-4 h-4" />
             Schedule
@@ -490,30 +594,51 @@ function Calendar() {
                   ))}
 
                   {/* Posts */}
-                  {posts.slice(0, dayRolloutEvents.length > 1 ? 1 : 2).map((post) => (
-                    <div
-                      key={post.id}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-1.5 p-1.5 bg-dark-600 rounded text-xs truncate cursor-pointer hover:bg-dark-500"
-                    >
-                      {post.image ? (
-                        <img
-                          src={post.image}
-                          alt=""
-                          className="w-5 h-5 rounded object-cover"
-                        />
-                      ) : (
-                        <div
-                          className="w-5 h-5 rounded"
-                          style={{ backgroundColor: post.color }}
-                        />
-                      )}
-                      <span className="text-dark-200 truncate flex-1">
-                        {post.caption?.slice(0, 20) || 'Untitled'}
-                      </span>
-                      <Clock className="w-3 h-3 text-dark-400" />
-                    </div>
-                  ))}
+                  {posts.slice(0, dayRolloutEvents.length > 1 ? 1 : 2).map((post) => {
+                    // Get conviction tier for background color
+                    const getConvictionBgColor = (conviction) => {
+                      if (!conviction?.score && conviction?.score !== 0) return 'bg-dark-600';
+                      const score = conviction.score;
+                      if (score >= 80) return 'bg-green-900/20 border-l-2 border-green-500';
+                      if (score >= 60) return 'bg-green-900/10 border-l-2 border-green-600';
+                      if (score >= 40) return 'bg-orange-900/10 border-l-2 border-orange-500';
+                      return 'bg-red-900/10 border-l-2 border-red-600';
+                    };
+
+                    return (
+                      <div
+                        key={post.id}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`flex items-center gap-1.5 p-1.5 rounded text-xs truncate cursor-pointer hover:bg-dark-500 ${
+                          calendarConvictionView.showScores && post.conviction
+                            ? getConvictionBgColor(post.conviction)
+                            : 'bg-dark-600'
+                        }`}
+                      >
+                        {post.image ? (
+                          <img
+                            src={post.image}
+                            alt=""
+                            className="w-5 h-5 rounded object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="w-5 h-5 rounded"
+                            style={{ backgroundColor: post.color }}
+                          />
+                        )}
+                        <span className="text-dark-200 truncate flex-1">
+                          {post.caption?.slice(0, 20) || 'Untitled'}
+                        </span>
+                        {calendarConvictionView.showScores && post.conviction?.score !== null && post.conviction?.score !== undefined && (
+                          <ConvictionBadge score={post.conviction.score} size="xs" />
+                        )}
+                        {(!calendarConvictionView.showScores || !post.conviction) && (
+                          <Clock className="w-3 h-3 text-dark-400" />
+                        )}
+                      </div>
+                    );
+                  })}
 
                   {/* Overflow indicator */}
                   {totalItems > 3 && (
@@ -528,6 +653,18 @@ function Calendar() {
         </div>
       </div>
 
+      {/* Conviction Insights Panel */}
+      {showConvictionInsights && scheduledPosts.length > 0 && (
+        <div className="mt-4 grid grid-cols-3 gap-4">
+          <ConvictionTrend posts={scheduledPosts} metric="conviction" />
+          <ArchetypeFlow posts={scheduledPosts} viewMode="pie" />
+          <CalendarConvictionPanel
+            dateRange={{ start: days[0]?.date, end: days[days.length - 1]?.date }}
+            posts={scheduledPosts}
+          />
+        </div>
+      )}
+
       {/* Quick Stats & Legend */}
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center gap-6 text-sm">
@@ -539,6 +676,27 @@ function Calendar() {
             <Layers className="w-4 h-4" />
             <span>{rolloutEvents.length} rollout events</span>
           </div>
+          {calendarConvictionView.showScores && scheduledPosts.some(p => p.conviction) && (
+            <>
+              <div className="flex items-center gap-2 text-green-400">
+                <Sparkles className="w-4 h-4" />
+                <span>
+                  {scheduledPosts.filter(p => p.conviction?.score >= 60).length} high-conviction
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-dark-400">
+                <TrendingUp className="w-4 h-4" />
+                <span>
+                  Avg: {Math.round(
+                    scheduledPosts
+                      .filter(p => p.conviction?.score !== null && p.conviction?.score !== undefined)
+                      .reduce((sum, p) => sum + p.conviction.score, 0) /
+                    scheduledPosts.filter(p => p.conviction?.score !== null && p.conviction?.score !== undefined).length || 0
+                  )}
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Legend */}
@@ -974,6 +1132,42 @@ function Calendar() {
               )}
             </div>
 
+            {/* Conviction Gating Warning */}
+            {convictionGatingWarning && (
+              <div className="mx-4 mb-4 p-4 bg-orange-900/20 border border-orange-500/30 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <ConvictionBadge score={convictionGatingWarning.score} size="md" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-orange-400 font-semibold text-sm mb-1">Low Conviction Score</h4>
+                    <p className="text-orange-300 text-sm mb-3">{convictionGatingWarning.message}</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setConvictionGatingWarning(null)}
+                        className="px-3 py-1.5 text-sm bg-dark-700 hover:bg-dark-600 text-dark-200 rounded"
+                      >
+                        Review Content
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setConvictionGatingWarning(null);
+                          const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`);
+                          const contentId = selectedContent._id || selectedContent.id;
+                          await postingApi.schedulePost(contentId, selectedPlatforms, scheduledAt.toISOString());
+                          setShowScheduleModal(false);
+                          fetchScheduledPosts();
+                        }}
+                        className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded"
+                      >
+                        Schedule Anyway
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Modal Footer */}
             <div className="p-4 border-t border-dark-700 flex gap-2">
               <button
@@ -992,13 +1186,19 @@ function Calendar() {
                 }
                 disabled={
                   scheduling ||
+                  calculatingConviction ||
                   (modalTab === 'post' && (!selectedContent || !scheduleTime)) ||
                   (modalTab === 'collection' && !selectedCollection) ||
                   (modalTab === 'rollout' && !selectedRollout)
                 }
                 className="flex-1 btn-primary disabled:opacity-50"
               >
-                {scheduling ? (
+                {calculatingConviction ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Checking conviction...
+                  </>
+                ) : scheduling ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Scheduling...

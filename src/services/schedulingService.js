@@ -2,6 +2,7 @@ const Collection = require('../models/Collection');
 const Content = require('../models/Content');
 const User = require('../models/User');
 const socialMediaService = require('./socialMediaService');
+const convictionService = require('./convictionService');
 
 /**
  * Scheduling Service
@@ -141,6 +142,37 @@ class SchedulingService {
         });
         await collection.save();
         return;
+      }
+
+      // BLUE OCEAN: Check conviction gating before posting
+      const convictionCheck = await this.checkConvictionGating(content, user, collection);
+
+      if (!convictionCheck.canPost) {
+        console.log(`⚠️  Content blocked by conviction gating: ${content.title} (score: ${convictionCheck.score})`);
+
+        collection.errors.push({
+          timestamp: new Date(),
+          itemIndex: nextItem.order,
+          errorMessage: `Conviction gating: ${convictionCheck.reason}`,
+          errorCode: 'CONVICTION_BLOCKED',
+          metadata: {
+            convictionScore: convictionCheck.score,
+            suggestions: convictionCheck.suggestions
+          }
+        });
+
+        // Pause collection for manual review
+        collection.status = 'paused';
+        collection.scheduling.enabled = false;
+        await collection.save();
+
+        console.log(`⏸️  Collection paused for conviction review`);
+        return;
+      }
+
+      if (convictionCheck.requiresReview) {
+        console.log(`⚠️  Content requires review: ${content.title} (score: ${convictionCheck.score})`);
+        // Continue posting but log the warning
       }
 
       // Post content
@@ -380,6 +412,71 @@ class SchedulingService {
       running: this.isRunning,
       checkInterval: this.checkIntervalMs / 1000 + ' seconds'
     };
+  }
+
+  /**
+   * BLUE OCEAN: Check conviction gating before posting
+   * @param {Object} content - Content document
+   * @param {Object} user - User document
+   * @param {Object} collection - Collection document (optional)
+   * @returns {Object} Gating result
+   */
+  async checkConvictionGating(content, user, collection = null) {
+    try {
+      // Get user's taste genome
+      const genome = user.tasteGenome;
+
+      // If content doesn't have conviction score, calculate it
+      if (!content.conviction || !content.conviction.score) {
+        console.log(`📊 Calculating conviction for: ${content.title}`);
+
+        const convictionResult = await convictionService.calculateConviction(content, genome);
+
+        // Update content with conviction
+        Object.assign(content.aiScores, convictionResult.aiScores);
+        content.conviction = convictionResult.conviction;
+        await content.save();
+      }
+
+      // Check if user has overridden gating for this content
+      if (content.conviction.userOverride) {
+        return {
+          canPost: true,
+          requiresReview: false,
+          score: content.conviction.score,
+          reason: `User override: ${content.conviction.overrideReason}`
+        };
+      }
+
+      // Get collection-specific conviction threshold (default: 70)
+      const threshold = collection?.settings?.convictionThreshold || 70;
+      const strictMode = collection?.settings?.strictConvictionMode || false;
+
+      // Check gating
+      const gatingResult = convictionService.checkGating(content.conviction.score, {
+        threshold,
+        strictMode,
+        userOverride: false
+      });
+
+      return {
+        canPost: gatingResult.canSchedule,
+        requiresReview: gatingResult.requiresReview,
+        score: gatingResult.score,
+        reason: gatingResult.reason,
+        suggestions: gatingResult.suggestions
+      };
+    } catch (error) {
+      console.error('❌ Conviction gating check error:', error);
+      // On error, allow posting but log warning
+      return {
+        canPost: true,
+        requiresReview: false,
+        score: 0,
+        reason: 'Conviction check failed, allowing post',
+        error: error.message
+      };
+    }
   }
 }
 

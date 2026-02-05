@@ -87,6 +87,23 @@ export const useAppStore = create(
       // Reliquary pack unlocks
       reliquaryUnlocks: {}, // { [packId]: { unlockedAt: ISO string } }
 
+      // Conviction cache (prevent redundant API calls)
+      convictionCache: {}, // { [contentId]: { conviction, cachedAt } }
+
+      // Calendar conviction view settings
+      calendarConvictionView: {
+        showScores: true,
+        showTrends: true,
+        showInsights: false
+      },
+
+      // Grid conviction view settings
+      gridConvictionView: {
+        showOverlays: true,
+        showAestheticScore: true,
+        whatIfMode: false
+      },
+
       // UI state
       sidebarCollapsed: false,
       activePanel: 'grid', // 'grid' | 'editor' | 'calendar' | 'ai' | 'settings'
@@ -674,6 +691,34 @@ export const useAppStore = create(
           [packId]: { unlockedAt: new Date().toISOString() },
         },
       })),
+
+      // Conviction actions
+      setCachedConviction: (contentId, conviction) =>
+        set(state => ({
+          convictionCache: {
+            ...state.convictionCache,
+            [contentId]: { conviction, cachedAt: Date.now() }
+          }
+        })),
+
+      getCachedConviction: (contentId) => {
+        const cached = get().convictionCache[contentId];
+        // Return if cached within 1 hour
+        if (cached && (Date.now() - cached.cachedAt < 3600000)) {
+          return cached.conviction;
+        }
+        return null;
+      },
+
+      updateCalendarConvictionView: (settings) =>
+        set(state => ({
+          calendarConvictionView: { ...state.calendarConvictionView, ...settings }
+        })),
+
+      updateGridConvictionView: (settings) =>
+        set(state => ({
+          gridConvictionView: { ...state.gridConvictionView, ...settings }
+        })),
 
       // UI actions
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),

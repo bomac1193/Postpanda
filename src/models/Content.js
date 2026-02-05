@@ -71,7 +71,58 @@ const contentSchema = new mongoose.Schema({
       max: 100,
       default: 0
     },
+    // BLUE OCEAN: Conviction Score (Taste + Performance + Brand Alignment)
+    convictionScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
+    },
+    tasteAlignment: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
+    },
+    brandConsistency: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
+    },
     analyzedAt: Date
+  },
+
+  // BLUE OCEAN: Conviction Gating
+  conviction: {
+    score: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
+    },
+    tier: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'exceptional'],
+      default: 'medium'
+    },
+    archetypeMatch: {
+      designation: String,
+      glyph: String,
+      confidence: Number
+    },
+    gatingStatus: {
+      type: String,
+      enum: ['approved', 'warning', 'blocked', 'override'],
+      default: 'approved'
+    },
+    gatingReason: String,
+    userOverride: {
+      type: Boolean,
+      default: false
+    },
+    overrideReason: String,
+    calculatedAt: Date
   },
   // AI Suggestions
   aiSuggestions: {
@@ -118,7 +169,14 @@ const contentSchema = new mongoose.Schema({
       engagementScore: Number,
       aestheticScore: Number,
       trendScore: Number,
-      overallScore: Number
+      overallScore: Number,
+      convictionScore: Number,
+      tasteAlignment: Number
+    },
+    conviction: {
+      score: Number,
+      tier: String,
+      gatingStatus: String
     },
     isSelected: {
       type: Boolean,
@@ -221,6 +279,130 @@ contentSchema.methods.calculateOverallScore = function() {
                 scores.aestheticScore + scores.trendScore;
   this.aiScores.overallScore = Math.round(total / 4);
   return this.aiScores.overallScore;
+};
+
+/**
+ * BLUE OCEAN: Calculate Conviction Score
+ * IMPROVED FORMULA (Post Stress-Test):
+ * Conviction = [(Taste * 0.5) + (Performance * 0.3) + (Brand * 0.2)] × Temporal Factor
+ *
+ * Temporal Factor penalizes trend-chasing, rewards evergreen quality
+ */
+contentSchema.methods.calculateConvictionScore = function() {
+  const scores = this.aiScores;
+
+  // Performance potential (average of existing scores)
+  const performancePotential = (
+    scores.viralityScore +
+    scores.engagementScore +
+    scores.aestheticScore +
+    scores.trendScore
+  ) / 4;
+
+  const tasteAlignment = scores.tasteAlignment || 0;
+  const brandConsistency = scores.brandConsistency || 85; // Default to 85 if not set
+
+  // Temporal decay: penalize over-reliance on trends (only affects trend scores >80)
+  // IMPROVED: More aggressive penalty for extreme trend-chasing
+  const trendScore = scores.trendScore || 0;
+  let temporalFactor = 1.0;
+
+  if (trendScore > 90) {
+    // EXTREME trend dependency (90-100): 15-20% penalty
+    temporalFactor = Math.max(0.80, 1.0 - ((trendScore - 90) / 50));
+  } else if (trendScore > 80) {
+    // High trend dependency (80-90): 5-10% penalty
+    temporalFactor = Math.max(0.90, 1.0 - ((trendScore - 80) / 100));
+  }
+
+  // IMPROVED weights: Taste-first (50%), Performance (30%), Brand (20%)
+  const baseConvictionScore = (
+    (performancePotential * 0.3) +
+    (tasteAlignment * 0.5) +
+    (brandConsistency * 0.2)
+  );
+
+  // Apply temporal factor
+  const convictionScore = Math.round(baseConvictionScore * temporalFactor);
+
+  // Update both locations
+  this.aiScores.convictionScore = convictionScore;
+
+  if (!this.conviction) {
+    this.conviction = {};
+  }
+  this.conviction.score = convictionScore;
+  this.conviction.tier = this.getConvictionTier(convictionScore);
+  this.conviction.calculatedAt = new Date();
+
+  return convictionScore;
+};
+
+/**
+ * BLUE OCEAN: Get Conviction Tier
+ */
+contentSchema.methods.getConvictionTier = function(score) {
+  if (score >= 85) return 'exceptional';
+  if (score >= 70) return 'high';
+  if (score >= 50) return 'medium';
+  return 'low';
+};
+
+/**
+ * BLUE OCEAN: Check Conviction Gating
+ * Returns gating status based on conviction score thresholds
+ */
+contentSchema.methods.checkConvictionGating = function(threshold = 70, strictMode = false) {
+  const score = this.conviction?.score || this.aiScores?.convictionScore || 0;
+
+  let status = 'approved';
+  let reason = null;
+
+  if (score < 50) {
+    status = strictMode ? 'blocked' : 'warning';
+    reason = `Low conviction score (${score}/100). Content may underperform. Consider revisions.`;
+  } else if (score < threshold) {
+    status = 'warning';
+    reason = `Below conviction threshold (${score}/${threshold}). Review suggested improvements before scheduling.`;
+  } else if (score >= 85) {
+    status = 'approved';
+    reason = `High-conviction content (${score}/100). Predicted to perform well.`;
+  } else {
+    status = 'approved';
+    reason = `Conviction score: ${score}/100`;
+  }
+
+  // Update conviction object
+  if (!this.conviction) {
+    this.conviction = {};
+  }
+
+  this.conviction.gatingStatus = this.conviction.userOverride ? 'override' : status;
+  this.conviction.gatingReason = reason;
+
+  return {
+    status: this.conviction.gatingStatus,
+    reason,
+    score,
+    canSchedule: status !== 'blocked' || this.conviction.userOverride,
+    requiresReview: status === 'warning' && !this.conviction.userOverride
+  };
+};
+
+/**
+ * BLUE OCEAN: Override Conviction Gating
+ * Allows user to bypass conviction warnings with a reason
+ */
+contentSchema.methods.overrideConvictionGating = function(reason) {
+  if (!this.conviction) {
+    this.conviction = {};
+  }
+
+  this.conviction.userOverride = true;
+  this.conviction.overrideReason = reason || 'User override';
+  this.conviction.gatingStatus = 'override';
+
+  return this.conviction;
 };
 
 module.exports = mongoose.model('Content', contentSchema);
