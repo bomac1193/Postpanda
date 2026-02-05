@@ -1,0 +1,31 @@
+services:
+  # SLAYT API Service
+  - type: web
+    name: slayt-api
+    runtime: node
+    plan: free
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: SLAYT_API_KEY
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        fromDatabase:
+          name: slayt-db
+          property: connectionString
+      - key: FRONTEND_URL
+        value: https://slayt-api.onrender.com
+    healthCheckPath: /health
+    autoDeploy: true
+
+databases:
+  - name: slayt-db
+    databaseName: slayt
+    plan: free
