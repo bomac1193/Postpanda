@@ -30,8 +30,9 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [draggedCollection, setDraggedCollection] = useState(null);
 
-  // Group collections by folder
-  const collectionsByFolder = youtubeCollections.reduce((acc, collection) => {
+  // Group collections by folder with safety checks
+  const collectionsByFolder = (youtubeCollections || []).reduce((acc, collection) => {
+    if (!collection) return acc;
     const folder = collection.folder || 'root';
     if (!acc[folder]) acc[folder] = [];
     acc[folder].push(collection);
@@ -40,10 +41,12 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
 
   // Sort collections within folders by position
   Object.keys(collectionsByFolder).forEach(folder => {
-    collectionsByFolder[folder].sort((a, b) => (a.position || 0) - (b.position || 0));
+    if (collectionsByFolder[folder]) {
+      collectionsByFolder[folder].sort((a, b) => ((a?.position || 0) - (b?.position || 0)));
+    }
   });
 
-  const folders = ['root', ...Object.keys(collectionsByFolder).filter(f => f !== 'root').sort()];
+  const folders = ['root', ...Object.keys(collectionsByFolder).filter(f => f && f !== 'root').sort()];
 
   const toggleFolder = (folder) => {
     const newExpanded = new Set(expandedFolders);
@@ -99,11 +102,21 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
 
     try {
       // Create a default collection in this folder to persist it
-      const collection = await youtubeApi.createCollection({
+      const response = await youtubeApi.createCollection({
         name: 'New Collection',
         folder: folderName,
       });
-      addYoutubeCollection(collection.collection);
+
+      console.log('Create collection response:', response);
+
+      // Handle different response structures
+      const newCollection = response.collection || response;
+
+      if (!newCollection) {
+        throw new Error('Invalid response from server');
+      }
+
+      addYoutubeCollection(newCollection);
 
       // Expand the new folder
       const newExpanded = new Set(expandedFolders);
@@ -114,7 +127,9 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
       setNewFolderName('');
     } catch (error) {
       console.error('Failed to create folder:', error);
-      alert('Failed to create folder. Please try again.');
+      alert(`Failed to create folder: ${error.message || 'Unknown error'}`);
+      setIsCreatingFolder(false);
+      setNewFolderName('');
     }
   };
 
@@ -185,8 +200,13 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateFolder();
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCreateFolder();
+                }
                 if (e.key === 'Escape') {
+                  e.preventDefault();
                   setIsCreatingFolder(false);
                   setNewFolderName('');
                 }
