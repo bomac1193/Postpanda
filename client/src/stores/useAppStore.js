@@ -325,16 +325,24 @@ export const useAppStore = create(
 
       // YouTube Collections actions
       setYoutubeCollections: (collections) => set({ youtubeCollections: collections }),
-      addYoutubeCollection: (name) => set((state) => {
-        const newCollection = {
-          id: crypto.randomUUID(),
-          name: name || 'New Collection',
-          createdAt: new Date().toISOString(),
-          tags: [],
-          color: null,
-          rolloutId: null,
-          sectionId: null,
-        };
+      addYoutubeCollection: (nameOrCollection) => set((state) => {
+        // Handle both string (just name) and object (full collection from backend)
+        const newCollection = typeof nameOrCollection === 'string'
+          ? {
+              id: crypto.randomUUID(),
+              name: nameOrCollection || 'New Collection',
+              createdAt: new Date().toISOString(),
+              tags: [],
+              color: null,
+              rolloutId: null,
+              sectionId: null,
+            }
+          : {
+              // Backend collection - normalize _id to id
+              ...nameOrCollection,
+              id: nameOrCollection.id || nameOrCollection._id,
+            };
+
         // Save current collection's videos before switching
         const updatedVideosByCollection = {
           ...state.youtubeVideosByCollection,
