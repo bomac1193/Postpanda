@@ -12,6 +12,7 @@ import {
   Check,
   X,
   GripVertical,
+  Trash2,
 } from 'lucide-react';
 import EditableCollectionName from './EditableCollectionName';
 
@@ -23,6 +24,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
   const youtubeCollections = useAppStore((state) => state.youtubeCollections);
   const updateYoutubeCollection = useAppStore((state) => state.updateYoutubeCollection);
   const addYoutubeCollection = useAppStore((state) => state.addYoutubeCollection);
+  const deleteYoutubeCollection = useAppStore((state) => state.deleteYoutubeCollection);
 
   const [expandedFolders, setExpandedFolders] = useState(new Set(['root']));
   const [editingFolder, setEditingFolder] = useState(null);
@@ -108,6 +110,39 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
       setEditingFolder(null);
     } catch (error) {
       console.error('Failed to rename folder:', error);
+    }
+  };
+
+  const handleDeleteFolder = async (folderName) => {
+    const collectionsInFolder = collectionsByFolder[folderName] || [];
+    const count = collectionsInFolder.length;
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the folder "${folderName}"?\n\n` +
+      `This will delete ${count} collection${count === 1 ? '' : 's'} and all their videos.\n\n` +
+      `This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Delete all collections in this folder
+      for (const collection of collectionsInFolder) {
+        const collectionId = collection.id || collection._id;
+        await youtubeApi.deleteCollection(collectionId);
+        deleteYoutubeCollection(collectionId);
+      }
+
+      // Remove from expanded state
+      const newExpanded = new Set(expandedFolders);
+      newExpanded.delete(folderName);
+      setExpandedFolders(newExpanded);
+
+      console.log(`✅ Deleted folder "${folderName}" with ${count} collections`);
+    } catch (error) {
+      console.error('Failed to delete folder:', error);
+      alert(`Failed to delete folder: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -282,7 +317,16 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, folder)}
               >
-                <div className="flex items-center gap-2 px-3 py-2 hover:bg-dark-700 transition-colors">
+                <div
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-dark-700 transition-colors focus:outline-none focus:ring-2 focus:ring-accent-purple focus:ring-inset"
+                  tabIndex={isRoot ? -1 : 0}
+                  onKeyDown={(e) => {
+                    if (!isRoot && (e.key === 'Delete' || e.key === 'Backspace')) {
+                      e.preventDefault();
+                      handleDeleteFolder(folder);
+                    }
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() => toggleFolder(folder)}
@@ -326,16 +370,30 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                       </span>
                       <span className="text-xs text-dark-500">({collections.length})</span>
                       {!isRoot && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingFolder(folder);
-                          }}
-                          className="p-0.5 text-dark-500 hover:text-accent-purple transition-colors opacity-0 group-hover/folder:opacity-100"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingFolder(folder);
+                            }}
+                            className="p-0.5 text-dark-500 hover:text-accent-purple transition-colors opacity-0 group-hover/folder:opacity-100"
+                            title="Rename folder"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFolder(folder);
+                            }}
+                            className="p-0.5 text-dark-500 hover:text-red-400 transition-colors opacity-0 group-hover/folder:opacity-100"
+                            title="Delete folder (and all collections inside)"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </>
                       )}
                     </div>
                   )}
