@@ -60,6 +60,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   const [tasteProfile, setTasteProfile] = useState(null);
 
   const fileInputRef = useRef(null);
+  const videoFileInputRef = useRef(null);
   const autosaveTimer = useRef(null);
   const lastSavedRef = useRef({
     title: video?.title || '',
@@ -230,6 +231,17 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
     const file = e.target.files?.[0];
     if (file) {
       onThumbnailUpload?.(file, videoId);
+    }
+    e.target.value = '';
+  };
+
+  const handleVideoFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // TODO: Upload video file to Cloudinary or storage
+      // For now, just save the file name
+      persistVideoUpdates({ videoFileName: file.name, videoFileSize: file.size });
+      console.log('Video file selected:', file.name, file.size);
     }
     e.target.value = '';
   };
@@ -415,6 +427,57 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
           </div>
         </div>
 
+        {/* Video File Upload */}
+        <div className="p-4 bg-dark-700 rounded-lg border border-dark-600">
+          <div className="flex items-center justify-between mb-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-dark-200">
+              <Youtube className="w-4 h-4 text-red-400" />
+              Video File
+            </label>
+            {video.videoFileName && (
+              <span className="text-xs text-dark-400">
+                {(video.videoFileSize / 1024 / 1024).toFixed(1)} MB
+              </span>
+            )}
+          </div>
+
+          {video.videoFileName ? (
+            <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+                <span className="text-sm text-dark-200 truncate">{video.videoFileName}</span>
+              </div>
+              <label className="ml-2 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors cursor-pointer flex-shrink-0">
+                <span className="text-xs text-dark-300">Replace</span>
+                <input
+                  ref={videoFileInputRef}
+                  type="file"
+                  accept="video/*"
+                  onChange={handleVideoFileChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-dark-600 rounded-lg hover:border-red-500/50 hover:bg-dark-600/50 transition-colors cursor-pointer group">
+              <Upload className="w-8 h-8 text-dark-500 group-hover:text-red-400 mb-2" />
+              <span className="text-sm text-dark-300 group-hover:text-red-400 mb-1">
+                Upload Video File
+              </span>
+              <span className="text-xs text-dark-500">
+                MP4, MOV, AVI (max 256GB)
+              </span>
+              <input
+                ref={videoFileInputRef}
+                type="file"
+                accept="video/*"
+                onChange={handleVideoFileChange}
+                className="hidden"
+              />
+            </label>
+          )}
+        </div>
+
         {/* Title */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -479,7 +542,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
             onChange={(e) => handleDescriptionChange(e.target.value)}
             onBlur={handleDescriptionBlur}
             placeholder="Add a description (optional)..."
-            className="input w-full min-h-[80px] resize-none"
+            className="input w-full min-h-[200px] resize-y"
           />
         </div>
 
