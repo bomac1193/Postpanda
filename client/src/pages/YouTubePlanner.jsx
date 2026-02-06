@@ -5,6 +5,7 @@ import YouTubeGridView from '../components/youtube/YouTubeGridView';
 import YouTubeSidebarView from '../components/youtube/YouTubeSidebarView';
 import YouTubeVideoDetails from '../components/youtube/YouTubeVideoDetails';
 import YouTubeThumbnailEditor from '../components/youtube/YouTubeThumbnailEditor';
+import YouTubeCollectionsManager from '../components/youtube/YouTubeCollectionsManager';
 import {
   Lock,
   Unlock,
@@ -621,6 +622,14 @@ function YouTubePlanner() {
           <span className="text-sm text-dark-300">Syncing...</span>
         </div>
       )}
+
+      {/* Collections Sidebar */}
+      <div className="w-80 flex-shrink-0 h-full">
+        <YouTubeCollectionsManager
+          onSelectCollection={setCurrentYoutubeCollection}
+          selectedCollectionId={currentYoutubeCollectionId}
+        />
+      </div>
 
       {/* Main Grid Area */}
       <div className="flex-1 flex flex-col">
