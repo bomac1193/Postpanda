@@ -31,8 +31,10 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [draggedCollection, setDraggedCollection] = useState(null);
+  const [dragOverFolder, setDragOverFolder] = useState(null);
   const [selectedFolders, setSelectedFolders] = useState(new Set());
   const [lastClickedFolder, setLastClickedFolder] = useState(null);
+  const [emptyFolders, setEmptyFolders] = useState(new Set()); // Folders without collections yet
 
   // Clear selection on ESC key
   useEffect(() => {
@@ -73,13 +75,15 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
   const folders = React.useMemo(() => {
     try {
       const keys = Object.keys(collectionsByFolder || {});
-      const nonRootFolders = keys.filter(f => f && f !== 'root').sort();
-      return ['root', ...nonRootFolders];
+      const nonRootFolders = keys.filter(f => f && f !== 'root');
+      // Combine folders with collections and empty folders
+      const allFolders = new Set([...nonRootFolders, ...Array.from(emptyFolders)]);
+      return ['root', ...Array.from(allFolders).sort()];
     } catch (error) {
       console.error('[folders] Error generating folder list:', error);
       return ['root'];
     }
-  }, [collectionsByFolder]);
+  }, [collectionsByFolder, emptyFolders]);
 
   const toggleFolder = (folder) => {
     const newExpanded = new Set(expandedFolders);
@@ -252,7 +256,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
     }
   };
 
-  const handleCreateFolder = async () => {
+  const handleCreateFolder = () => {
     console.log('[handleCreateFolder] Starting folder creation...');
 
     if (!newFolderName.trim()) {
@@ -261,47 +265,29 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
     }
 
     const folderName = newFolderName.trim();
-    console.log('[handleCreateFolder] Creating folder:', folderName);
+    console.log('[handleCreateFolder] Creating empty folder:', folderName);
 
-    try {
-      // Create a default collection in this folder to persist it
-      console.log('[handleCreateFolder] Calling API...');
-      const response = await youtubeApi.createCollection({
-        name: 'New Collection',
-        folder: folderName,
-      });
-
-      console.log('[handleCreateFolder] API response:', response);
-
-      // Handle different response structures
-      const newCollection = response.collection || response;
-
-      if (!newCollection) {
-        console.error('[handleCreateFolder] Invalid response structure:', response);
-        throw new Error('Invalid response from server');
-      }
-
-      console.log('[handleCreateFolder] Adding collection to store:', newCollection);
-      addYoutubeCollection(newCollection);
-
-      // Expand the new folder
-      console.log('[handleCreateFolder] Expanding folder...');
-      const newExpanded = new Set(expandedFolders);
-      newExpanded.add(folderName);
-      setExpandedFolders(newExpanded);
-
-      console.log('[handleCreateFolder] Resetting form state...');
-      setIsCreatingFolder(false);
-      setNewFolderName('');
-
-      console.log('[handleCreateFolder] ✅ Folder creation complete!');
-    } catch (error) {
-      console.error('[handleCreateFolder] ❌ Error:', error);
-      console.error('[handleCreateFolder] Error stack:', error.stack);
-      alert(`Failed to create folder: ${error.message || 'Unknown error'}`);
-      setIsCreatingFolder(false);
-      setNewFolderName('');
+    // Check if folder already exists
+    if (folders.includes(folderName)) {
+      alert(`Folder "${folderName}" already exists`);
+      return;
     }
+
+    // Add to empty folders set (will persist when collection is added)
+    const newEmptyFolders = new Set(emptyFolders);
+    newEmptyFolders.add(folderName);
+    setEmptyFolders(newEmptyFolders);
+
+    // Expand the new folder
+    const newExpanded = new Set(expandedFolders);
+    newExpanded.add(folderName);
+    setExpandedFolders(newExpanded);
+
+    // Reset form
+    setIsCreatingFolder(false);
+    setNewFolderName('');
+
+    console.log('[handleCreateFolder] ✅ Empty folder created (will persist when collection added)');
   };
 
   const handleDragStart = (e, collection) => {
@@ -309,13 +295,16 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
     setDraggedCollection(collection);
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e, folder) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    setDragOverFolder(folder);
   };
 
   const handleDrop = async (e, targetFolder) => {
     e.preventDefault();
+    setDragOverFolder(null);
+
     if (!draggedCollection) return;
 
     const collectionId = draggedCollection.id || draggedCollection._id;
@@ -329,6 +318,15 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
     try {
       await youtubeApi.updateCollection(collectionId, { folder: newFolder });
       updateYoutubeCollection(collectionId, { folder: newFolder });
+
+      // Remove from empty folders if it was empty
+      if (emptyFolders.has(targetFolder)) {
+        const newEmptyFolders = new Set(emptyFolders);
+        newEmptyFolders.delete(targetFolder);
+        setEmptyFolders(newEmptyFolders);
+        console.log(`✅ Folder "${targetFolder}" now has collections, removed from empty folders`);
+      }
+
       setDraggedCollection(null);
     } catch (error) {
       console.error('Failed to move collection:', error);
@@ -446,13 +444,19 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
           const collections = collectionsByFolder[folder] || [];
           const isRoot = folder === 'root';
           const isSelected = selectedFolders.has(folder);
+          const isDragOver = dragOverFolder === folder;
 
           return (
             <div key={folder}>
               {/* Folder Header */}
               <div
-                className="sticky top-0 bg-dark-750 border-b border-dark-700 z-10"
-                onDragOver={handleDragOver}
+                className={`sticky top-0 border-b z-10 transition-colors ${
+                  isDragOver
+                    ? 'bg-accent-purple/20 border-accent-purple'
+                    : 'bg-dark-750 border-dark-700'
+                }`}
+                onDragOver={(e) => handleDragOver(e, folder)}
+                onDragLeave={() => setDragOverFolder(null)}
                 onDrop={(e) => handleDrop(e, folder)}
               >
                 <div
