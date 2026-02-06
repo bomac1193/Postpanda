@@ -13,6 +13,7 @@ import {
   X,
   GripVertical,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import EditableCollectionName from './EditableCollectionName';
 
@@ -35,6 +36,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
   const [selectedFolders, setSelectedFolders] = useState(new Set());
   const [lastClickedFolder, setLastClickedFolder] = useState(null);
   const [emptyFolders, setEmptyFolders] = useState(new Set()); // Folders without collections yet
+  const [renameMode, setRenameMode] = useState(false); // Toggle for enabling/disabling rename
 
   // Clear selection on ESC key
   useEffect(() => {
@@ -369,7 +371,22 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
     <div className="h-full flex flex-col bg-dark-800">
       {/* Header */}
       <div className="px-4 py-3 border-b border-dark-700">
-        <h3 className="text-sm font-semibold text-dark-100 mb-2">YouTube Collections</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-dark-100">YouTube Collections</h3>
+          <button
+            type="button"
+            onClick={() => setRenameMode(!renameMode)}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors ${
+              renameMode
+                ? 'bg-accent-purple/20 text-accent-purple border border-accent-purple/30'
+                : 'bg-dark-700 text-dark-400 border border-dark-600 hover:text-dark-200 hover:border-dark-500'
+            }`}
+            title={renameMode ? 'Disable rename mode' : 'Enable rename mode'}
+          >
+            <Pencil className="w-3 h-3" />
+            <span>{renameMode ? 'Rename: ON' : 'Rename: OFF'}</span>
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => setIsCreatingFolder(true)}
@@ -546,17 +563,19 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                       <span className="text-xs text-dark-500">({collections.length})</span>
                       {!isRoot && (
                         <>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingFolder(folder);
-                            }}
-                            className="p-0.5 text-dark-500 hover:text-accent-purple transition-colors opacity-0 group-hover/folder:opacity-100"
-                            title="Rename folder"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </button>
+                          {renameMode && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingFolder(folder);
+                              }}
+                              className="p-0.5 text-dark-500 hover:text-accent-purple transition-colors opacity-0 group-hover/folder:opacity-100"
+                              title="Rename folder"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={(e) => {
@@ -638,6 +657,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                             className="flex-1 min-w-0 text-sm text-dark-200"
                             showEditIcon={false}
                             editIconPosition="hover"
+                            disabled={!renameMode}
                           />
                           <span className="text-xs text-dark-500 flex-shrink-0">
                             {collection.itemCount || 0}

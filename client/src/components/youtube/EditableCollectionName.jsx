@@ -10,7 +10,8 @@ function EditableCollectionName({
   onSave,
   className = '',
   showEditIcon = true,
-  editIconPosition = 'right' // 'right' or 'hover'
+  editIconPosition = 'right', // 'right' or 'hover'
+  disabled = false // Disable editing
 }) {
   // Defensive: ensure name is always a string
   const safeName = typeof name === 'string' ? name : (name?.name || 'Unnamed');
@@ -101,13 +102,13 @@ function EditableCollectionName({
   return (
     <div className={`flex items-center gap-1.5 group/name ${className}`}>
       <span
-        onClick={() => setIsEditing(true)}
-        className="cursor-pointer hover:text-accent-purple transition-colors"
-        title="Click to edit"
+        onClick={() => !disabled && setIsEditing(true)}
+        className={disabled ? '' : 'cursor-pointer hover:text-accent-purple transition-colors'}
+        title={disabled ? '' : 'Click to edit'}
       >
         {safeName}
       </span>
-      {showEditIcon && editIconPosition === 'right' && (
+      {!disabled && showEditIcon && editIconPosition === 'right' && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -119,7 +120,7 @@ function EditableCollectionName({
           <Edit2 className="w-3 h-3" />
         </button>
       )}
-      {showEditIcon && editIconPosition === 'hover' && (
+      {!disabled && showEditIcon && editIconPosition === 'hover' && (
         <button
           onClick={(e) => {
             e.stopPropagation();
