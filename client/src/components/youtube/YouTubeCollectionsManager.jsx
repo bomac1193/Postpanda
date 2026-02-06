@@ -183,6 +183,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
       <div className="px-4 py-3 border-b border-dark-700">
         <h3 className="text-sm font-semibold text-dark-100 mb-2">YouTube Collections</h3>
         <button
+          type="button"
           onClick={() => setIsCreatingFolder(true)}
           className="w-full flex items-center justify-center gap-2 py-1.5 border border-dashed border-dark-600 rounded-lg text-dark-400 hover:border-accent-purple hover:text-accent-purple transition-colors text-sm"
         >
@@ -216,12 +217,14 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
               className="flex-1 px-2 py-1 bg-dark-700 border border-dark-600 rounded text-sm text-white focus:outline-none focus:border-accent-purple"
             />
             <button
+              type="button"
               onClick={handleCreateFolder}
               className="p-1 text-green-400 hover:text-green-300"
             >
               <Check className="w-4 h-4" />
             </button>
             <button
+              type="button"
               onClick={() => {
                 setIsCreatingFolder(false);
                 setNewFolderName('');
@@ -251,6 +254,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
               >
                 <div className="flex items-center gap-2 px-3 py-2 hover:bg-dark-700 transition-colors">
                   <button
+                    type="button"
                     onClick={() => toggleFolder(folder)}
                     className="p-0.5 text-dark-400 hover:text-dark-200"
                   >
@@ -293,6 +297,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                       <span className="text-xs text-dark-500">({collections.length})</span>
                       {!isRoot && (
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setEditingFolder(folder);
@@ -306,6 +311,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                   )}
 
                   <button
+                    type="button"
                     onClick={() => handleCreateCollection(folder)}
                     className="p-1 text-dark-500 hover:text-accent-purple transition-colors"
                     title="Add collection to this folder"
