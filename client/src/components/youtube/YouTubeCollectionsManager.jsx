@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { youtubeApi } from '../../lib/api';
 import {
@@ -31,6 +31,21 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [draggedCollection, setDraggedCollection] = useState(null);
+  const [selectedFolders, setSelectedFolders] = useState(new Set());
+  const [lastClickedFolder, setLastClickedFolder] = useState(null);
+
+  // Clear selection on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && selectedFolders.size > 0) {
+        setSelectedFolders(new Set());
+        setLastClickedFolder(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFolders.size]);
 
   // Group collections by folder with safety checks
   const collectionsByFolder = React.useMemo(() => {
@@ -110,6 +125,97 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
       setEditingFolder(null);
     } catch (error) {
       console.error('Failed to rename folder:', error);
+    }
+  };
+
+  const handleFolderClick = (folder, event) => {
+    // Don't select root folder
+    if (folder === 'root') return;
+
+    // Don't interfere with editing
+    if (editingFolder) return;
+
+    const isShift = event.shiftKey;
+    const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+
+    if (isShift && lastClickedFolder && lastClickedFolder !== 'root') {
+      // Shift-click: select range
+      const allFolders = folders.filter(f => f !== 'root');
+      const lastIndex = allFolders.indexOf(lastClickedFolder);
+      const currentIndex = allFolders.indexOf(folder);
+
+      if (lastIndex !== -1 && currentIndex !== -1) {
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+        const range = allFolders.slice(start, end + 1);
+
+        const newSelected = new Set(selectedFolders);
+        range.forEach(f => newSelected.add(f));
+        setSelectedFolders(newSelected);
+      }
+    } else if (isCtrlOrCmd) {
+      // Ctrl/Cmd-click: toggle selection
+      const newSelected = new Set(selectedFolders);
+      if (newSelected.has(folder)) {
+        newSelected.delete(folder);
+      } else {
+        newSelected.add(folder);
+      }
+      setSelectedFolders(newSelected);
+      setLastClickedFolder(folder);
+    } else {
+      // Regular click: select only this folder
+      setSelectedFolders(new Set([folder]));
+      setLastClickedFolder(folder);
+    }
+  };
+
+  const handleDeleteSelectedFolders = async () => {
+    if (selectedFolders.size === 0) return;
+
+    const foldersToDelete = Array.from(selectedFolders);
+    let totalCollections = 0;
+
+    // Count total collections
+    foldersToDelete.forEach(folder => {
+      const collections = collectionsByFolder[folder] || [];
+      totalCollections += collections.length;
+    });
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${foldersToDelete.length} folder${foldersToDelete.length === 1 ? '' : 's'}?\n\n` +
+      `Folders: ${foldersToDelete.join(', ')}\n\n` +
+      `This will delete ${totalCollections} collection${totalCollections === 1 ? '' : 's'} and all their videos.\n\n` +
+      `This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Delete all collections in all selected folders
+      for (const folder of foldersToDelete) {
+        const collectionsInFolder = collectionsByFolder[folder] || [];
+        for (const collection of collectionsInFolder) {
+          const collectionId = collection.id || collection._id;
+          await youtubeApi.deleteCollection(collectionId);
+          deleteYoutubeCollection(collectionId);
+        }
+      }
+
+      // Remove from expanded state
+      const newExpanded = new Set(expandedFolders);
+      foldersToDelete.forEach(f => newExpanded.delete(f));
+      setExpandedFolders(newExpanded);
+
+      // Clear selection
+      setSelectedFolders(new Set());
+      setLastClickedFolder(null);
+
+      console.log(`✅ Deleted ${foldersToDelete.length} folders with ${totalCollections} collections`);
+    } catch (error) {
+      console.error('Failed to delete folders:', error);
+      alert(`Failed to delete folders: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -302,12 +408,44 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
         </div>
       )}
 
+      {/* Selection Bar */}
+      {selectedFolders.size > 0 && (
+        <div className="px-4 py-2 bg-accent-purple/10 border-b border-accent-purple/30">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-accent-purple font-medium">
+              {selectedFolders.size} folder{selectedFolders.size === 1 ? '' : 's'} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDeleteSelectedFolders}
+                className="px-2 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors flex items-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFolders(new Set());
+                  setLastClickedFolder(null);
+                }}
+                className="px-2 py-1 text-xs bg-dark-700 text-dark-300 hover:bg-dark-600 rounded transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Folders and Collections */}
       <div className="flex-1 overflow-y-auto">
         {folders.map((folder) => {
           const isExpanded = expandedFolders.has(folder);
           const collections = collectionsByFolder[folder] || [];
           const isRoot = folder === 'root';
+          const isSelected = selectedFolders.has(folder);
 
           return (
             <div key={folder}>
@@ -318,12 +456,26 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                 onDrop={(e) => handleDrop(e, folder)}
               >
                 <div
-                  className="flex items-center gap-2 px-3 py-2 hover:bg-dark-700 transition-colors focus:outline-none focus:ring-2 focus:ring-accent-purple focus:ring-inset"
+                  className={`flex items-center gap-2 px-3 py-2 transition-colors focus:outline-none cursor-pointer ${
+                    isSelected
+                      ? 'bg-accent-purple/20 border-l-2 border-accent-purple'
+                      : 'hover:bg-dark-700'
+                  }`}
                   tabIndex={isRoot ? -1 : 0}
+                  onClick={(e) => {
+                    // Don't interfere with button clicks
+                    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                    handleFolderClick(folder, e);
+                  }}
                   onKeyDown={(e) => {
                     if (!isRoot && (e.key === 'Delete' || e.key === 'Backspace')) {
                       e.preventDefault();
-                      handleDeleteFolder(folder);
+                      // Delete selected folders if any, otherwise delete this folder
+                      if (selectedFolders.size > 0) {
+                        handleDeleteSelectedFolders();
+                      } else {
+                        handleDeleteFolder(folder);
+                      }
                     }
                   }}
                 >
@@ -386,12 +538,29 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteFolder(folder);
+                              // If folders are selected and this is one of them, delete all selected
+                              // Otherwise just delete this folder
+                              if (selectedFolders.size > 0 && selectedFolders.has(folder)) {
+                                handleDeleteSelectedFolders();
+                              } else {
+                                handleDeleteFolder(folder);
+                              }
                             }}
-                            className="p-0.5 text-dark-500 hover:text-red-400 transition-colors opacity-0 group-hover/folder:opacity-100"
-                            title="Delete folder (and all collections inside)"
+                            className={`p-0.5 text-dark-500 hover:text-red-400 transition-colors ${
+                              isSelected ? 'opacity-100' : 'opacity-0 group-hover/folder:opacity-100'
+                            }`}
+                            title={
+                              selectedFolders.size > 0 && selectedFolders.has(folder)
+                                ? `Delete ${selectedFolders.size} selected folder${selectedFolders.size === 1 ? '' : 's'}`
+                                : 'Delete folder (and all collections inside)'
+                            }
                           >
                             <Trash2 className="w-3 h-3" />
+                            {selectedFolders.size > 1 && isSelected && (
+                              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                                {selectedFolders.size}
+                              </span>
+                            )}
                           </button>
                         </>
                       )}
