@@ -82,6 +82,42 @@ const userSchema = new mongoose.Schema({
       userId: String,
       username: String,
       expiresAt: Date
+    },
+    youtube: {
+      connected: { type: Boolean, default: false },
+      accessToken: String,
+      refreshToken: String,
+      userId: String,
+      channelId: String,
+      channelTitle: String,
+      expiresAt: Date,
+      tokenExpiry: Date // Alternative field name for compatibility
+    }
+  },
+
+  // Legacy socialMedia field (for backward compatibility)
+  socialMedia: {
+    instagram: {
+      accessToken: String,
+      refreshToken: String,
+      tokenExpiry: Date,
+      userId: String,
+      username: String
+    },
+    tiktok: {
+      accessToken: String,
+      refreshToken: String,
+      tokenExpiry: Date,
+      userId: String,
+      username: String
+    },
+    youtube: {
+      accessToken: String,
+      refreshToken: String,
+      tokenExpiry: Date,
+      userId: String,
+      channelId: String,
+      channelTitle: String
     }
   },
   preferences: {

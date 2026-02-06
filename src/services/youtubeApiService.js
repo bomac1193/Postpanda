@@ -1,0 +1,495 @@
+/**
+ * YouTube API Service
+ *
+ * Handles YouTube Data API v3 integration:
+ * - OAuth 2.0 authentication
+ * - Video uploads
+ * - Metadata management
+ * - Thumbnail uploads
+ * - Scheduled publishing
+ */
+
+const axios = require('axios');
+const FormData = require('form-data');
+const fs = require('fs');
+const { google } = require('googleapis');
+
+const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
+const YOUTUBE_UPLOAD_BASE = 'https://www.googleapis.com/upload/youtube/v3';
+
+/**
+ * Initialize YouTube OAuth2 Client
+ */
+function getOAuth2Client() {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.YOUTUBE_CLIENT_ID,
+    process.env.YOUTUBE_CLIENT_SECRET,
+    process.env.YOUTUBE_REDIRECT_URI || `${process.env.API_URL || 'http://localhost:3030'}/api/auth/youtube/callback`
+  );
+
+  return oauth2Client;
+}
+
+/**
+ * Get YouTube authorization URL
+ */
+function getAuthorizationUrl(state = '') {
+  const oauth2Client = getOAuth2Client();
+
+  const scopes = [
+    'https://www.googleapis.com/auth/youtube.upload',
+    'https://www.googleapis.com/auth/youtube',
+    'https://www.googleapis.com/auth/youtube.force-ssl'
+  ];
+
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: scopes,
+    state: state,
+    prompt: 'consent' // Force consent to get refresh token
+  });
+
+  return authUrl;
+}
+
+/**
+ * Exchange authorization code for tokens
+ */
+async function getTokensFromCode(code) {
+  try {
+    const oauth2Client = getOAuth2Client();
+    const { tokens } = await oauth2Client.getToken(code);
+
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresAt: new Date(Date.now() + (tokens.expiry_date - Date.now()))
+    };
+  } catch (error) {
+    console.error('YouTube token exchange error:', error);
+    throw new Error(`Failed to exchange code for tokens: ${error.message}`);
+  }
+}
+
+/**
+ * Refresh YouTube access token
+ */
+async function refreshAccessToken(refreshToken) {
+  try {
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({
+      refresh_token: refreshToken
+    });
+
+    const { credentials } = await oauth2Client.refreshAccessToken();
+
+    return {
+      accessToken: credentials.access_token,
+      expiresAt: new Date(credentials.expiry_date)
+    };
+  } catch (error) {
+    console.error('YouTube token refresh error:', error);
+    throw new Error(`Failed to refresh token: ${error.message}`);
+  }
+}
+
+/**
+ * Validate and refresh YouTube credentials if needed
+ */
+async function validateAndRefreshCredentials(user) {
+  const youtube = user.socialMedia?.youtube;
+
+  if (!youtube?.accessToken) {
+    return {
+      valid: false,
+      error: 'YouTube not connected',
+      needsAuth: true
+    };
+  }
+
+  // Check if token is expired or expiring soon (within 5 minutes)
+  const expiresAt = new Date(youtube.tokenExpiry || youtube.expiresAt);
+  const now = new Date();
+  const fiveMinutes = 5 * 60 * 1000;
+
+  if (expiresAt <= new Date(now.getTime() + fiveMinutes)) {
+    // Token expired or expiring soon - refresh it
+    if (!youtube.refreshToken) {
+      return {
+        valid: false,
+        error: 'Refresh token missing - reconnect YouTube',
+        needsAuth: true
+      };
+    }
+
+    try {
+      const { accessToken, expiresAt: newExpiresAt } = await refreshAccessToken(youtube.refreshToken);
+
+      // Update user's tokens
+      user.socialMedia.youtube.accessToken = accessToken;
+      user.socialMedia.youtube.tokenExpiry = newExpiresAt;
+      await user.save();
+
+      return {
+        valid: true,
+        accessToken,
+        refreshed: true
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        error: 'Failed to refresh token - reconnect YouTube',
+        needsAuth: true,
+        needsRefresh: true
+      };
+    }
+  }
+
+  return {
+    valid: true,
+    accessToken: youtube.accessToken
+  };
+}
+
+/**
+ * Upload video to YouTube
+ *
+ * @param {Object} user - User with YouTube credentials
+ * @param {Object} videoData - Video data and metadata
+ * @returns {Object} Upload result with video ID and URL
+ */
+async function uploadVideo(user, videoData) {
+  try {
+    const {
+      videoUrl,        // URL or file path to video
+      title,
+      description = '',
+      tags = [],
+      categoryId = '22', // Default: People & Blogs
+      privacyStatus = 'private', // 'public', 'private', 'unlisted'
+      publishAt = null, // ISO 8601 date for scheduled publishing
+      thumbnailUrl = null
+    } = videoData;
+
+    // Validate credentials
+    const credentialCheck = await validateAndRefreshCredentials(user);
+    if (!credentialCheck.valid) {
+      throw new Error(credentialCheck.error);
+    }
+
+    const accessToken = credentialCheck.accessToken;
+
+    // Initialize OAuth2 client
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({
+      access_token: accessToken,
+      refresh_token: user.socialMedia.youtube.refreshToken
+    });
+
+    // Initialize YouTube API
+    const youtube = google.youtube({
+      version: 'v3',
+      auth: oauth2Client
+    });
+
+    // Prepare video metadata
+    const videoMetadata = {
+      snippet: {
+        title: title.substring(0, 100), // YouTube max 100 chars
+        description: description.substring(0, 5000), // YouTube max 5000 chars
+        tags: tags.slice(0, 500), // YouTube max 500 tags
+        categoryId: categoryId
+      },
+      status: {
+        privacyStatus: privacyStatus,
+        selfDeclaredMadeForKids: false
+      }
+    };
+
+    // Add scheduled publish time if provided
+    if (publishAt && privacyStatus === 'private') {
+      videoMetadata.status.publishAt = new Date(publishAt).toISOString();
+    }
+
+    // Determine media source
+    let media;
+    if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
+      // Download video from URL first
+      const videoBuffer = await downloadVideoFromUrl(videoUrl);
+      media = {
+        body: videoBuffer
+      };
+    } else {
+      // Local file path
+      media = {
+        body: fs.createReadStream(videoUrl)
+      };
+    }
+
+    // Upload video
+    console.log('📤 Uploading video to YouTube:', title);
+    const uploadResponse = await youtube.videos.insert({
+      part: ['snippet', 'status'],
+      requestBody: videoMetadata,
+      media: media
+    });
+
+    const videoId = uploadResponse.data.id;
+    const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    console.log('✅ Video uploaded successfully:', youtubeUrl);
+
+    // Upload thumbnail if provided
+    if (thumbnailUrl) {
+      try {
+        await uploadThumbnail(oauth2Client, videoId, thumbnailUrl);
+        console.log('✅ Thumbnail uploaded');
+      } catch (thumbError) {
+        console.error('❌ Thumbnail upload failed:', thumbError.message);
+        // Don't fail the whole upload if thumbnail fails
+      }
+    }
+
+    return {
+      success: true,
+      videoId,
+      videoUrl: youtubeUrl,
+      title: uploadResponse.data.snippet.title,
+      publishedAt: uploadResponse.data.snippet.publishedAt,
+      privacyStatus: uploadResponse.data.status.privacyStatus
+    };
+
+  } catch (error) {
+    console.error('YouTube upload error:', error);
+
+    // Parse YouTube API errors
+    let errorMessage = error.message;
+    if (error.response?.data?.error?.message) {
+      errorMessage = error.response.data.error.message;
+    }
+
+    return {
+      success: false,
+      error: errorMessage,
+      errorCode: error.response?.data?.error?.code || 'UPLOAD_FAILED'
+    };
+  }
+}
+
+/**
+ * Download video from URL to buffer
+ */
+async function downloadVideoFromUrl(url) {
+  try {
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      maxContentLength: 256 * 1024 * 1024, // 256 MB max
+      timeout: 300000 // 5 minute timeout
+    });
+
+    return Buffer.from(response.data);
+  } catch (error) {
+    throw new Error(`Failed to download video: ${error.message}`);
+  }
+}
+
+/**
+ * Upload thumbnail to YouTube video
+ */
+async function uploadThumbnail(oauth2Client, videoId, thumbnailUrl) {
+  try {
+    const youtube = google.youtube({
+      version: 'v3',
+      auth: oauth2Client
+    });
+
+    let media;
+    if (thumbnailUrl.startsWith('http://') || thumbnailUrl.startsWith('https://')) {
+      // Download thumbnail from URL
+      const response = await axios.get(thumbnailUrl, {
+        responseType: 'arraybuffer',
+        maxContentLength: 2 * 1024 * 1024 // 2 MB max
+      });
+      media = {
+        body: Buffer.from(response.data)
+      };
+    } else if (thumbnailUrl.startsWith('data:')) {
+      // Base64 thumbnail
+      const base64Data = thumbnailUrl.replace(/^data:image\/\w+;base64,/, '');
+      media = {
+        body: Buffer.from(base64Data, 'base64')
+      };
+    } else {
+      // Local file
+      media = {
+        body: fs.createReadStream(thumbnailUrl)
+      };
+    }
+
+    await youtube.thumbnails.set({
+      videoId: videoId,
+      media: media
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Thumbnail upload error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update video metadata
+ */
+async function updateVideoMetadata(user, videoId, updates) {
+  try {
+    const credentialCheck = await validateAndRefreshCredentials(user);
+    if (!credentialCheck.valid) {
+      throw new Error(credentialCheck.error);
+    }
+
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({
+      access_token: credentialCheck.accessToken,
+      refresh_token: user.socialMedia.youtube.refreshToken
+    });
+
+    const youtube = google.youtube({
+      version: 'v3',
+      auth: oauth2Client
+    });
+
+    // Get current video details
+    const videoResponse = await youtube.videos.list({
+      part: ['snippet', 'status'],
+      id: [videoId]
+    });
+
+    if (!videoResponse.data.items || videoResponse.data.items.length === 0) {
+      throw new Error('Video not found');
+    }
+
+    const video = videoResponse.data.items[0];
+
+    // Update metadata
+    if (updates.title) {
+      video.snippet.title = updates.title.substring(0, 100);
+    }
+    if (updates.description !== undefined) {
+      video.snippet.description = updates.description.substring(0, 5000);
+    }
+    if (updates.tags) {
+      video.snippet.tags = updates.tags.slice(0, 500);
+    }
+    if (updates.privacyStatus) {
+      video.status.privacyStatus = updates.privacyStatus;
+    }
+
+    // Update video
+    await youtube.videos.update({
+      part: ['snippet', 'status'],
+      requestBody: video
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Update metadata error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete video from YouTube
+ */
+async function deleteVideo(user, videoId) {
+  try {
+    const credentialCheck = await validateAndRefreshCredentials(user);
+    if (!credentialCheck.valid) {
+      throw new Error(credentialCheck.error);
+    }
+
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({
+      access_token: credentialCheck.accessToken,
+      refresh_token: user.socialMedia.youtube.refreshToken
+    });
+
+    const youtube = google.youtube({
+      version: 'v3',
+      auth: oauth2Client
+    });
+
+    await youtube.videos.delete({
+      id: videoId
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Delete video error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get video analytics
+ */
+async function getVideoAnalytics(user, videoId) {
+  try {
+    const credentialCheck = await validateAndRefreshCredentials(user);
+    if (!credentialCheck.valid) {
+      throw new Error(credentialCheck.error);
+    }
+
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({
+      access_token: credentialCheck.accessToken,
+      refresh_token: user.socialMedia.youtube.refreshToken
+    });
+
+    const youtube = google.youtube({
+      version: 'v3',
+      auth: oauth2Client
+    });
+
+    const response = await youtube.videos.list({
+      part: ['statistics', 'snippet', 'contentDetails'],
+      id: [videoId]
+    });
+
+    if (!response.data.items || response.data.items.length === 0) {
+      throw new Error('Video not found');
+    }
+
+    const video = response.data.items[0];
+
+    return {
+      success: true,
+      analytics: {
+        views: parseInt(video.statistics.viewCount || 0),
+        likes: parseInt(video.statistics.likeCount || 0),
+        comments: parseInt(video.statistics.commentCount || 0),
+        title: video.snippet.title,
+        publishedAt: video.snippet.publishedAt,
+        duration: video.contentDetails.duration
+      }
+    };
+  } catch (error) {
+    console.error('Get analytics error:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+module.exports = {
+  getAuthorizationUrl,
+  getTokensFromCode,
+  refreshAccessToken,
+  validateAndRefreshCredentials,
+  uploadVideo,
+  updateVideoMetadata,
+  deleteVideo,
+  getVideoAnalytics,
+  uploadThumbnail
+};

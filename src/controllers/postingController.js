@@ -5,7 +5,7 @@ const Content = require('../models/Content');
 const User = require('../models/User');
 
 /**
- * Manually post a single content item
+ * Manually post a single content item (legacy endpoint)
  */
 exports.postContent = async (req, res) => {
   try {
@@ -62,6 +62,108 @@ exports.postContent = async (req, res) => {
     });
   } catch (error) {
     console.error('Post content error:', error);
+    res.status(500).json({
+      error: 'Failed to post content',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Post content immediately to selected platforms (frontend /now endpoint)
+ */
+exports.postNow = async (req, res) => {
+  try {
+    const { contentId, platforms, caption, hashtags } = req.body;
+
+    if (!contentId || !platforms) {
+      return res.status(400).json({ error: 'Content ID and platforms are required' });
+    }
+
+    const content = await Content.findOne({
+      _id: contentId,
+      userId: req.user._id
+    });
+
+    if (!content) {
+      return res.status(404).json({ error: 'Content not found' });
+    }
+
+    const user = await User.findById(req.user._id);
+    const platformArray = Array.isArray(platforms) ? platforms : [platforms];
+
+    const results = {};
+    const errors = [];
+
+    // Build caption with hashtags
+    let finalCaption = caption || content.caption || '';
+    if (hashtags && hashtags.length > 0) {
+      const hashtagStr = hashtags.map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
+      finalCaption = `${finalCaption}\n\n${hashtagStr}`.trim();
+    }
+
+    const options = { caption: finalCaption };
+
+    // Post to each platform
+    for (const platform of platformArray) {
+      try {
+        // Validate credentials
+        const validation = await socialMediaService.validateCredentials(user, platform);
+        if (!validation.valid) {
+          errors.push({
+            platform,
+            error: validation.error,
+            needsRefresh: validation.needsRefresh
+          });
+          continue;
+        }
+
+        // Post to platform
+        let result;
+        if (platform === 'instagram') {
+          result = await socialMediaService.postToInstagram(user, content, options);
+        } else if (platform === 'tiktok') {
+          result = await socialMediaService.postToTikTok(user, content, options);
+        } else {
+          errors.push({ platform, error: `Unsupported platform: ${platform}` });
+          continue;
+        }
+
+        results[platform] = result;
+
+        // Update content status if successful
+        if (result.success) {
+          content.status = 'published';
+          content.publishedAt = new Date();
+          if (!content.platformPosts) {
+            content.platformPosts = {};
+          }
+          content.platformPosts[platform] = {
+            postId: result.postId,
+            postUrl: result.postUrl,
+            postedAt: result.timestamp
+          };
+        }
+      } catch (error) {
+        errors.push({ platform, error: error.message });
+      }
+    }
+
+    // Save content updates
+    if (Object.keys(results).length > 0) {
+      await content.save();
+    }
+
+    const allSuccessful = errors.length === 0 && Object.keys(results).length === platformArray.length;
+
+    res.json({
+      success: allSuccessful,
+      message: allSuccessful ? 'Posted successfully to all platforms' : 'Some posts failed',
+      results,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('Post now error:', error);
     res.status(500).json({
       error: 'Failed to post content',
       details: error.message
@@ -377,10 +479,11 @@ exports.updateScheduledPost = async (req, res) => {
  */
 exports.cancelScheduledPost = async (req, res) => {
   try {
-    const { scheduleId } = req.params;
+    const { scheduleId, postId } = req.params;
+    const contentId = scheduleId || postId;
 
     const content = await Content.findOne({
-      _id: scheduleId,
+      _id: contentId,
       userId: req.user._id,
       status: 'scheduled'
     });
@@ -404,6 +507,58 @@ exports.cancelScheduledPost = async (req, res) => {
     console.error('Cancel scheduled post error:', error);
     res.status(500).json({
       error: 'Failed to cancel scheduled post',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * Get posting history for user
+ */
+exports.getPostingHistory = async (req, res) => {
+  try {
+    const { platform, startDate, endDate, limit = 50 } = req.query;
+
+    const query = {
+      userId: req.user._id,
+      status: 'published',
+      publishedAt: { $exists: true }
+    };
+
+    if (platform && platform !== 'all') {
+      query[`platformPosts.${platform}`] = { $exists: true };
+    }
+
+    if (startDate || endDate) {
+      query.publishedAt = {};
+      if (startDate) query.publishedAt.$gte = new Date(startDate);
+      if (endDate) query.publishedAt.$lte = new Date(endDate);
+    }
+
+    const posts = await Content.find(query)
+      .sort({ publishedAt: -1 })
+      .limit(parseInt(limit));
+
+    const history = posts.map(post => ({
+      id: post._id,
+      caption: post.caption,
+      mediaUrl: post.mediaUrl,
+      mediaType: post.mediaType,
+      publishedAt: post.publishedAt,
+      platforms: Object.keys(post.platformPosts || {}),
+      platformPosts: post.platformPosts,
+      status: post.status
+    }));
+
+    res.json({
+      success: true,
+      posts: history,
+      count: history.length
+    });
+  } catch (error) {
+    console.error('Get posting history error:', error);
+    res.status(500).json({
+      error: 'Failed to get posting history',
       details: error.message
     });
   }

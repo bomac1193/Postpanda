@@ -586,4 +586,132 @@ exports.generateAutoPlaybook = async (req, res) => {
   }
 };
 
+/**
+ * BLUE OCEAN: Rollout Intelligence Controllers
+ */
+
+const rolloutIntelligence = require('../services/rolloutIntelligenceService');
+
+// Get comprehensive rollout intelligence
+exports.getRolloutIntelligence = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ error: 'Invalid rollout ID' });
+    }
+
+    const intelligence = await rolloutIntelligence.analyzeRollout(id, req.user._id);
+
+    res.json({
+      success: true,
+      intelligence
+    });
+  } catch (error) {
+    console.error('Get rollout intelligence error:', error);
+    res.status(500).json({ error: 'Failed to analyze rollout intelligence' });
+  }
+};
+
+// Get section readiness analysis
+exports.getSectionReadiness = async (req, res) => {
+  try {
+    const { id, sectionId } = req.params;
+
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ error: 'Invalid rollout ID' });
+    }
+
+    const rollout = await Rollout.findOne({
+      _id: id,
+      userId: req.user._id
+    });
+
+    if (!rollout) {
+      return res.status(404).json({ error: 'Rollout not found' });
+    }
+
+    const User = require('../models/User');
+    const user = await User.findById(req.user._id);
+
+    const readiness = await rolloutIntelligence.analyzeSectionReadiness(rollout, sectionId, user);
+
+    res.json({
+      success: true,
+      readiness
+    });
+  } catch (error) {
+    console.error('Get section readiness error:', error);
+    res.status(500).json({ error: 'Failed to analyze section readiness' });
+  }
+};
+
+// Get pacing recommendations
+exports.getPacingRecommendations = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ error: 'Invalid rollout ID' });
+    }
+
+    const rollout = await Rollout.findOne({
+      _id: id,
+      userId: req.user._id
+    });
+
+    if (!rollout) {
+      return res.status(404).json({ error: 'Rollout not found' });
+    }
+
+    const User = require('../models/User');
+    const user = await User.findById(req.user._id);
+    const archetype = user.tasteGenome?.archetype?.primary;
+
+    const pacing = rolloutIntelligence.getPacingRecommendations(archetype, rollout);
+
+    res.json({
+      success: true,
+      pacing
+    });
+  } catch (error) {
+    console.error('Get pacing recommendations error:', error);
+    res.status(500).json({ error: 'Failed to get pacing recommendations' });
+  }
+};
+
+// Get stan velocity prediction
+exports.getStanVelocityPrediction = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ error: 'Invalid rollout ID' });
+    }
+
+    const rollout = await Rollout.findOne({
+      _id: id,
+      userId: req.user._id
+    });
+
+    if (!rollout) {
+      return res.status(404).json({ error: 'Rollout not found' });
+    }
+
+    const User = require('../models/User');
+    const user = await User.findById(req.user._id);
+    const archetype = user.tasteGenome?.archetype?.primary;
+
+    const velocity = rolloutIntelligence.predictStanVelocity(archetype, rollout);
+
+    res.json({
+      success: true,
+      velocity
+    });
+  } catch (error) {
+    console.error('Get velocity prediction error:', error);
+    res.status(500).json({ error: 'Failed to predict stan velocity' });
+  }
+};
+
 module.exports = exports;

@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/server.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "SLAYT_API_KEY": "@slayt-api-key",
+    "SESSION_SECRET": "@session-secret",
+    "MONGODB_URI": "@mongodb-uri"
+  }
+}

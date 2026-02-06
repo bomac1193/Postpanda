@@ -67,4 +67,20 @@ router.put('/:id/schedule', rolloutController.scheduleRollout);
 // Set section deadline/dates
 router.put('/:id/sections/:sectionId/deadline', rolloutController.setSectionDeadline);
 
+/**
+ * BLUE OCEAN: Rollout Intelligence Routes
+ */
+
+// Get comprehensive rollout intelligence (conviction gating, pacing, velocity)
+router.get('/:id/intelligence', rolloutController.getRolloutIntelligence);
+
+// Get section readiness analysis (conviction-based gating)
+router.get('/:id/sections/:sectionId/readiness', rolloutController.getSectionReadiness);
+
+// Get archetype-specific pacing recommendations
+router.get('/:id/pacing', rolloutController.getPacingRecommendations);
+
+// Get stan velocity prediction
+router.get('/:id/velocity', rolloutController.getStanVelocityPrediction);
+
 module.exports = router;

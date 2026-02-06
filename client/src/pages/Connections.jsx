@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '../stores/useAppStore';
-import { platformApi, profileApi } from '../lib/api';
+import { platformApi, profileApi, youtubeApi } from '../lib/api';
 import {
   Instagram,
   Youtube,
@@ -73,9 +73,9 @@ const PLATFORMS = [
     name: 'YouTube',
     icon: Youtube,
     color: 'bg-[#FF0000]',
-    features: ['Shorts', 'Community Posts'],
-    authUrl: '/api/auth/youtube',
-    comingSoon: true,
+    features: ['Video Uploads', 'Scheduled Publishing', 'Thumbnails'],
+    authUrl: '/api/auth/youtube/connect',
+    comingSoon: false,
   },
   {
     id: 'pinterest',
@@ -144,11 +144,17 @@ function Connections() {
 
     setConnecting(platform.id);
     try {
-      // In production, this would redirect to OAuth
-      window.location.href = platform.authUrl;
+      // Special handling for YouTube - get auth URL first
+      if (platform.id === 'youtube') {
+        const authUrl = await youtubeApi.getAuthUrl();
+        window.location.href = authUrl;
+      } else {
+        // For other platforms, redirect directly
+        window.location.href = platform.authUrl;
+      }
     } catch (error) {
       console.error('Connection failed:', error);
-    } finally {
+      alert(`Failed to connect ${platform.name}: ${error.response?.data?.error || error.message}`);
       setConnecting(null);
     }
   };

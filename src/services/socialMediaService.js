@@ -479,6 +479,52 @@ class SocialMediaService {
   }
 
   /**
+   * Post to YouTube
+   */
+  async postToYouTube(user, content, options = {}) {
+    try {
+      const youtubeApiService = require('./youtubeApiService');
+
+      // Prepare video data
+      const videoData = {
+        videoUrl: content.mediaUrl,
+        title: options.title || content.title || 'Untitled Video',
+        description: options.description || content.caption || '',
+        tags: options.tags || content.hashtags || [],
+        categoryId: options.categoryId || '22', // People & Blogs
+        privacyStatus: options.privacyStatus || 'private',
+        publishAt: options.publishAt || null,
+        thumbnailUrl: content.thumbnailUrl || null
+      };
+
+      const result = await youtubeApiService.uploadVideo(user, videoData);
+
+      if (result.success) {
+        return {
+          success: true,
+          platform: 'youtube',
+          postId: result.videoId,
+          postUrl: result.videoUrl,
+          timestamp: new Date()
+        };
+      } else {
+        return {
+          success: false,
+          platform: 'youtube',
+          error: result.error
+        };
+      }
+    } catch (error) {
+      console.error('YouTube posting error:', error);
+      return {
+        success: false,
+        platform: 'youtube',
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Validate social media credentials before posting
    */
   async validateCredentials(user, platform) {
@@ -496,6 +542,17 @@ class SocialMediaService {
       if (!user.socialAccounts.tiktok.connected) {
         return { valid: false, error: 'TikTok not connected' };
       }
+    }
+
+    if (platform === 'youtube') {
+      const youtube = user.socialAccounts?.youtube || user.socialMedia?.youtube;
+      if (!youtube || !youtube.accessToken) {
+        return { valid: false, error: 'YouTube not connected' };
+      }
+
+      // YouTube token validation is handled by youtubeApiService
+      // which will auto-refresh if needed
+      return { valid: true };
     }
 
     return { valid: true };

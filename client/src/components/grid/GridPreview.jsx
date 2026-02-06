@@ -850,7 +850,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
       return;
     }
 
-    if (!activeGrid) {
+    if (!gridId) {
       alert('No active grid to save as template');
       return;
     }
@@ -858,7 +858,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
     try {
       setSavingTemplate(true);
 
-      await templateApi.createFromGrid(activeGrid, {
+      await templateApi.createFromGrid(gridId, {
         name: templateName.trim(),
         description: templateDescription.trim(),
         isPublic: false // Can add a checkbox for this later
@@ -3594,7 +3594,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
               onClick={() => setShowTemplateModal(true)}
               className="px-3 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-1.5 bg-gradient-to-r from-accent-purple to-pink-600 text-white border border-accent-purple/30 hover:from-accent-purple-dark hover:to-pink-700"
               title="Save current grid as a reusable template"
-              disabled={!activeGrid || postsWithConviction.length === 0}
+              disabled={!gridId || postsWithConviction.length === 0}
             >
               <FolderPlus className="w-3 h-3" />
               <span>Save Template</span>

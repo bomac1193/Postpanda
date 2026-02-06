@@ -89,6 +89,20 @@ export const authApi = {
 
 // YouTube API
 export const youtubeApi = {
+  // Auth & Connection
+  async getAuthUrl() {
+    const { data } = await api.get('/api/auth/youtube/connect');
+    return data.authUrl;
+  },
+  async getStatus() {
+    const { data } = await api.get('/api/auth/youtube/status');
+    return data;
+  },
+  async disconnect() {
+    const { data } = await api.post('/api/auth/youtube/disconnect');
+    return data;
+  },
+
   // Collections
   async getCollections() {
     const { data } = await api.get('/api/youtube/collections');
@@ -205,6 +219,24 @@ export const rolloutApi = {
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
     const { data } = await api.get('/api/rollout/calendar/scheduled', { params });
+    return data;
+  },
+
+  // BLUE OCEAN: Rollout Intelligence
+  async getIntelligence(rolloutId) {
+    const { data } = await api.get(`/api/rollout/${rolloutId}/intelligence`);
+    return data;
+  },
+  async getSectionReadiness(rolloutId, sectionId) {
+    const { data } = await api.get(`/api/rollout/${rolloutId}/sections/${sectionId}/readiness`);
+    return data;
+  },
+  async getPacingRecommendations(rolloutId) {
+    const { data } = await api.get(`/api/rollout/${rolloutId}/pacing`);
+    return data;
+  },
+  async getStanVelocityPrediction(rolloutId) {
+    const { data } = await api.get(`/api/rollout/${rolloutId}/velocity`);
     return data;
   },
 };

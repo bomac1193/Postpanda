@@ -193,6 +193,19 @@ const contentSchema = new mongoose.Schema({
     instagram: String,
     tiktok: String
   },
+  // Platform-specific post data (after publishing)
+  platformPosts: {
+    instagram: {
+      postId: String,
+      postUrl: String,
+      postedAt: Date
+    },
+    tiktok: {
+      postId: String,
+      postUrl: String,
+      postedAt: Date
+    }
+  },
   // AI Suggestions
   aiSuggestions: {
     recommendedType: {
@@ -268,6 +281,12 @@ const contentSchema = new mongoose.Schema({
   },
   // Scheduling and Publishing
   scheduledFor: Date,
+  scheduledTime: Date, // Alias for scheduledFor (frontend compatibility)
+  scheduledPlatform: String, // Platform(s) for scheduled post
+  autoPost: {
+    type: Boolean,
+    default: false
+  },
   publishedAt: Date,
   platformPostUrl: String, // Direct link to post on Instagram/TikTok
   platformPostId: String,  // Platform-specific post ID

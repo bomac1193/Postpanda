@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, ChevronDown, Trash2, Edit3, Check, X, GripVertical, Folder, Search, Tag, Palette, Youtube, Instagram, LayoutGrid, Film, Loader2, Calendar, Flag, Target, Sparkles } from 'lucide-react';
 import { useAppStore } from '../stores/useAppStore';
 import { gridApi, reelCollectionApi, rolloutApi, genomeApi } from '../lib/api';
+import RolloutIntelligencePanel from '../components/rollout/RolloutIntelligencePanel';
 
 // TikTok icon component
 function TikTokIcon({ className }) {
@@ -901,6 +902,14 @@ function RolloutPlanner() {
                 }
               }}
               saving={savingRollout}
+            />
+          )}
+
+          {/* BLUE OCEAN: Rollout Intelligence Panel */}
+          {currentRollout && currentRolloutId && (
+            <RolloutIntelligencePanel
+              rolloutId={currentRolloutId}
+              rollout={currentRollout}
             />
           )}
 
