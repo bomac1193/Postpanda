@@ -164,7 +164,7 @@ exports.updateCollection = async (req, res) => {
     }
 
     // Update allowed fields
-    const allowedUpdates = ['name', 'color', 'tags', 'rolloutId', 'sectionId'];
+    const allowedUpdates = ['name', 'color', 'tags', 'rolloutId', 'sectionId', 'folder', 'position'];
 
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {

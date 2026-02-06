@@ -24,6 +24,15 @@ const youtubeCollectionSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+  folder: {
+    type: String,
+    trim: true,
+    default: null // null = root/no folder
+  },
+  position: {
+    type: Number,
+    default: 0 // For ordering within folders
+  },
   rolloutId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Rollout',
