@@ -37,6 +37,8 @@ import {
   Contrast,
   Dice5,
   SlidersHorizontal,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 // Crop aspect ratio presets
@@ -61,18 +63,18 @@ const PLATFORMS = [
 // Fake comments for preview
 const FAKE_COMMENTS = {
   instagram: [
-    { user: 'sarah.designs', text: 'Love this! 😍🔥', verified: false },
+    { user: 'sarah.designs', text: 'Love this. Strong frame and tone.', verified: false },
     { user: 'mike_photo', text: 'Amazing content as always', verified: false },
     { user: 'lifestyle.mag', text: 'This is incredible! Can we feature this?', verified: true },
   ],
   tiktok: [
     { user: 'user8273', text: 'This is so satisfying to watch', likes: '2.4K' },
-    { user: 'creativequeen', text: 'Tutorial please! 🙏', likes: '892' },
+    { user: 'creativequeen', text: 'Tutorial please.', likes: '892' },
     { user: 'viralking', text: 'POV: you found the best content', likes: '1.1K' },
   ],
   twitter: [
     { user: 'techbro', text: 'This is the content I signed up for', likes: '142', retweets: '23' },
-    { user: 'designlover', text: 'Bookmarked! 🔖', likes: '89', retweets: '12' },
+    { user: 'designlover', text: 'Bookmarked. Returning to this.', likes: '89', retweets: '12' },
   ],
 };
 
@@ -88,6 +90,32 @@ const formatNumber = (num) => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
   return num.toString();
+};
+
+const DEFAULT_CROP_BOX = { x: 0, y: 0, width: 100, height: 100 };
+const createDefaultDraft = () => ({
+  scale: 100,
+  rotation: 0,
+  panX: 0,
+  panY: 0,
+  fitMode: 'native',
+  flipH: false,
+  flipV: false,
+  brightness: 100,
+  contrast: 100,
+  cropAspect: 'free',
+  cropBox: { ...DEFAULT_CROP_BOX },
+});
+
+const resolvePrimaryImageSource = (post) => {
+  if (!post) return null;
+  return (
+    post.originalImage ||
+    post.image ||
+    (Array.isArray(post.images) ? post.images[0] : null) ||
+    post.mediaUrl ||
+    null
+  );
 };
 
 function PostDetails({ post }) {
@@ -133,30 +161,38 @@ function PostDetails({ post }) {
 
   // Quick Edit state
   const [isQuickEditing, setIsQuickEditing] = useState(false);
+  const [editTarget, setEditTarget] = useState('instagram');
+  const [quickEditPanelExpanded, setQuickEditPanelExpanded] = useState(true);
+  const [autoSaveStatus, setAutoSaveStatus] = useState('idle');
+  const [platformDrafts, setPlatformDrafts] = useState({
+    instagram: null,
+    tiktok: null,
+    twitter: null,
+  });
   const [editedImage, setEditedImage] = useState(null);
   const [originalImage, setOriginalImage] = useState(null);
-  const [editSettings, setEditSettings] = useState({
-    scale: 100,
-    rotation: 0,
-    flipH: false,
-    flipV: false,
-    brightness: 100,
-    contrast: 100,
-    cropAspect: 'free',
+  const [editSettings, setEditSettings] = useState(() => {
+    const draft = createDefaultDraft();
+    const { cropBox, ...settings } = draft;
+    return settings;
   });
   const [isCropping, setIsCropping] = useState(false);
   const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });
   const [saving, setSaving] = useState(false);
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
+  const autosaveTimerRef = useRef(null);
+  const autoStartQuickEditKeyRef = useRef(null);
 
   // Drag state for crop box
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0, box: null });
   const previewContainerRef = useRef(null);
+  const [isImagePanning, setIsImagePanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0, panX: 0, panY: 0 });
 
   // Crop box state for resizable crop
-  const [cropBox, setCropBox] = useState({ x: 0, y: 0, width: 100, height: 100 }); // percentages of actual image
+  const [cropBox, setCropBox] = useState(DEFAULT_CROP_BOX); // percentages of actual image
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState(null); // 'nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, box: null });
@@ -164,13 +200,14 @@ function PostDetails({ post }) {
   // Track actual image bounds within container (for accurate crop overlay)
   const [imageBounds, setImageBounds] = useState({ x: 0, y: 0, width: 100, height: 100 });
 
-  // Shift key state for free movement (no grid snap)
+  // Shift key state for optional grid snap
   const [shiftHeld, setShiftHeld] = useState(false);
 
   // Grid snap settings
-  const GRID_SNAP = 5; // Snap to 5% increments
+  const GRID_SNAP = 2; // Snap to 2% increments when shift is held
   const snapToGrid = (value, forceSnap = false) => {
-    if (shiftHeld && !forceSnap) return value; // Free movement when shift is held
+    // Smooth by default. Hold shift to enable snap.
+    if (!shiftHeld && !forceSnap) return value;
     return Math.round(value / GRID_SNAP) * GRID_SNAP;
   };
   const [bestTimes, setBestTimes] = useState(null);
@@ -238,8 +275,13 @@ function PostDetails({ post }) {
 
     if (!imgNaturalWidth || !imgNaturalHeight) return;
 
+    const normalizedRotation = ((editSettings.rotation || 0) % 360 + 360) % 360;
+    const isQuarterTurn = normalizedRotation === 90 || normalizedRotation === 270;
+    const effectiveWidth = isQuarterTurn ? imgNaturalHeight : imgNaturalWidth;
+    const effectiveHeight = isQuarterTurn ? imgNaturalWidth : imgNaturalHeight;
+
     const containerAspect = containerRect.width / containerRect.height;
-    const imageAspect = imgNaturalWidth / imgNaturalHeight;
+    const imageAspect = effectiveWidth / effectiveHeight;
 
     let renderedWidth, renderedHeight, offsetX, offsetY;
 
@@ -280,7 +322,7 @@ function PostDetails({ post }) {
       window.addEventListener('resize', calculateImageBounds);
       return () => window.removeEventListener('resize', calculateImageBounds);
     }
-  }, [isQuickEditing, editedImage]);
+  }, [isQuickEditing, editedImage, editSettings.rotation]);
 
   // Get the correct post ID (works for both local and MongoDB posts)
   const postId = post?.id || post?._id || null;
@@ -378,14 +420,14 @@ function PostDetails({ post }) {
       console.error('Failed to generate caption:', error);
       // Fallback: generate a simple caption locally
       const fallbackCaptions = [
-        "✨ New post alert! Double tap if you love this! 💕",
-        "Living my best life 🌟 What do you think?",
-        "Good vibes only ✌️ Drop a comment below!",
-        "Sharing a moment with you all 📸 #blessed",
-        "Making memories one post at a time 📷",
-        "This is your sign to do something amazing today ✨",
-        "Caught in the moment 🌈",
-        "Creating my own sunshine ☀️",
+        "New post live. Tell me what detail landed most for you.",
+        "Sharing this moment with you. What do you see first?",
+        "Dropping this one for the people who notice the craft.",
+        "Built this with intention. Let me know what resonates.",
+        "Captured this in one take. Feedback welcome.",
+        "A clean frame, a clear message, and no filler.",
+        "Saved this one for the timeline. Thoughts?",
+        "Here for quality over noise. Your take?",
       ];
       const newCaption = fallbackCaptions[Math.floor(Math.random() * fallbackCaptions.length)];
       setCaption(newCaption);
@@ -561,61 +603,61 @@ function PostDetails({ post }) {
 
   const startQuickEdit = () => {
     // Always work with the original image for non-destructive editing
-    const sourceImage = post.originalImage || post.image;
+    const sourceImage = resolvePrimaryImageSource(post);
+    if (!sourceImage) return;
     setOriginalImage(sourceImage);
     setEditedImage(sourceImage);
 
-    // Restore previous edit settings if they exist, otherwise use defaults
-    const savedSettings = post.editSettings;
-    if (savedSettings) {
-      setEditSettings({
-        scale: savedSettings.scale || 100,
-        rotation: savedSettings.rotation || 0,
-        flipH: savedSettings.flipH || false,
-        flipV: savedSettings.flipV || false,
-        brightness: savedSettings.brightness || 100,
-        contrast: savedSettings.contrast || 100,
-        cropAspect: savedSettings.cropAspect || 'free',
-      });
-      // Restore crop box position
-      if (savedSettings.cropBox) {
-        setCropBox(savedSettings.cropBox);
-      } else {
-        setCropBox({ x: 0, y: 0, width: 100, height: 100 });
-      }
-    } else {
-      setEditSettings({
-        scale: 100,
-        rotation: 0,
-        flipH: false,
-        flipV: false,
-        brightness: 100,
-        contrast: 100,
-        cropAspect: 'free',
-      });
-      setCropBox({ x: 0, y: 0, width: 100, height: 100 });
-    }
+    // Restore per-platform drafts if available, otherwise fan out from base settings.
+    const savedSettings = post.editSettings || {};
+    const base = hydrateDraft(savedSettings).full;
+    const existingDrafts = savedSettings.platformDrafts || {};
+    const nextDrafts = {
+      instagram: hydrateDraft(existingDrafts.instagram || base).full,
+      tiktok: hydrateDraft(existingDrafts.tiktok || base).full,
+      twitter: hydrateDraft(existingDrafts.twitter || base).full,
+    };
+    setPlatformDrafts(nextDrafts);
+
+    const target =
+      activeTab === 'tiktok' || activeTab === 'twitter' || activeTab === 'instagram'
+        ? activeTab
+        : 'instagram';
+    const current = nextDrafts[target] || createDefaultDraft();
+    const { cropBox: targetCrop, ...targetSettings } = current;
+    setEditTarget(target);
+    setEditSettings(targetSettings);
+    setCropBox(targetCrop || { ...DEFAULT_CROP_BOX });
+    setAutoSaveStatus('idle');
     setIsQuickEditing(true);
   };
+
+  useEffect(() => {
+    const postKey = post?.id || post?._id;
+    if (!postKey) return;
+    const sourceImage = resolvePrimaryImageSource(post);
+    if (!sourceImage) return;
+    const isNewPost = autoStartQuickEditKeyRef.current !== postKey;
+    const missingEditorImage = isQuickEditing && !editedImage;
+    if (!isNewPost && !missingEditorImage) return;
+
+    autoStartQuickEditKeyRef.current = postKey;
+    startQuickEdit();
+  }, [post?.id, post?._id, post?.image, post?.originalImage, post?.images, post?.mediaUrl, isQuickEditing, editedImage]);
 
   const cancelQuickEdit = () => {
     setIsQuickEditing(false);
     setEditedImage(null);
     setIsCropping(false);
+    setAutoSaveStatus('idle');
   };
 
   // Reset current edits but keep working
   const resetEdits = () => {
-    setEditSettings({
-      scale: 100,
-      rotation: 0,
-      flipH: false,
-      flipV: false,
-      brightness: 100,
-      contrast: 100,
-      cropAspect: 'free',
-    });
-    setCropBox({ x: 0, y: 0, width: 100, height: 100 });
+    const reset = createDefaultDraft();
+    const { cropBox: resetCrop, ...resetSettings } = reset;
+    setEditSettings(resetSettings);
+    setCropBox(resetCrop);
   };
 
   // Completely restore to original image (remove all edits)
@@ -633,25 +675,33 @@ function PostDetails({ post }) {
     setEditSettings({
       scale: 100,
       rotation: 0,
+      panX: 0,
+      panY: 0,
       flipH: false,
       flipV: false,
       brightness: 100,
       contrast: 100,
       cropAspect: 'free',
     });
-    setCropBox({ x: 0, y: 0, width: 100, height: 100 });
+    setCropBox({ ...DEFAULT_CROP_BOX });
+    setPlatformDrafts({
+      instagram: createDefaultDraft(),
+      tiktok: createDefaultDraft(),
+      twitter: createDefaultDraft(),
+    });
     setEditedImage(originalImg);
   };
 
   // Update crop box when aspect ratio changes
-  const updateCropAspect = (aspectId) => {
-    updateEditSetting('cropAspect', aspectId);
+  const updateCropAspect = (aspectId, rotationOverride = null, persistAspect = true) => {
+    if (persistAspect) {
+      updateEditSetting('cropAspect', aspectId);
+    }
     const selectedCrop = CROP_PRESETS.find(p => p.id === aspectId);
 
     if (selectedCrop?.ratio && imageRef.current) {
       const targetRatio = selectedCrop.ratio; // width/height we want
-      const imgWidth = imageRef.current.naturalWidth;
-      const imgHeight = imageRef.current.naturalHeight;
+      const { width: imgWidth, height: imgHeight } = getEffectiveImageDimensions(rotationOverride);
 
       if (!imgWidth || !imgHeight) {
         setCropBox({ x: 0, y: 0, width: 100, height: 100 });
@@ -693,6 +743,13 @@ function PostDetails({ post }) {
     }
   };
 
+  useEffect(() => {
+    if (!isQuickEditing) return;
+    if (!editSettings?.cropAspect || editSettings.cropAspect === 'free') return;
+    updateCropAspect(editSettings.cropAspect, editSettings.rotation, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editSettings.rotation, isQuickEditing]);
+
   // Resize handlers for crop box corners
   const handleResizeStart = (e, handle) => {
     e.preventDefault();
@@ -724,9 +781,7 @@ function PostDetails({ post }) {
     const targetRatio = selectedCrop?.ratio;
 
     // Get actual image aspect ratio for correct calculations
-    const imgWidth = imageRef.current?.naturalWidth || 1;
-    const imgHeight = imageRef.current?.naturalHeight || 1;
-    const imageRatio = imgWidth / imgHeight;
+    const { ratio: imageRatio } = getEffectiveImageDimensions();
 
     // Helper: calculate height% from width% to maintain target aspect ratio
     // targetRatio = (widthPct/100 * imgW) / (heightPct/100 * imgH)
@@ -864,20 +919,299 @@ function PostDetails({ post }) {
     setEditSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  const hydrateDraft = (draftLike = null) => {
+    const merged = { ...createDefaultDraft(), ...(draftLike || {}) };
+    const nextCropBox = merged.cropBox ? { ...DEFAULT_CROP_BOX, ...merged.cropBox } : { ...DEFAULT_CROP_BOX };
+    const { cropBox: _ignored, ...settings } = merged;
+    return { settings, cropBox: nextCropBox, full: { ...settings, cropBox: nextCropBox } };
+  };
+
+  const handleEditTargetChange = (target) => {
+    if (target === editTarget) return;
+
+    let nextDraft = createDefaultDraft();
+    setPlatformDrafts((prev) => {
+      const updated = {
+        ...prev,
+        [editTarget]: { ...editSettings, cropBox: { ...cropBox } },
+      };
+      nextDraft = updated[target] || createDefaultDraft();
+      return updated;
+    });
+
+    const hydrated = hydrateDraft(nextDraft);
+    setEditTarget(target);
+    setEditSettings(hydrated.settings);
+    setCropBox(hydrated.cropBox);
+  };
+
+  const normalizeDraft = (draft) => hydrateDraft(draft).full;
+
+  const buildDraftsForSave = (overrides = {}) => {
+    const incoming = {
+      instagram: overrides.instagram ?? platformDrafts.instagram,
+      tiktok: overrides.tiktok ?? platformDrafts.tiktok,
+      twitter: overrides.twitter ?? platformDrafts.twitter,
+    };
+    return {
+      instagram: normalizeDraft(incoming.instagram),
+      tiktok: normalizeDraft(incoming.tiktok),
+      twitter: normalizeDraft(incoming.twitter),
+    };
+  };
+
+  const persistPlatformDrafts = async (nextDrafts, activeSurface = editTarget) => {
+    const postIdToSave = post?.id || post?._id;
+    if (!postIdToSave) return false;
+
+    const activeDraft = nextDrafts[activeSurface] || createDefaultDraft();
+    const payload = {
+      lastEdited: new Date().toISOString(),
+      editSettings: {
+        ...activeDraft,
+        nonDestructive: true,
+        activeSurface,
+        platformDrafts: nextDrafts,
+      },
+    };
+
+    updatePost(postIdToSave, payload);
+    setPlatformDrafts(nextDrafts);
+    if (activeSurface === editTarget) {
+      const { cropBox: activeCropBox, ...activeSettings } = activeDraft;
+      setEditSettings(activeSettings);
+      setCropBox(activeCropBox || { ...DEFAULT_CROP_BOX });
+    }
+
+    try {
+      await contentApi.update(postIdToSave, payload);
+      return true;
+    } catch (err) {
+      console.error('Failed to persist platform drafts:', err);
+      return false;
+    }
+  };
+
+  const buildDraftPayload = (nextDrafts, activeSurface = editTarget) => {
+    const activeDraft = nextDrafts[activeSurface] || createDefaultDraft();
+    return {
+      lastEdited: new Date().toISOString(),
+      editSettings: {
+        ...activeDraft,
+        nonDestructive: true,
+        activeSurface,
+        platformDrafts: nextDrafts,
+      },
+    };
+  };
+
+  const persistDraftsSilently = async (nextDrafts, activeSurface = editTarget) => {
+    const postIdToSave = post?.id || post?._id;
+    if (!postIdToSave) return false;
+    const payload = buildDraftPayload(nextDrafts, activeSurface);
+    updatePost(postIdToSave, payload);
+    try {
+      await contentApi.update(postIdToSave, payload);
+      return true;
+    } catch (err) {
+      console.error('Autosave failed:', err);
+      return false;
+    }
+  };
+
+  const handleSaveSurface = async (surface) => {
+    const currentDraft =
+      surface === editTarget
+        ? { ...editSettings, cropBox: { ...cropBox } }
+        : (platformDrafts[surface] || createDefaultDraft());
+    const nextDrafts = buildDraftsForSave({ [surface]: currentDraft });
+    const ok = await persistPlatformDrafts(nextDrafts, surface);
+    if (!ok) {
+      alert(`Failed to save ${surface} settings.`);
+    }
+  };
+
+  useEffect(() => {
+    if (!isQuickEditing) return;
+    setPlatformDrafts((prev) => ({
+      ...prev,
+      [editTarget]: { ...editSettings, cropBox: { ...cropBox } },
+    }));
+  }, [isQuickEditing, editTarget, editSettings, cropBox]);
+
+  useEffect(() => {
+    if (!isQuickEditing) return undefined;
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+    setAutoSaveStatus('saving');
+    autosaveTimerRef.current = setTimeout(async () => {
+      const nextDrafts = buildDraftsForSave({
+        [editTarget]: { ...editSettings, cropBox: { ...cropBox } },
+      });
+      const ok = await persistDraftsSilently(nextDrafts, editTarget);
+      setAutoSaveStatus(ok ? 'saved' : 'error');
+    }, 700);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [isQuickEditing, editTarget, editSettings, cropBox]);
+
+  const getEffectiveImageDimensions = (rotationOverride = null) => {
+    const naturalWidth = imageRef.current?.naturalWidth || 0;
+    const naturalHeight = imageRef.current?.naturalHeight || 0;
+    if (!naturalWidth || !naturalHeight) {
+      return { width: 0, height: 0, ratio: 1 };
+    }
+
+    const rotation = rotationOverride ?? editSettings.rotation ?? 0;
+    const normalized = ((rotation % 360) + 360) % 360;
+    const isQuarterTurn = normalized === 90 || normalized === 270;
+    const width = isQuarterTurn ? naturalHeight : naturalWidth;
+    const height = isQuarterTurn ? naturalWidth : naturalHeight;
+
+    return {
+      width,
+      height,
+      ratio: width / height,
+    };
+  };
+
   // Handle tab change - auto-save quick edits when switching tabs
   const handleTabChange = async (tabId) => {
-    if (isQuickEditing && tabId !== 'details') {
-      // Auto-save edits before switching tabs
-      await saveQuickEdit();
+    if (isQuickEditing && ['instagram', 'tiktok', 'twitter'].includes(tabId)) {
+      handleEditTargetChange(tabId);
     }
     setActiveTab(tabId);
   };
 
   const rotateImage = (degrees) => {
-    setEditSettings(prev => ({
+    setEditSettings((prev) => ({
       ...prev,
-      rotation: (prev.rotation + degrees + 360) % 360
+      rotation: (prev.rotation + degrees + 360) % 360,
     }));
+  };
+
+  const startImagePan = (e) => {
+    if (!isQuickEditing || isDragging || isResizing) return;
+    const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+    setIsImagePanning(true);
+    setPanStart({
+      x: clientX,
+      y: clientY,
+      panX: editSettings.panX || 0,
+      panY: editSettings.panY || 0,
+    });
+  };
+
+  const handleImagePanMove = (e) => {
+    if (!isImagePanning) return;
+    const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+    const nextPanX = Math.max(-400, Math.min(400, panStart.panX + (clientX - panStart.x)));
+    const nextPanY = Math.max(-400, Math.min(400, panStart.panY + (clientY - panStart.y)));
+    setEditSettings((prev) => ({ ...prev, panX: nextPanX, panY: nextPanY }));
+  };
+
+  const stopImagePan = () => {
+    setIsImagePanning(false);
+  };
+
+  useEffect(() => {
+    if (!isImagePanning) return undefined;
+
+    const onMouseMove = (e) => handleImagePanMove(e);
+    const onMouseUp = () => stopImagePan();
+    const onTouchMove = (e) => handleImagePanMove(e);
+    const onTouchEnd = () => stopImagePan();
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isImagePanning, panStart, isQuickEditing, isDragging, isResizing]);
+
+  const handleScaleWheel = (e) => {
+    if (!isQuickEditing) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -2 : 2;
+    setEditSettings((prev) => ({
+      ...prev,
+      scale: Math.max(25, Math.min(300, (prev.scale || 100) + delta)),
+    }));
+  };
+
+  const getEffectiveEditSettings = () => {
+    return getEffectiveEditSettingsForSurface('instagram');
+  };
+
+  const getEffectiveEditSettingsForSurface = (surface = null) => {
+    const targetSurface = surface || (isQuickEditing ? editTarget : 'instagram');
+    if (isQuickEditing) {
+      if (targetSurface === editTarget) return editSettings;
+      const draft = platformDrafts[targetSurface];
+      return draft || editSettings;
+    }
+    const savedDraft = post?.editSettings?.platformDrafts?.[targetSurface];
+    if (savedDraft) return savedDraft;
+    return post?.editSettings || {};
+  };
+
+  const getTransformedMediaStyle = (surface = null) => {
+    const targetSurface = surface || (isQuickEditing ? editTarget : 'instagram');
+    const settings = getEffectiveEditSettingsForSurface(targetSurface);
+    const baseScale = (settings.scale ?? 100) / 100;
+    const fitMode = settings.fitMode || 'native';
+    const scale = targetSurface === 'instagram' && fitMode === 'native'
+      ? Math.min(baseScale, 1)
+      : baseScale;
+    const rotation = settings.rotation || 0;
+    const panX = settings.panX || 0;
+    const panY = settings.panY || 0;
+    const flipH = settings.flipH ? -1 : 1;
+    const flipV = settings.flipV ? -1 : 1;
+    const brightness = settings.brightness ?? 100;
+    const contrast = settings.contrast ?? 100;
+
+    return {
+      filter: `brightness(${brightness}%) contrast(${contrast}%)`,
+      transform: `translate(${panX}px, ${panY}px) rotate(${rotation}deg) scale(${scale}) scaleX(${flipH}) scaleY(${flipV})`,
+      transformOrigin: 'center center',
+      transition: isQuickEditing ? 'none' : 'transform 0.2s ease, filter 0.2s ease',
+    };
+  };
+
+  const getObjectFitForSurface = (surface = null) => {
+    const targetSurface = surface || (isQuickEditing ? editTarget : 'instagram');
+    const settings = getEffectiveEditSettingsForSurface(targetSurface);
+    const fitMode = settings.fitMode || 'native';
+
+    if (fitMode === 'fill') return 'cover';
+    if (fitMode === 'contain') return 'contain';
+
+    // Native defaults by platform
+    if (targetSurface === 'tiktok') return 'contain';
+    if (targetSurface === 'twitter') return 'contain';
+    return 'contain'; // Instagram default
+  };
+
+  const getSurfaceMediaSrc = (surface = null) => {
+    const targetSurface = surface || (isQuickEditing ? editTarget : 'instagram');
+    if (targetSurface === 'instagram') {
+      return post.originalImage || post.image;
+    }
+    return post.image || post.originalImage;
   };
 
   const flipImage = (direction) => {
@@ -901,88 +1235,16 @@ function PostDetails({ post }) {
       if (!postId) {
         throw new Error('Post ID not found');
       }
-
-      // Create a canvas to apply transformations
-      const img = new window.Image();
-
-      // Load the ORIGINAL image (not the current edited one)
-      await new Promise((resolve, reject) => {
-        img.onload = () => {
-          if (img.width === 0 || img.height === 0) {
-            reject(new Error('Image loaded with zero dimensions'));
-          } else {
-            resolve();
-          }
-        };
-        img.onerror = () => reject(new Error('Failed to load image'));
-
-        // Don't set crossOrigin for data URLs or blob URLs
-        if (!sourceImage.startsWith('data:') && !sourceImage.startsWith('blob:')) {
-          img.crossOrigin = 'anonymous';
-        }
-        img.src = sourceImage;
+      const nextDrafts = buildDraftsForSave({
+        [editTarget]: { ...editSettings, cropBox: { ...cropBox } },
       });
-
-      // Use cropBox percentages to calculate actual crop dimensions
-      const srcX = (cropBox.x / 100) * img.width;
-      const srcY = (cropBox.y / 100) * img.height;
-      const srcWidth = (cropBox.width / 100) * img.width;
-      const srcHeight = (cropBox.height / 100) * img.height;
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      // Calculate output dimensions
-      const isRotated90 = editSettings.rotation === 90 || editSettings.rotation === 270;
-      const scaleFactor = editSettings.scale / 100;
-
-      let outWidth = srcWidth * scaleFactor;
-      let outHeight = srcHeight * scaleFactor;
-
-      if (isRotated90) {
-        canvas.width = Math.round(outHeight);
-        canvas.height = Math.round(outWidth);
-      } else {
-        canvas.width = Math.round(outWidth);
-        canvas.height = Math.round(outHeight);
+      const ok = await persistPlatformDrafts(nextDrafts, editTarget);
+      if (!ok) {
+        throw new Error('Failed to save quick edit settings');
       }
 
-      // Apply transformations
-      ctx.save();
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate((editSettings.rotation * Math.PI) / 180);
-
-      if (editSettings.flipH) ctx.scale(-1, 1);
-      if (editSettings.flipV) ctx.scale(1, -1);
-
-      // Apply filters
-      ctx.filter = `brightness(${editSettings.brightness}%) contrast(${editSettings.contrast}%)`;
-
-      // Draw the cropped and scaled image
-      ctx.drawImage(
-        img,
-        srcX, srcY, srcWidth, srcHeight,  // Source rectangle (for cropping)
-        -outWidth / 2, -outHeight / 2, outWidth, outHeight  // Destination
-      );
-      ctx.restore();
-
-      // Get the edited image as data URL
-      const editedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
-
-      // Save to post (non-destructive - we keep original in a separate field)
-      const originalImg = post.originalImage || post.image;
-
-      // Update the post in the store
-      updatePost(postId, {
-        image: editedDataUrl,
-        originalImage: originalImg,
-        lastEdited: new Date().toISOString(),
-        editSettings: { ...editSettings, cropBox: { ...cropBox } }
-      });
-
-      // Exit quick edit mode
-      setIsQuickEditing(false);
-      setEditedImage(null);
+      // Keep quick edit open for continuous live adjustment across tabs
+      setAutoSaveStatus('saved');
 
       console.log('Quick edit saved successfully');
     } catch (error) {
@@ -995,7 +1257,7 @@ function PostDetails({ post }) {
 
   // Instagram Preview Component
   const InstagramPreview = () => (
-    <div className="bg-black rounded-xl overflow-hidden">
+    <div className="instagram-native bg-black rounded-xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-gray-800">
         <div className="flex items-center gap-2">
@@ -1015,7 +1277,17 @@ function PostDetails({ post }) {
       {/* Image */}
       <div className="aspect-square bg-gray-900">
         {post.image ? (
-          <img src={post.image} alt="" className="w-full h-full object-cover" />
+          <img
+            src={getSurfaceMediaSrc('instagram')}
+            alt=""
+            className={`w-full h-full bg-black select-none ${isQuickEditing ? (isImagePanning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
+            style={{ ...getTransformedMediaStyle(), objectFit: getObjectFitForSurface('instagram') }}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            onMouseDown={isQuickEditing ? startImagePan : undefined}
+            onTouchStart={isQuickEditing ? startImagePan : undefined}
+            onWheel={isQuickEditing ? handleScaleWheel : undefined}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: post.color || '#1f1f1f' }}>
             <Image className="w-12 h-12 text-gray-600" />
@@ -1066,11 +1338,21 @@ function PostDetails({ post }) {
 
   // TikTok Preview Component
   const TikTokPreview = () => (
-    <div className="bg-black rounded-xl overflow-hidden relative" style={{ aspectRatio: '9/16', maxHeight: '500px' }}>
+    <div className="tiktok-native bg-black rounded-xl overflow-hidden relative" style={{ aspectRatio: '9/16', maxHeight: '500px' }}>
       {/* Background Image/Video */}
       <div className="absolute inset-0">
         {post.image ? (
-          <img src={post.image} alt="" className="w-full h-full object-cover" />
+          <img
+            src={post.image}
+            alt=""
+            className={`w-full h-full bg-black select-none ${isQuickEditing ? (isImagePanning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
+            style={{ ...getTransformedMediaStyle('tiktok'), objectFit: getObjectFitForSurface('tiktok') }}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            onMouseDown={isQuickEditing ? startImagePan : undefined}
+            onTouchStart={isQuickEditing ? startImagePan : undefined}
+            onWheel={isQuickEditing ? handleScaleWheel : undefined}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: post.color || '#1f1f1f' }}>
             <Play className="w-16 h-16 text-white/50" />
@@ -1173,12 +1455,21 @@ function PostDetails({ post }) {
 
             {/* Image */}
             {post.image && (
-              <div className="mt-3 rounded-2xl overflow-hidden border border-gray-800 bg-gray-900 flex items-center justify-center">
+              <div className="mt-3 rounded-2xl overflow-hidden border border-gray-800 bg-gray-900 w-full flex items-center justify-center max-h-[420px]">
                 <img
                   src={post.image}
                   alt=""
-                  className="max-h-[420px] w-full object-contain"
-                  style={{ backgroundColor: post.color || '#111' }}
+                  className={`w-full max-h-[420px] select-none ${isQuickEditing ? (isImagePanning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
+                  style={{
+                    ...getTransformedMediaStyle('twitter'),
+                    objectFit: getObjectFitForSurface('twitter'),
+                    backgroundColor: post.color || '#111',
+                  }}
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
+                  onMouseDown={isQuickEditing ? startImagePan : undefined}
+                  onTouchStart={isQuickEditing ? startImagePan : undefined}
+                  onWheel={isQuickEditing ? handleScaleWheel : undefined}
                 />
               </div>
             )}
@@ -1229,6 +1520,161 @@ function PostDetails({ post }) {
     </div>
   );
 
+  const showFloatingQuickEdit = isQuickEditing;
+
+  const floatingQuickEditPanel = showFloatingQuickEdit ? (
+    <div
+      className={`hidden lg:block absolute top-14 bottom-3 z-40 border border-dark-700 bg-dark-900/95 backdrop-blur-sm overflow-hidden transition-all duration-200 shadow-2xl ${
+        quickEditPanelExpanded ? 'w-[232px] -left-[244px]' : 'w-11 -left-[56px]'
+      }`}
+    >
+      <div className="h-10 border-b border-dark-700 flex items-center justify-between px-2">
+        {quickEditPanelExpanded ? (
+          <>
+            <span className="text-[11px] uppercase tracking-wide text-dark-400">Quick Edit</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setQuickEditPanelExpanded(false)}
+                className="w-7 h-7 flex items-center justify-center text-dark-400 hover:text-dark-100"
+                title="Collapse panel"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => {
+                  setIsQuickEditing(false);
+                  setAutoSaveStatus('idle');
+                }}
+                className="text-xs text-dark-400 hover:text-dark-100 px-1"
+              >
+                Close
+              </button>
+            </div>
+          </>
+        ) : (
+          <button
+            onClick={() => setQuickEditPanelExpanded(true)}
+            className="w-full h-full flex items-center justify-center text-dark-300 hover:text-dark-100"
+            title="Expand Quick Edit"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {!quickEditPanelExpanded ? (
+        <div className="h-full flex items-center justify-center pb-10">
+          <span className="text-[10px] tracking-[0.18em] uppercase text-dark-500 [writing-mode:vertical-rl] rotate-180">Quick Edit</span>
+        </div>
+      ) : (
+        <div className="overflow-auto p-3 space-y-3 h-[calc(100%-2.5rem)]">
+
+      <div className="h-8 px-2 border border-dark-700 bg-dark-900/60 flex items-center justify-between text-[11px]">
+        <span className="text-dark-400 uppercase tracking-wide">Autosave</span>
+        <span className={`${
+          autoSaveStatus === 'saved'
+            ? 'text-green-400'
+            : autoSaveStatus === 'error'
+              ? 'text-red-400'
+              : 'text-dark-300'
+        }`}>
+          {autoSaveStatus === 'saved' ? 'Saved' : autoSaveStatus === 'error' ? 'Retrying' : 'Saving...'}
+        </span>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-medium text-dark-400 uppercase tracking-wider">Edit Surface</h4>
+        <div className="grid grid-cols-3 gap-1.5">
+          {[
+            { id: 'instagram', label: 'Instagram' },
+            { id: 'tiktok', label: 'TikTok' },
+            { id: 'twitter', label: 'X/Twitter' },
+          ].map((surface) => (
+            <button
+              key={surface.id}
+              onClick={() => {
+                handleEditTargetChange(surface.id);
+                setActiveTab(surface.id);
+              }}
+              className={`h-8 px-2 text-[11px] border transition-colors ${
+                editTarget === surface.id
+                  ? 'bg-dark-600 border-dark-400 text-dark-100'
+                  : 'bg-dark-800 border-dark-700 text-dark-400 hover:text-dark-200 hover:border-dark-600'
+              }`}
+            >
+              {surface.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-xs font-medium text-dark-400 uppercase tracking-wider">Fit Mode</h4>
+        <div className="grid grid-cols-3 gap-1.5">
+          {[
+            { id: 'native', label: 'Native' },
+            { id: 'fill', label: 'Fill' },
+            { id: 'contain', label: 'Contain' },
+          ].map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => updateEditSetting('fitMode', mode.id)}
+              className={`h-8 px-2 text-[11px] border transition-colors ${
+                (editSettings.fitMode || 'native') === mode.id
+                  ? 'bg-dark-600 border-dark-400 text-dark-100'
+                  : 'bg-dark-800 border-dark-700 text-dark-400 hover:text-dark-200 hover:border-dark-600'
+              }`}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-1.5">
+        <button onClick={() => rotateImage(-90)} className="h-8 px-2 text-[11px] border bg-dark-800 border-dark-700 text-dark-300 hover:text-dark-100">
+          Rotate ACW
+        </button>
+        <button onClick={() => rotateImage(90)} className="h-8 px-2 text-[11px] border bg-dark-800 border-dark-700 text-dark-300 hover:text-dark-100">
+          Rotate CW
+        </button>
+      </div>
+
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-dark-400 uppercase tracking-wide">Scale</span>
+          <span className="text-[11px] text-dark-300">{editSettings.scale}%</span>
+        </div>
+        <input
+          type="range"
+          min="25"
+          max="300"
+          value={editSettings.scale}
+          onChange={(e) => updateEditSetting('scale', parseInt(e.target.value))}
+          className="w-full accent-accent-purple"
+        />
+      </div>
+
+      <div className="space-y-1">
+        <p className="text-[11px] text-dark-400">Drag image to reposition. Wheel to zoom.</p>
+        <p className="text-[11px] text-dark-500">Hold Shift to enable snap.</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-1.5">
+        <button onClick={() => handleSaveSurface('instagram')} className="h-8 px-2 text-[11px] border bg-dark-800 border-dark-700 text-dark-300 hover:text-dark-100">Save IG</button>
+        <button onClick={() => handleSaveSurface('tiktok')} className="h-8 px-2 text-[11px] border bg-dark-800 border-dark-700 text-dark-300 hover:text-dark-100">Save TikTok</button>
+        <button onClick={() => handleSaveSurface('twitter')} className="h-8 px-2 text-[11px] border bg-dark-800 border-dark-700 text-dark-300 hover:text-dark-100">Save X</button>
+      </div>
+
+          <div className="grid grid-cols-2 gap-1.5">
+            <button onClick={resetEdits} className="h-8 px-2 text-[11px] border bg-dark-800 border-dark-700 text-dark-300 hover:text-dark-100">Reset Surface</button>
+            <button onClick={saveQuickEdit} className="h-8 px-2 text-[11px] border bg-dark-100 border-dark-100 text-dark-900">Save All</button>
+          </div>
+        </div>
+      )}
+    </div>
+  ) : null;
+
   // Details Tab Content (stored as JSX, not a component, to prevent focus loss)
   const detailsContent = (
     <>
@@ -1236,46 +1682,50 @@ function PostDetails({ post }) {
       <div className={`bg-dark-700 relative flex-shrink-0 ${isQuickEditing ? 'aspect-auto' : 'aspect-square'}`}>
         {isQuickEditing ? (
           // Quick Edit Mode
-          <div className="p-4 space-y-4">
+          <div className="p-4">
             {/* Edit Preview */}
             <div
               ref={previewContainerRef}
               className="relative aspect-square bg-dark-900 rounded-lg overflow-hidden flex items-center justify-center select-none"
+              onWheel={handleScaleWheel}
               onMouseMove={(e) => {
                 if (isResizing) handleResizeMove(e);
                 else if (isDragging) handleCropBoxDragMove(e);
+                else if (isImagePanning) handleImagePanMove(e);
               }}
               onMouseUp={() => {
                 if (isResizing) handleResizeEnd();
                 else if (isDragging) setIsDragging(false);
+                else if (isImagePanning) stopImagePan();
               }}
               onMouseLeave={() => {
                 if (isResizing) handleResizeEnd();
                 else if (isDragging) setIsDragging(false);
+                else if (isImagePanning) stopImagePan();
               }}
               onTouchMove={(e) => {
                 if (isResizing) handleResizeMove(e);
                 else if (isDragging) handleCropBoxDragMove(e);
+                else if (isImagePanning) handleImagePanMove(e);
               }}
               onTouchEnd={() => {
                 if (isResizing) handleResizeEnd();
                 else if (isDragging) setIsDragging(false);
+                else if (isImagePanning) stopImagePan();
               }}
             >
-              {(editedImage || post.originalImage || post.image) ? (
+              {(editedImage || resolvePrimaryImageSource(post)) ? (
                 <>
                   <img
                     ref={imageRef}
-                    src={editedImage || post.originalImage || post.image}
+                    src={editedImage || resolvePrimaryImageSource(post)}
                     alt="Edit preview"
-                    className="w-full h-full object-contain select-none"
-                    style={{
-                      filter: `brightness(${editSettings.brightness}%) contrast(${editSettings.contrast}%)`,
-                      transform: `rotate(${editSettings.rotation}deg) scaleX(${editSettings.flipH ? -1 : 1}) scaleY(${editSettings.flipV ? -1 : 1})`,
-                      transition: 'filter 0.2s, transform 0.2s',
-                    }}
+                    className={`w-full h-full object-contain select-none ${isImagePanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+                    style={{ ...getTransformedMediaStyle(), objectFit: getObjectFitForSurface() }}
                     draggable={false}
                     onDragStart={(e) => e.preventDefault()}
+                    onMouseDown={startImagePan}
+                    onTouchStart={startImagePan}
                   />
                   {/* Interactive Crop Box - positioned over actual image bounds */}
                   <div
@@ -1408,206 +1858,6 @@ function PostDetails({ post }) {
               )}
             </div>
 
-            {/* Quick Edit Controls */}
-            <div className="space-y-4">
-              {/* Transform Section */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-medium text-dark-400 uppercase tracking-wider">Transform</h4>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => rotateImage(-90)}
-                    className="flex-1 btn-secondary py-2 text-sm"
-                    title="Rotate Left"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => rotateImage(90)}
-                    className="flex-1 btn-secondary py-2 text-sm"
-                    title="Rotate Right"
-                  >
-                    <RotateCw className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => flipImage('horizontal')}
-                    className={`flex-1 btn-secondary py-2 text-sm ${editSettings.flipH ? 'bg-accent-purple/20 text-accent-purple' : ''}`}
-                    title="Flip Horizontal"
-                  >
-                    <FlipHorizontal className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => flipImage('vertical')}
-                    className={`flex-1 btn-secondary py-2 text-sm ${editSettings.flipV ? 'bg-accent-purple/20 text-accent-purple' : ''}`}
-                    title="Flip Vertical"
-                  >
-                    <FlipVertical className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Scale Slider */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-medium text-dark-400 uppercase tracking-wider">Scale</h4>
-                  <span className="text-xs text-dark-300">{editSettings.scale}%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ZoomOut className="w-4 h-4 text-dark-400" />
-                  <input
-                    type="range"
-                    min="25"
-                    max="200"
-                    value={editSettings.scale}
-                    onChange={(e) => updateEditSetting('scale', parseInt(e.target.value))}
-                    className="flex-1 accent-accent-purple"
-                  />
-                  <ZoomIn className="w-4 h-4 text-dark-400" />
-                </div>
-              </div>
-
-              {/* Crop Aspect Ratio */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-medium text-dark-400 uppercase tracking-wider">Crop Ratio</h4>
-                <div className="flex flex-wrap gap-1">
-                  {CROP_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      onClick={() => updateCropAspect(preset.id)}
-                      className={`px-2 py-1 text-xs rounded-md transition-colors ${
-                        editSettings.cropAspect === preset.id
-                          ? 'bg-accent-purple text-white'
-                          : 'bg-dark-600 text-dark-300 hover:bg-dark-500'
-                      }`}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-dark-500 flex items-center gap-1">
-                    <Move className="w-3 h-3" />
-                    Drag corners to resize, drag center to move.
-                  </p>
-                  <p className={`text-xs flex items-center gap-1 ${shiftHeld ? 'text-accent-purple font-medium' : 'text-dark-500'}`}>
-                    {shiftHeld ? '⚡ Free movement active' : '💡 Hold Shift for free movement (no snap)'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Brightness */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-medium text-dark-400 uppercase tracking-wider">Brightness</h4>
-                  <span className="text-xs text-dark-300">{editSettings.brightness}%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <SunMedium className="w-4 h-4 text-dark-400" />
-                  <input
-                    type="range"
-                    min="50"
-                    max="150"
-                    value={editSettings.brightness}
-                    onChange={(e) => updateEditSetting('brightness', parseInt(e.target.value))}
-                    className="flex-1 accent-accent-purple"
-                  />
-                </div>
-              </div>
-
-              {/* Contrast */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-medium text-dark-400 uppercase tracking-wider">Contrast</h4>
-                  <span className="text-xs text-dark-300">{editSettings.contrast}%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Contrast className="w-4 h-4 text-dark-400" />
-                  <input
-                    type="range"
-                    min="50"
-                    max="150"
-                    value={editSettings.contrast}
-                    onChange={(e) => updateEditSetting('contrast', parseInt(e.target.value))}
-                    className="flex-1 accent-accent-purple"
-                  />
-                </div>
-              </div>
-
-              {/* AI Upscale */}
-              <div className="space-y-2 pt-2 border-t border-dark-600">
-                <h4 className="text-xs font-medium text-dark-400 uppercase tracking-wider">AI Upscale</h4>
-                {upscaling ? (
-                  <div className="w-full flex items-center justify-center gap-2 py-2 text-sm text-accent-purple">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Upscaling...
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleUpscale('replicate')}
-                      title="Upscale with Replicate (Best quality)"
-                      className="flex-1 flex items-center justify-center gap-2 py-2 text-sm bg-accent-purple/20 text-accent-purple rounded-lg hover:bg-accent-purple/30 transition-colors"
-                    >
-                      <span className="font-bold">R</span>
-                      <span className="text-accent-purple/70 text-xs">Best</span>
-                    </button>
-                    <button
-                      onClick={() => handleUpscale('cloudinary')}
-                      title="Upscale with Cloudinary (Fast)"
-                      className="flex-1 flex items-center justify-center gap-2 py-2 text-sm bg-accent-purple/20 text-accent-purple rounded-lg hover:bg-accent-purple/30 transition-colors"
-                    >
-                      <span className="font-bold">C</span>
-                      <span className="text-accent-purple/70 text-xs">Fast</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="space-y-2 pt-2">
-                {/* Restore Original - only show if edits exist */}
-                {post.originalImage && post.image !== post.originalImage && (
-                  <button
-                    onClick={restoreOriginal}
-                    className="w-full btn-secondary py-2 text-sm text-amber-400 border-amber-400/30 hover:bg-amber-400/10"
-                  >
-                    <Undo2 className="w-4 h-4" />
-                    Restore Original Photo
-                  </button>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={resetEdits}
-                    className="btn-secondary py-2 text-sm"
-                    title="Reset crop to full image"
-                  >
-                    <Undo2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={cancelQuickEdit}
-                    className="flex-1 btn-secondary py-2 text-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={saveQuickEdit}
-                    disabled={saving}
-                    className="flex-1 btn-primary py-2 text-sm"
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Save
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         ) : (
           // Normal View Mode
@@ -1636,15 +1886,16 @@ function PostDetails({ post }) {
                   <img
                     src={post.originalImage || post.image}
                     alt="Original"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full"
+                    style={{ ...getTransformedMediaStyle(), objectFit: getObjectFitForSurface() }}
                     draggable={false}
                   />
                   {/* Top layer: upscaled, clipped */}
                   <img
                     src={upscaledImage}
                     alt="Upscaled"
-                    className="absolute inset-0 w-full h-full object-cover"
-                    style={{ clipPath: `inset(0 ${100 - comparePosition}% 0 0)` }}
+                    className="absolute inset-0 w-full h-full"
+                    style={{ ...getTransformedMediaStyle(), clipPath: `inset(0 ${100 - comparePosition}% 0 0)` }}
                     draggable={false}
                   />
                   {/* Divider line */}
@@ -1671,7 +1922,8 @@ function PostDetails({ post }) {
                 <img
                   src={showUpscaled && upscaledImage ? upscaledImage : (post.originalImage || post.image)}
                   alt={post.caption || 'Post preview'}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full"
+                  style={{ ...getTransformedMediaStyle(), objectFit: getObjectFitForSurface() }}
                 />
               )
             ) : (
@@ -1890,7 +2142,8 @@ function PostDetails({ post }) {
   );
 
   return (
-    <div className="h-full bg-dark-800 rounded-2xl border border-dark-700 flex flex-col overflow-hidden">
+    <div className="h-full bg-dark-800 rounded-2xl border border-dark-700 flex flex-col overflow-visible relative">
+      {floatingQuickEditPanel}
       {/* Platform Tabs */}
       <div className="flex border-b border-dark-700 flex-shrink-0">
         {PLATFORMS.map((platform) => (
