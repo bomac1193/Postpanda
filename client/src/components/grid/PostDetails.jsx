@@ -1191,8 +1191,33 @@ function PostDetails({ post }) {
       const blob = await new Promise((resolve) =>
         canvas.toBlob(resolve, 'image/jpeg', 0.92)
       );
-      await contentApi.updateMediaFromBlob(postId, blob, 'quick-edit.jpg');
+      const result = await contentApi.updateMediaFromBlob(postId, blob, 'quick-edit.jpg');
+      const newMediaUrl = result?.content?.mediaUrl;
 
+      // Reset edit settings — transforms are now baked into the image
+      const resetDraft = createDefaultDraft();
+      const resetDrafts = buildDraftsForSave({
+        [editTarget]: resetDraft,
+      });
+      await persistPlatformDrafts(resetDrafts, editTarget);
+
+      // Update local post state with the new image + cleared settings
+      const postUpdate = {
+        mediaUrl: newMediaUrl || undefined,
+        editSettings: null,
+      };
+      if (newMediaUrl) {
+        postUpdate.image = newMediaUrl;
+        postUpdate.images = [newMediaUrl];
+        postUpdate.originalImage = newMediaUrl;
+      }
+      updatePost(postId, postUpdate);
+
+      // Reset local quick edit state
+      const { cropBox: resetCrop, ...resetSettings } = resetDraft;
+      setEditSettings(resetSettings);
+      setCropBox(resetCrop || { ...DEFAULT_CROP_BOX });
+      setIsQuickEditing(false);
       setAutoSaveStatus('saved');
     } catch (error) {
       console.error('Failed to save rendered image:', error);
