@@ -191,10 +191,12 @@ function GridPlanner() {
           id: content?._id || cell.contentId,
           image: mainImage,
           images: carouselImages || (mainImage ? [mainImage] : []),
+          originalImage: content?.originalMediaUrl || null,
           caption: content?.caption || content?.title || '',
           hashtags: content?.hashtags || [],
           color: '#8b5cf6',
           mediaType: content?.mediaType || 'image',
+          editSettings: content?.editSettings || null,
           gridPosition: cell.position?.row * (grid.columns || 3) + cell.position?.col,
           crop: cell.crop,
         });

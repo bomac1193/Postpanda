@@ -25,6 +25,11 @@ const contentSchema = new mongoose.Schema({
     }
   },
   thumbnailUrl: String,
+  // Non-destructive edit settings per platform (Instagram/TikTok/Twitter)
+  editSettings: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
   // Carousel images - array of URLs for carousel posts
   carouselImages: [{
     type: String

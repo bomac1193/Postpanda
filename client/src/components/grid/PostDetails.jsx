@@ -1102,61 +1102,64 @@ function PostDetails({ post }) {
     }));
   };
 
-  // Render the edited image to canvas and upload — replaces the post's actual image
+  // Save per-platform crop settings, then render Instagram's crop as the grid thumbnail.
+  // The original image is never modified — it stays in originalImage/originalMediaUrl.
   const saveRenderedImage = async () => {
     const postId = post.id || post._id;
     if (!postId) return;
 
-    const settings = getEffectiveEditSettingsForSurface(editTarget);
-    const rotation = settings.rotation || 0;
-    const flipH = settings.flipH ? -1 : 1;
-    const flipV = settings.flipV ? -1 : 1;
-    const brightness = (settings.brightness ?? 100) / 100;
-    const contrast = (settings.contrast ?? 100) / 100;
-    const scale = (settings.scale ?? 100) / 100;
-    const panX = settings.panX || 0;
-    const panY = settings.panY || 0;
-
     setSaving(true);
     try {
-      // Save edit settings metadata first
+      // 1. Persist per-platform metadata
       const nextDrafts = buildDraftsForSave({
         [editTarget]: { ...editSettings, cropBox: { ...cropBox } },
       });
       await persistPlatformDrafts(nextDrafts, editTarget);
 
-      // Load image
-      const img = new window.Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = originalImageSrc || getSurfaceMediaSrc(editTarget);
-      });
+      // 2. Render Instagram's 1:1 crop as the grid thumbnail
+      const igDraft = nextDrafts.instagram || {};
+      const sourceSrc = originalImageSrc;
+      if (sourceSrc) {
+        // Lock in the original on first save so it survives refresh
+        if (!post.originalImage) {
+          updatePost(postId, { originalImage: sourceSrc });
+          await contentApi.update(postId, { originalMediaUrl: sourceSrc });
+        }
 
-      const w = img.naturalWidth;
-      const h = img.naturalHeight;
-      const normalizedRot = ((rotation % 360) + 360) % 360;
-      const isQuarterTurn = normalizedRot === 90 || normalizedRot === 270;
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = sourceSrc;
+        });
 
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        const panX = igDraft.panX || 0;
+        const panY = igDraft.panY || 0;
+        const scale = (igDraft.scale ?? 100) / 100;
+        const rotation = igDraft.rotation || 0;
+        const flipH = igDraft.flipH ? -1 : 1;
+        const flipV = igDraft.flipV ? -1 : 1;
+        const brightness = (igDraft.brightness ?? 100) / 100;
+        const contrast = (igDraft.contrast ?? 100) / 100;
+        const normalizedRot = ((rotation % 360) + 360) % 360;
 
-      if (editTarget === 'instagram') {
-        // Instagram: render the cover crop (square) with position + zoom
         const SIZE = 1080;
+        const canvas = document.createElement('canvas');
         canvas.width = SIZE;
         canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
 
+        // Match the CSS object-position math
         const sSize = Math.min(w, h);
         const objPosX = Math.max(0, Math.min(100, 50 - panX * 0.125)) / 100;
         const objPosY = Math.max(0, Math.min(100, 50 - panY * 0.125)) / 100;
-
-        // Base cover crop position
         const baseSx = w > h ? (w - sSize) * objPosX : 0;
         const baseSy = h > w ? (h - sSize) * objPosY : 0;
 
-        // Apply scale: zoom into center of visible area
+        // Apply zoom
         const visibleSize = sSize / Math.max(scale, 1);
         const centerX = baseSx + sSize / 2;
         const centerY = baseSy + sSize / 2;
@@ -1171,56 +1174,27 @@ function PostDetails({ post }) {
         ctx.translate(-SIZE / 2, -SIZE / 2);
         ctx.drawImage(img, finalSx, finalSy, visibleSize, visibleSize, 0, 0, SIZE, SIZE);
         ctx.restore();
-      } else {
-        // TikTok/Twitter: render full image with rotation + transforms
-        const canvasW = isQuarterTurn ? h : w;
-        const canvasH = isQuarterTurn ? w : h;
-        canvas.width = canvasW;
-        canvas.height = canvasH;
 
-        ctx.filter = `brightness(${brightness}) contrast(${contrast})`;
-        ctx.save();
-        ctx.translate(canvasW / 2, canvasH / 2);
-        ctx.rotate((normalizedRot * Math.PI) / 180);
-        ctx.scale(flipH, flipV);
-        ctx.drawImage(img, -w / 2, -h / 2, w, h);
-        ctx.restore();
+        const blob = await new Promise((resolve) =>
+          canvas.toBlob(resolve, 'image/jpeg', 0.92)
+        );
+        const result = await contentApi.updateMediaFromBlob(postId, blob, 'ig-thumbnail.jpg');
+        const newMediaUrl = result?.content?.mediaUrl;
+
+        // Update grid thumbnail — originalImage stays untouched
+        if (newMediaUrl) {
+          updatePost(postId, {
+            mediaUrl: newMediaUrl,
+            image: newMediaUrl,
+            images: [newMediaUrl],
+          });
+        }
       }
 
-      // Export and upload
-      const blob = await new Promise((resolve) =>
-        canvas.toBlob(resolve, 'image/jpeg', 0.92)
-      );
-      const result = await contentApi.updateMediaFromBlob(postId, blob, 'quick-edit.jpg');
-      const newMediaUrl = result?.content?.mediaUrl;
-
-      // Reset edit settings — transforms are now baked into the image
-      const resetDraft = createDefaultDraft();
-      const resetDrafts = buildDraftsForSave({
-        [editTarget]: resetDraft,
-      });
-      await persistPlatformDrafts(resetDrafts, editTarget);
-
-      // Update local post state with the new image + cleared settings
-      const postUpdate = {
-        mediaUrl: newMediaUrl || undefined,
-        editSettings: null,
-      };
-      if (newMediaUrl) {
-        postUpdate.image = newMediaUrl;
-        postUpdate.images = [newMediaUrl];
-        postUpdate.originalImage = newMediaUrl;
-      }
-      updatePost(postId, postUpdate);
-
-      // Reset local quick edit state
-      const { cropBox: resetCrop, ...resetSettings } = resetDraft;
-      setEditSettings(resetSettings);
-      setCropBox(resetCrop || { ...DEFAULT_CROP_BOX });
       setIsQuickEditing(false);
       setAutoSaveStatus('saved');
     } catch (error) {
-      console.error('Failed to save rendered image:', error);
+      console.error('Failed to save edit settings:', error);
       setAutoSaveStatus('error');
     } finally {
       setSaving(false);
@@ -1338,10 +1312,10 @@ function PostDetails({ post }) {
   const handleScaleWheel = (e) => {
     if (!isQuickEditing) return;
     e.preventDefault();
-    const delta = e.deltaY > 0 ? -2 : 2;
+    const delta = e.deltaY > 0 ? -3 : 3;
     setEditSettings((prev) => ({
       ...prev,
-      scale: Math.max(25, Math.min(300, (prev.scale || 100) + delta)),
+      scale: Math.max(100, Math.min(300, (prev.scale || 100) + delta)),
     }));
   };
 
@@ -1398,6 +1372,7 @@ function PostDetails({ post }) {
     return post?.editSettings || {};
   };
 
+  // Unified style for all platform previews: object-fit cover + object-position for crop
   const getTransformedMediaStyle = (surface = null) => {
     const targetSurface = surface || (isQuickEditing ? editTarget : 'instagram');
     const settings = getEffectiveEditSettingsForSurface(targetSurface);
@@ -1410,34 +1385,29 @@ function PostDetails({ post }) {
     const brightness = settings.brightness ?? 100;
     const contrast = settings.contrast ?? 100;
 
+    // Pan via object-position (no blank space — cover always fills the frame)
+    const objPosX = Math.max(0, Math.min(100, 50 - panX * 0.125));
+    const objPosY = Math.max(0, Math.min(100, 50 - panY * 0.125));
+
+    const transforms = [];
+    if (scale !== 1) transforms.push(`scale(${scale})`);
+    if (rotation) transforms.push(`rotate(${rotation}deg)`);
+    if (flipH === -1) transforms.push('scaleX(-1)');
+    if (flipV === -1) transforms.push('scaleY(-1)');
+
     return {
+      objectFit: 'cover',
+      objectPosition: `${objPosX}% ${objPosY}%`,
       filter: `brightness(${brightness}%) contrast(${contrast}%)`,
-      transform: `translate(${panX}px, ${panY}px) rotate(${rotation}deg) scale(${scale}) scaleX(${flipH}) scaleY(${flipV})`,
+      transform: transforms.length ? transforms.join(' ') : undefined,
       transformOrigin: 'center center',
-      transition: isQuickEditing ? 'none' : 'transform 0.2s ease, filter 0.2s ease',
+      transition: isQuickEditing ? 'none' : 'transform 0.2s ease, object-position 0.2s ease',
     };
   };
 
-  const getObjectFitForSurface = (surface = null) => {
-    const targetSurface = surface || (isQuickEditing ? editTarget : 'instagram');
-    const settings = getEffectiveEditSettingsForSurface(targetSurface);
-    const fitMode = settings.fitMode || 'native';
-
-    if (fitMode === 'fill') return 'cover';
-    if (fitMode === 'contain') return 'contain';
-
-    // Native defaults by platform
-    if (targetSurface === 'tiktok') return 'contain';
-    if (targetSurface === 'twitter') return 'contain';
-    return 'contain'; // Instagram default
-  };
-
-  const getSurfaceMediaSrc = (surface = null) => {
-    const targetSurface = surface || (isQuickEditing ? editTarget : 'instagram');
-    if (targetSurface === 'instagram') {
-      return originalImageSrc;
-    }
-    return primaryImageSrc || originalImageSrc;
+  // All platforms use the original image — CSS handles the crop per platform's aspect ratio
+  const getSurfaceMediaSrc = () => {
+    return originalImageSrc;
   };
 
   const flipImage = (direction) => {
@@ -1460,34 +1430,7 @@ function PostDetails({ post }) {
 
   // Instagram Preview Component
   const InstagramPreview = () => {
-    const igSettings = getEffectiveEditSettingsForSurface('instagram');
-    const panX = igSettings.panX || 0;
-    const panY = igSettings.panY || 0;
-    const scale = (igSettings.scale ?? 100) / 100;
-    const rotation = igSettings.rotation || 0;
-    const flipH = igSettings.flipH ? -1 : 1;
-    const flipV = igSettings.flipV ? -1 : 1;
-    const brightness = igSettings.brightness ?? 100;
-    const contrast = igSettings.contrast ?? 100;
-
-    // Pan via object-position (never shows blank space with cover)
-    const objPosX = Math.max(0, Math.min(100, 50 - panX * 0.125));
-    const objPosY = Math.max(0, Math.min(100, 50 - panY * 0.125));
-
-    const transforms = [];
-    if (scale !== 1) transforms.push(`scale(${scale})`);
-    if (rotation) transforms.push(`rotate(${rotation}deg)`);
-    if (flipH === -1) transforms.push('scaleX(-1)');
-    if (flipV === -1) transforms.push('scaleY(-1)');
-
-    const igStyle = {
-      objectFit: 'cover',
-      objectPosition: `${objPosX}% ${objPosY}%`,
-      filter: `brightness(${brightness}%) contrast(${contrast}%)`,
-      transform: transforms.length ? transforms.join(' ') : undefined,
-      transformOrigin: 'center center',
-      transition: isQuickEditing ? 'none' : 'transform 0.2s ease, object-position 0.2s ease',
-    };
+    const igStyle = getTransformedMediaStyle('instagram');
 
     return (
     <div className="instagram-native bg-black rounded-xl overflow-hidden">
@@ -1587,11 +1530,7 @@ function PostDetails({ post }) {
   // TikTok Preview Component
   const TikTokPreview = () => {
     const tiktokSrc = getSurfaceMediaSrc('tiktok');
-    const tiktokTransformStyle = getTransformedMediaStyle('tiktok');
-    const foregroundStyle = {
-      ...tiktokTransformStyle,
-      objectFit: getObjectFitForSurface('tiktok'),
-    };
+    const foregroundStyle = getTransformedMediaStyle('tiktok');
     return (
     <div className="tiktok-native bg-black rounded-xl overflow-hidden relative" style={{ aspectRatio: '9/16', maxHeight: '500px' }}>
       {/* Background Image/Video */}
@@ -1720,7 +1659,6 @@ function PostDetails({ post }) {
                   className={`w-full max-h-[420px] select-none ${isQuickEditing ? (isImagePanning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
                   style={{
                     ...getTransformedMediaStyle('twitter'),
-                    objectFit: getObjectFitForSurface('twitter'),
                     backgroundColor: post.color || '#111',
                   }}
                   draggable={false}
@@ -1905,7 +1843,7 @@ function PostDetails({ post }) {
         </div>
         <input
           type="range"
-          min="25"
+          min="100"
           max="300"
           value={editSettings.scale}
           onChange={(e) => updateEditSetting('scale', parseInt(e.target.value))}
@@ -1973,7 +1911,7 @@ function PostDetails({ post }) {
                     src={editedImage || resolvePrimaryImageSource(post)}
                     alt="Edit preview"
                     className={`w-full h-full object-contain select-none ${isImagePanning ? 'cursor-grabbing' : 'cursor-grab'}`}
-                    style={{ ...getTransformedMediaStyle(), objectFit: getObjectFitForSurface() }}
+                    style={getTransformedMediaStyle()}
                     draggable={false}
                     onDragStart={(e) => e.preventDefault()}
                     onMouseDown={startImagePan}
@@ -2139,7 +2077,7 @@ function PostDetails({ post }) {
                     src={originalImageSrc}
                     alt="Original"
                     className="w-full h-full"
-                    style={{ ...getTransformedMediaStyle(), objectFit: getObjectFitForSurface() }}
+                    style={getTransformedMediaStyle()}
                     draggable={false}
                   />
                   {/* Top layer: upscaled, clipped */}
@@ -2175,7 +2113,7 @@ function PostDetails({ post }) {
                   src={showUpscaled && upscaledImage ? upscaledImage : originalImageSrc}
                   alt={post.caption || 'Post preview'}
                   className="w-full h-full"
-                  style={{ ...getTransformedMediaStyle(), objectFit: getObjectFitForSurface() }}
+                  style={getTransformedMediaStyle()}
                 />
               )
             ) : (

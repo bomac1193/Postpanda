@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const cloudinaryService = require('../services/cloudinaryService');
 const { useCloudStorage, uploadDir, thumbnailDir } = require('../middleware/upload');
+const approvalGateService = require('../services/approvalGateService');
 
 // Create new content
 exports.createContent = async (req, res) => {
@@ -259,7 +260,7 @@ exports.getContentById = async (req, res) => {
 // Update content
 exports.updateContent = async (req, res) => {
   try {
-    const { title, caption, hashtags, location, status, mentions, audioTrack, scheduledFor, carouselImages, mediaUrl } = req.body;
+    const { title, caption, hashtags, location, status, mentions, audioTrack, scheduledFor, carouselImages, mediaUrl, editSettings, originalMediaUrl } = req.body;
 
     const content = await Content.findOne({ _id: req.params.id, userId: req.userId });
     if (!content) {
@@ -272,6 +273,11 @@ exports.updateContent = async (req, res) => {
     if (location !== undefined) content.location = location;
     if (mentions !== undefined) content.mentions = mentions;
     if (audioTrack !== undefined) content.audioTrack = audioTrack;
+    if (editSettings !== undefined) {
+      content.editSettings = editSettings;
+      content.markModified('editSettings');
+    }
+    if (originalMediaUrl !== undefined) content.originalMediaUrl = originalMediaUrl;
     if (scheduledFor !== undefined) {
       content.scheduledFor = scheduledFor;
       // Update status to scheduled if a date is set
@@ -613,6 +619,19 @@ exports.scheduleContent = async (req, res) => {
       return res.status(404).json({ error: 'Content not found' });
     }
 
+    const gate = await approvalGateService.evaluateContentGate({
+      content,
+      user: req.user,
+      action: 'schedule',
+    });
+    if (!gate.allowed) {
+      return res.status(409).json({
+        error: 'Approval gate blocked scheduling',
+        code: gate.code,
+        gate,
+      });
+    }
+
     content.scheduledFor = new Date(scheduledFor);
     content.status = 'scheduled';
 
@@ -634,6 +653,19 @@ exports.publishContent = async (req, res) => {
     const content = await Content.findOne({ _id: req.params.id, userId: req.userId });
     if (!content) {
       return res.status(404).json({ error: 'Content not found' });
+    }
+
+    const gate = await approvalGateService.evaluateContentGate({
+      content,
+      user: req.user,
+      action: 'publish',
+    });
+    if (!gate.allowed) {
+      return res.status(409).json({
+        error: 'Approval gate blocked publishing',
+        code: gate.code,
+        gate,
+      });
     }
 
     // Here you would integrate with Instagram/TikTok APIs to publish
