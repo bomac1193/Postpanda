@@ -918,16 +918,20 @@ function PostDetails({ post }) {
   const applyFitMode = (mode) => {
     setEditSettings((prev) => {
       const next = { ...prev, fitMode: mode };
-      if (mode === 'fill' || mode === 'native') {
-        // Reset to fill baseline: full frame, centered
+      next.panX = 0;
+      next.panY = 0;
+
+      if (mode === 'fill' && editTarget === 'tiktok') {
+        // TikTok uses contain, so "Fill" = auto-zoom to fill the 9:16 frame
+        const imgW = imageRef.current?.naturalWidth || 1;
+        const imgH = imageRef.current?.naturalHeight || 1;
+        const imgAR = imgW / imgH;
+        const containerAR = 9 / 16;
+        // How much to zoom a contained image to fill the container
+        const fillScale = Math.max(imgAR / containerAR, containerAR / imgAR);
+        next.scale = Math.round(fillScale * 100);
+      } else {
         next.scale = 100;
-        next.panX = 0;
-        next.panY = 0;
-      } else if (mode === 'contain') {
-        // Contain: show full image, reset transforms
-        next.scale = 100;
-        next.panX = 0;
-        next.panY = 0;
       }
       return next;
     });
@@ -1335,7 +1339,7 @@ function PostDetails({ post }) {
     const delta = e.deltaY > 0 ? -3 : 3;
     setEditSettings((prev) => ({
       ...prev,
-      scale: Math.max(40, Math.min(300, (prev.scale || 100) + delta)),
+      scale: Math.max(40, Math.min(400, (prev.scale || 100) + delta)),
     }));
   };
 
@@ -1372,7 +1376,7 @@ function PostDetails({ post }) {
 
     setEditSettings((prev) => ({
       ...prev,
-      scale: Math.max(40, Math.min(300, (prev.scale || 100) + delta)),
+      scale: Math.max(40, Math.min(400, (prev.scale || 100) + delta)),
     }));
   };
 
@@ -1409,21 +1413,19 @@ function PostDetails({ post }) {
     const objPosX = Math.max(0, Math.min(100, 50 - panX * 0.125));
     const objPosY = Math.max(0, Math.min(100, 50 - panY * 0.125));
 
-    // Rotation compensation: object-fit:cover doesn't know about CSS rotation.
-    // For quarter-turn rotations, the image dimensions are effectively swapped,
-    // so cover over-crops. We calculate a compensation scale to correct this.
+    // Rotation compensation for cover-mode platforms (Instagram, Twitter).
+    // object-fit:cover doesn't know about CSS rotation, so for quarter-turn
+    // rotations the image dimensions are effectively swapped and cover over-crops.
+    // TikTok uses contain so it doesn't need this.
     const normalizedRot = ((rotation % 360) + 360) % 360;
     const isQuarterTurn = normalizedRot === 90 || normalizedRot === 270;
-    if (isQuarterTurn && imageRef.current?.naturalWidth && imageRef.current?.naturalHeight) {
+    if (isQuarterTurn && targetSurface !== 'tiktok' && imageRef.current?.naturalWidth && imageRef.current?.naturalHeight) {
       const imgW = imageRef.current.naturalWidth;
       const imgH = imageRef.current.naturalHeight;
       const imgAR = imgW / imgH;
-      // Container aspect ratio per platform
       let containerAR;
-      if (targetSurface === 'tiktok') containerAR = 9 / 16;
-      else if (targetSurface === 'twitter') containerAR = 16 / 9;
+      if (targetSurface === 'twitter') containerAR = 16 / 9;
       else containerAR = 1; // instagram = square
-      // Cover scale CSS uses (un-rotated) vs what we want (rotated = swapped dims)
       const actualCover = Math.max(containerAR / imgAR, 1);
       const desiredCover = Math.max(containerAR * imgAR, 1 / imgAR);
       const compensation = desiredCover / actualCover;
@@ -1436,9 +1438,16 @@ function PostDetails({ post }) {
     if (flipH === -1) transforms.push('scaleX(-1)');
     if (flipV === -1) transforms.push('scaleY(-1)');
 
-    // Fit mode: fill = cover (fills frame, crops), contain = contain (full image, letterbox)
+    // TikTok always uses contain so the full image is visible (non-destructive).
+    // User zooms in via scale to fill the 9:16 frame.
+    // Instagram/Twitter use cover by default (fill the frame).
     const fitMode = settings.fitMode || 'native';
-    const objectFit = fitMode === 'contain' ? 'contain' : 'cover';
+    let objectFit;
+    if (targetSurface === 'tiktok') {
+      objectFit = 'contain';
+    } else {
+      objectFit = fitMode === 'contain' ? 'contain' : 'cover';
+    }
 
     return {
       objectFit,
@@ -1889,7 +1898,7 @@ function PostDetails({ post }) {
         <input
           type="range"
           min="40"
-          max="300"
+          max="400"
           value={editSettings.scale}
           onChange={(e) => updateEditSetting('scale', parseInt(e.target.value))}
           className="w-full accent-accent-purple"
