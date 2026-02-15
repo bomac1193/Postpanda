@@ -563,7 +563,7 @@ function YouTubePlanner() {
 
   return (
     <div
-      className="h-full flex gap-6 relative"
+      className="youtube-native h-full flex gap-6 relative"
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}

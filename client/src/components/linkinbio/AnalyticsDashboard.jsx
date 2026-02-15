@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import './linkinbio.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 function AnalyticsDashboard({ pageId }) {
   const [analytics, setAnalytics] = useState(null);

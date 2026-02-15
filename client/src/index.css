@@ -1,8 +1,78 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@font-face {
+  font-family: 'Schon';
+  src: url('/fonts/Sohne-Leicht.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Schon';
+  src: url('/fonts/Sohne-Buch.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Schon';
+  src: url('/fonts/Sohne-Kraftig.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Schon';
+  src: url('/fonts/Sohne-Halbfett.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Schon';
+  src: url('/fonts/Sohne-Dreiviertelfett.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Sohne Mono';
+  src: url('/fonts/SohneMono-Buch.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Canela';
+  src: url('/fonts/Canela-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Canela';
+  src: url('/fonts/Canela-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Canela';
+  src: url('/fonts/Canela-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 @layer base {
   * {
@@ -10,7 +80,79 @@
   }
 
   body {
-    @apply bg-dark-900 text-dark-100 font-sans antialiased;
+    @apply bg-dark-900 text-dark-100 antialiased;
+    font-family: 'Schon', system-ui, -apple-system, sans-serif;
+  }
+
+  body * {
+    font-family: 'Schon', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Canela', 'Times New Roman', serif !important;
+    letter-spacing: -0.01em;
+    font-weight: 500;
+    text-transform: none !important;
+  }
+
+  [role='heading'],
+  .font-display,
+  .text-display-xl,
+  .text-display-lg,
+  .text-display-md,
+  .text-heading-lg,
+  .text-heading,
+  .text-heading-sm {
+    font-family: 'Canela', 'Times New Roman', serif !important;
+    text-transform: none !important;
+  }
+
+  /* Platform-native typography in social previews */
+  .instagram-native,
+  .instagram-native * {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+  }
+
+  .instagram-native h1,
+  .instagram-native h2,
+  .instagram-native h3,
+  .instagram-native h4,
+  .instagram-native h5,
+  .instagram-native h6 {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  .tiktok-native,
+  .tiktok-native * {
+    font-family: 'SF Pro Text', 'Inter', 'Arial', sans-serif !important;
+  }
+
+  .tiktok-native h1,
+  .tiktok-native h2,
+  .tiktok-native h3,
+  .tiktok-native h4,
+  .tiktok-native h5,
+  .tiktok-native h6 {
+    font-family: 'SF Pro Text', 'Inter', 'Arial', sans-serif !important;
+    letter-spacing: 0;
+  }
+
+  .youtube-native,
+  .youtube-native * {
+    font-family: 'Roboto', Arial, sans-serif !important;
+  }
+
+  .youtube-native h1,
+  .youtube-native h2,
+  .youtube-native h3,
+  .youtube-native h4,
+  .youtube-native h5,
+  .youtube-native h6 {
+    font-family: 'Roboto', Arial, sans-serif !important;
+    letter-spacing: 0;
+    font-weight: 500;
   }
 
   #root {
@@ -135,6 +277,15 @@
 }
 
 @layer utilities {
+  .micro-label,
+  .text-label {
+    font-family: 'Sohne Mono', 'SF Mono', Monaco, Inconsolata, monospace !important;
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
   .text-gradient {
     @apply bg-gradient-to-r from-accent-purple via-accent-pink to-accent-orange bg-clip-text text-transparent;
   }

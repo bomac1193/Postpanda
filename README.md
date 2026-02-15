@@ -1,4 +1,4 @@
-# Slayt · Taste-Driven Content OS
+# Atelio · Taste-Driven Content OS
 
 One control room for grids, rollouts, and campaigns—powered by a unified Taste Brain (Subtaste) and Folio collections. We optimise for resonance, not just posting volume.
 
@@ -18,6 +18,15 @@ One control room for grids, rollouts, and campaigns—powered by a unified Taste
 | Ungoverned AI (no guardrails) | Per-post prompting → shared taste context | 95% on-brand (brand glossary match) | Designer Vault (Folio→templates) |
 | 30→3 signals (taste + skip + ROAS) | | One-click IG/TikTok playbooks | Conviction Loop (taste→confidence→ROAS) |
 | | | | Taste API (partner moat) |
+
+## Blue Ocean Hardening (Atelio x Genoma)
+- **Beachhead:** luxury fashion/beauty campaign teams with strict approval governance.
+- **Do not compete on:** prompt volume, low-cost output, generic scheduler features.
+- **Compete on:** brand-safe campaign reliability and approval velocity.
+- **In-product proofs required:**
+  - Campaign Reliability Scorecard (decision-ready rate, canon coverage, at-risk count).
+  - Approval gate readiness surfaced before export/posting.
+  - Conviction + Taste governance logs as audit trail.
 
 ## Week 1–4 production plan
 - **Week 1:** IG/TikTok auth + Folio capture → 1193 Schema v0 storage.

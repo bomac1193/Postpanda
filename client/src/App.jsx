@@ -35,7 +35,7 @@ function Splash({ fadingOut }) {
         </svg>
       </div>
       <h1 className="font-display text-2xl font-bold text-dark-100 uppercase tracking-[0.3em]">
-        Slayt
+        Atelio
       </h1>
       <p className="text-dark-500 text-xs font-mono uppercase tracking-[0.2em] mt-2">
         Λ8 Initializing

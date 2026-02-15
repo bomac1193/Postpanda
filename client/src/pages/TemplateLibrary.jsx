@@ -1,22 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-  Sparkles,
   Download,
-  Star,
-  TrendingUp,
-  Grid as GridIcon,
   Search,
-  Filter,
-  Eye,
-  Lock,
-  Unlock,
-  DollarSign,
-  BarChart3,
   Loader2,
-  Zap,
-  Heart,
-  ChevronDown,
-  Check,
   X
 } from 'lucide-react';
 import { useAppStore } from '../stores/useAppStore';
@@ -24,16 +10,16 @@ import { templateApi } from '../lib/api';
 import { ConvictionBadge } from '../components/conviction';
 
 const ARCHETYPE_GLYPHS = {
-  Architect: '🏛️',
-  Maven: '💎',
-  Maverick: '⚡',
-  Artisan: '🎨',
-  Sage: '🧙',
-  Alchemist: '🔮',
-  Titan: '⚔️',
-  Muse: '🌙',
-  Oracle: '👁️',
-  Phoenix: '🔥'
+  Architect: 'AR',
+  Maven: 'MV',
+  Maverick: 'MK',
+  Artisan: 'AT',
+  Sage: 'SG',
+  Alchemist: 'AL',
+  Titan: 'TN',
+  Muse: 'MS',
+  Oracle: 'OR',
+  Phoenix: 'PX'
 };
 
 function TemplateLibrary() {
@@ -140,10 +126,7 @@ function TemplateLibrary() {
       <div className="max-w-7xl mx-auto mb-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <Sparkles className="w-8 h-8 text-accent-purple" />
-              Designer Vault
-            </h1>
+            <h1 className="text-3xl font-bold">Designer Vault</h1>
             <p className="text-gray-400 mt-2">
               High-conviction grid templates from top creators
             </p>
@@ -159,7 +142,6 @@ function TemplateLibrary() {
                   : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
               }`}
             >
-              <GridIcon className="w-4 h-4 inline mr-2" />
               Public Library
             </button>
             <button
@@ -170,7 +152,6 @@ function TemplateLibrary() {
                   : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
               }`}
             >
-              <Heart className="w-4 h-4 inline mr-2" />
               My Templates
             </button>
           </div>
@@ -217,18 +198,12 @@ function TemplateLibrary() {
         {/* Stats Bar */}
         <div className="grid grid-cols-4 gap-4 mb-8">
           <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-            <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
-              <GridIcon className="w-4 h-4" />
-              Total Templates
-            </div>
+            <div className="text-gray-400 text-sm mb-1">Total Templates</div>
             <div className="text-2xl font-bold">{filteredTemplates.length}</div>
           </div>
 
           <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-            <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
-              <Zap className="w-4 h-4 text-green-400" />
-              Avg Conviction
-            </div>
+            <div className="text-gray-400 text-sm mb-1">Avg Conviction</div>
             <div className="text-2xl font-bold text-green-400">
               {filteredTemplates.length > 0
                 ? Math.round(
@@ -240,10 +215,7 @@ function TemplateLibrary() {
           </div>
 
           <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-            <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
-              <Star className="w-4 h-4 text-yellow-400" />
-              Avg Rating
-            </div>
+            <div className="text-gray-400 text-sm mb-1">Avg Rating</div>
             <div className="text-2xl font-bold text-yellow-400">
               {filteredTemplates.length > 0
                 ? (
@@ -255,10 +227,7 @@ function TemplateLibrary() {
           </div>
 
           <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-            <div className="flex items-center gap-2 text-gray-400 text-sm mb-1">
-              <Download className="w-4 h-4 text-accent-purple" />
-              Total Uses
-            </div>
+            <div className="text-gray-400 text-sm mb-1">Total Uses</div>
             <div className="text-2xl font-bold text-accent-purple">
               {filteredTemplates.reduce((sum, t) => sum + (t.metrics?.timesUsed || 0), 0)}
             </div>
@@ -274,7 +243,6 @@ function TemplateLibrary() {
           </div>
         ) : filteredTemplates.length === 0 ? (
           <div className="text-center py-20">
-            <GridIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-400 mb-2">
               No templates found
             </h3>
@@ -340,8 +308,8 @@ function TemplateCard({ template, onApply, onRate, onDelete, isOwner }) {
               className="bg-dark-700 rounded-sm flex items-center justify-center text-2xl"
             >
               {template.slots?.[i]?.archetypePreference
-                ? ARCHETYPE_GLYPHS[template.slots[i].archetypePreference] || '📷'
-                : '📷'}
+                ? ARCHETYPE_GLYPHS[template.slots[i].archetypePreference] || 'IMG'
+                : 'IMG'}
             </div>
           ))}
         </div>
@@ -382,9 +350,8 @@ function TemplateCard({ template, onApply, onRate, onDelete, isOwner }) {
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-lg">{template.name}</h3>
           {template.marketplace?.forSale && (
-            <div className="flex items-center gap-1 text-green-400 text-sm">
-              <DollarSign className="w-4 h-4" />
-              {template.marketplace.price || 0}
+            <div className="text-green-400 text-sm">
+              ${template.marketplace.price || 0}
             </div>
           )}
         </div>
@@ -401,7 +368,7 @@ function TemplateCard({ template, onApply, onRate, onDelete, isOwner }) {
                 key={archetype}
                 className="px-2 py-1 bg-dark-700 rounded text-xs text-gray-300"
               >
-                {ARCHETYPE_GLYPHS[archetype] || '📷'} {archetype} ({count})
+                {ARCHETYPE_GLYPHS[archetype] || 'IMG'} {archetype} ({count})
               </span>
             ))}
           </div>
@@ -410,19 +377,12 @@ function TemplateCard({ template, onApply, onRate, onDelete, isOwner }) {
         {/* Metrics */}
         <div className="flex items-center justify-between text-sm text-gray-400">
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">
-              <Star className="w-4 h-4 text-yellow-400" />
-              {template.metrics?.avgRating?.toFixed(1) || '0.0'}
-            </span>
-            <span className="flex items-center gap-1">
-              <Download className="w-4 h-4" />
-              {template.metrics?.timesUsed || 0}
-            </span>
+            <span>Rating {template.metrics?.avgRating?.toFixed(1) || '0.0'}</span>
+            <span>Uses {template.metrics?.timesUsed || 0}</span>
           </div>
 
-          <div className="flex items-center gap-1 text-accent-purple">
-            <BarChart3 className="w-4 h-4" />
-            {Math.round(template.metrics?.aestheticScore || 0)}/100
+          <div className="text-accent-purple">
+            Score {Math.round(template.metrics?.aestheticScore || 0)}/100
           </div>
         </div>
       </div>

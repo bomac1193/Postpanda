@@ -760,7 +760,7 @@ export const useAppStore = create(
               for (const oldName of oldNames) {
                 const oldStr = localStorage.getItem(oldName);
                 if (oldStr) {
-                  console.log(`[Slayt] Found data in ${oldName}, migrating to ${name}`);
+                  console.log(`[Atelio] Found data in ${oldName}, migrating to ${name}`);
                   str = oldStr;
                   source = oldName;
                   // Save to new name
@@ -776,18 +776,18 @@ export const useAppStore = create(
               const videoCount = parsed?.state?.youtubeVideos?.length || 0;
               const collectionCount = parsed?.state?.youtubeCollections?.length || 0;
               const videosByCollectionKeys = Object.keys(parsed?.state?.youtubeVideosByCollection || {});
-              console.log(`[Slayt] Loaded from ${source}:`, {
+              console.log(`[Atelio] Loaded from ${source}:`, {
                 youtubeVideos: videoCount,
                 youtubeCollections: collectionCount,
                 videosByCollectionKeys,
               });
               return parsed;
             } else {
-              console.log('[Slayt] No saved data found in localStorage');
+              console.log('[Atelio] No saved data found in localStorage');
               return null;
             }
           } catch (e) {
-            console.error('[Slayt] Failed to load from localStorage:', e);
+            console.error('[Atelio] Failed to load from localStorage:', e);
             return null;
           }
         },

@@ -37,6 +37,7 @@ const templateRoutes = require('./routes/template');
 const tasteApiRoutes = require('./routes/tasteApi');
 const apiKeyManagementRoutes = require('./routes/apiKeyManagement');
 const bovedaRoutes = require('./routes/boveda');
+const twinOsRoutes = require('./routes/twinOs');
 const schedulingService = require('./services/schedulingService');
 
 // Connect to MongoDB
@@ -120,6 +121,7 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/taste', tasteApiRoutes); // External Taste API
 app.use('/api/admin/api-keys', apiKeyManagementRoutes); // API key management
 app.use('/api', bovedaRoutes); // Boveda integration
+app.use('/api/twin-os', twinOsRoutes); // Twin OS (Starforge + Clarosa)
 
 // Proxy to Folio API to avoid CORS pain locally
 app.use('/folio', createProxyMiddleware({

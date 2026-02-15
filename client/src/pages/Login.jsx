@@ -130,7 +130,7 @@ function Login() {
             </svg>
           </div>
           <h1 className="text-3xl font-display font-bold text-dark-100 mb-2 uppercase tracking-widest">
-            Slayt
+            Atelio
           </h1>
           <p className="text-dark-400 text-sm font-mono uppercase tracking-widest">Taste-Driven Content OS</p>
         </div>

@@ -106,7 +106,7 @@ function ReelPlayer({ reel, onClose, onSelectThumbnail }) {
       setIsLiked(true);
       // Show heart animation
       const heart = document.createElement('div');
-      heart.innerHTML = '❤️';
+      heart.innerHTML = '♥';
       heart.className = 'absolute text-6xl animate-ping pointer-events-none';
       heart.style.left = `${e.clientX - e.currentTarget.getBoundingClientRect().left - 30}px`;
       heart.style.top = `${e.clientY - e.currentTarget.getBoundingClientRect().top - 30}px`;

@@ -5,7 +5,7 @@ import LogoManager from './LogoManager';
 import FontSelector from './FontSelector';
 import './brandkit.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 function BrandKitPanel({ onSelectColor, onSelectFont, onSelectLogo }) {
   const [brandKit, setBrandKit] = useState(null);

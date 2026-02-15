@@ -7,7 +7,7 @@ import {
 } from '../components/workspace';
 import '../components/workspace/workspace.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 function Workspaces() {
   const [workspaces, setWorkspaces] = useState([]);

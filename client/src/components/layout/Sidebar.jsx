@@ -4,8 +4,6 @@ import { useAppStore } from '../../stores/useAppStore';
 import ProfileSwitcher from '../profile/ProfileSwitcher';
 import {
   LayoutGrid,
-  Image,
-  Wand2,
   FolderOpen,
   Link2,
   Settings,
@@ -15,56 +13,59 @@ import {
   Youtube,
   Layers,
   Users,
-  Crosshair,
-  ScanLine,
   Radio,
   UserCircle2,
-  PenTool,
   CalendarDays as CalendarIcon,
-  Clock,
-  Sparkles,
   TrendingUp,
+  Ellipsis,
+  PenLine,
+  Atom,
+  LayoutTemplate,
+  SlidersHorizontal,
 } from 'lucide-react';
 
-// Λ — Lambda mark. Taste as function, mapping signals to archetype.
-// Apex offset left — not a perfect isosceles. Designed, not generated.
-function LambdaLogo({ className }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M4 22L10.5 3L20 22"
-        stroke="currentColor"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-// Navigation items with optional children for grouped items
-const navItems = [
-  { path: '/grid', icon: LayoutGrid, label: 'Grid Planner' },
-  { path: '/youtube', icon: Youtube, label: 'YouTube Planner' },
-  { path: '/calendar', icon: CalendarIcon, label: 'Calendar' },
-  { path: '/rollout', icon: Layers, label: 'Rollout' },
-  { path: '/editor', icon: PenTool, label: 'Editor' },
-  { path: '/editor/pro', icon: Wand2, label: 'Editor Pro' },
-  { path: '/genome', icon: Crosshair, label: 'Genome' },
-  { path: '/training', icon: Radio, label: 'Training' },
-  { path: '/templates', icon: Sparkles, label: 'Templates' },
-  { path: '/learning', icon: TrendingUp, label: 'Learning' },
-  { path: '/studio', icon: FolderOpen, label: 'Folio' },
-  { path: '/characters', icon: UserCircle2, label: 'Boveda' },
-  { path: '/library', icon: FolderOpen, label: 'Gallery' },
-  { path: '/profiles', icon: Users, label: 'Profiles' },
-  { path: '/connections', icon: Link2, label: 'Connections' },
-  { path: '/settings', icon: Settings, label: 'Settings' },
+const navSections = [
+  {
+    id: 'plan',
+    label: 'Plan',
+    items: [
+      { path: '/grid', icon: LayoutGrid, label: 'Grid' },
+      { path: '/youtube', icon: Youtube, label: 'YouTube' },
+      { path: '/calendar', icon: CalendarIcon, label: 'Calendar' },
+      { path: '/rollout', icon: Layers, label: 'Rollout' },
+    ],
+  },
+  {
+    id: 'create',
+    label: 'Create',
+    items: [
+      { path: '/editor', icon: PenLine, label: 'Editor' },
+      { path: '/library', icon: FolderOpen, label: 'Library' },
+    ],
+  },
+  {
+    id: 'system',
+    label: 'System',
+    items: [
+      { path: '/settings', icon: Settings, label: 'Settings' },
+      {
+        id: 'more',
+        icon: Ellipsis,
+        label: 'More',
+        children: [
+          { path: '/editor/pro', icon: SlidersHorizontal, label: 'Editor Pro' },
+          { path: '/genome', icon: Atom, label: 'Genome' },
+          { path: '/training', icon: Radio, label: 'Training' },
+          { path: '/templates', icon: LayoutTemplate, label: 'Templates' },
+          { path: '/learning', icon: TrendingUp, label: 'Learning' },
+          { path: '/studio', icon: FolderOpen, label: 'Folio' },
+          { path: '/characters', icon: UserCircle2, label: 'Boveda' },
+          { path: '/profiles', icon: Users, label: 'Profiles' },
+          { path: '/connections', icon: Link2, label: 'Connections' },
+        ],
+      },
+    ],
+  },
 ];
 
 function NavItem({ item, collapsed }) {
@@ -82,6 +83,8 @@ function NavItem({ item, collapsed }) {
     ? item.children.some(child => location.pathname === child.path)
     : location.pathname === item.path;
 
+  const Icon = item.icon;
+
   // Simple nav item (no children)
   if (!item.children) {
     return (
@@ -89,17 +92,17 @@ function NavItem({ item, collapsed }) {
         <NavLink
           to={item.path}
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+            `h-9 flex items-center ${Icon ? 'gap-2' : ''} px-2.5 border-l-2 transition-colors ${
               isActive
-                ? 'bg-accent-purple/20 text-accent-purple'
-                : 'text-dark-300 hover:bg-dark-700 hover:text-dark-100'
-            } ${collapsed ? 'justify-center' : ''}`
+                ? 'border-accent-purple text-dark-100 bg-dark-700/40'
+                : 'border-transparent text-dark-400 hover:text-dark-200 hover:bg-dark-700/20'
+            } ${collapsed ? 'justify-center' : ''} ${!Icon && !collapsed ? 'pl-3.5' : ''}`
           }
           title={collapsed ? item.label : undefined}
         >
-          <item.icon className="w-5 h-5 flex-shrink-0" />
+          {Icon ? <Icon className="w-4 h-4 flex-shrink-0" /> : null}
           {!collapsed && (
-            <span className="text-sm font-medium">{item.label}</span>
+            <span className="text-sm">{item.label}</span>
           )}
         </NavLink>
       </li>
@@ -108,35 +111,27 @@ function NavItem({ item, collapsed }) {
 
   // Grouped nav item with children
   return (
-    <li style={{ position: 'relative', zIndex: 100 }}>
+    <li>
       <button
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          console.log('CLICKED:', item.label, 'Current state:', isOpen);
           setIsOpen(!isOpen);
         }}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+        className={`w-full h-9 flex items-center gap-2 px-2.5 border-l-2 transition-colors ${
           isActive
-            ? 'bg-accent-purple/20 text-accent-purple'
-            : 'text-dark-300 hover:bg-dark-700 hover:text-dark-100'
-        } ${collapsed ? 'justify-center' : ''}`}
+            ? 'border-accent-purple text-dark-100 bg-dark-700/40'
+            : 'border-transparent text-dark-400 hover:text-dark-200 hover:bg-dark-700/20'
+        } ${collapsed ? 'justify-center' : ''} ${!Icon && !collapsed ? 'pl-3.5' : ''}`}
         title={collapsed ? item.label : undefined}
-        style={{
-          position: 'relative',
-          zIndex: 9999,
-          pointerEvents: 'auto',
-          cursor: 'pointer',
-          userSelect: 'none'
-        }}
         type="button"
       >
-        <item.icon className="w-5 h-5 flex-shrink-0" />
+        {Icon ? <Icon className="w-4 h-4 flex-shrink-0" /> : null}
         {!collapsed && (
           <>
-            <span className="text-sm font-medium flex-1 text-left">{item.label}</span>
+            <span className="text-sm flex-1 text-left">{item.label}</span>
             <ChevronDown
-              className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+              className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
             />
           </>
         )}
@@ -144,20 +139,20 @@ function NavItem({ item, collapsed }) {
 
       {/* Child items */}
       {!collapsed && isOpen && (
-        <ul className="mt-1 ml-4 pl-4 border-l border-dark-700 space-y-1">
+        <ul className="mt-1 ml-3 pl-3 border-l border-dark-700 space-y-0.5">
           {item.children.map((child) => (
             <li key={child.path}>
               <NavLink
                 to={child.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+                  `h-8 flex items-center ${child.icon ? 'gap-2' : ''} px-2.5 border-l-2 transition-colors text-sm ${
                     isActive
-                      ? 'bg-accent-purple/10 text-accent-purple'
-                      : 'text-dark-400 hover:bg-dark-700 hover:text-dark-200'
-                  }`
+                      ? 'border-accent-purple text-dark-100 bg-dark-700/30'
+                      : 'border-transparent text-dark-500 hover:text-dark-200 hover:bg-dark-700/20'
+                  } ${!child.icon ? 'pl-3.5' : ''}`
                 }
               >
-                <child.icon className="w-4 h-4" />
+                {child.icon ? <child.icon className="w-3.5 h-3.5" /> : null}
                 <span>{child.label}</span>
               </NavLink>
             </li>
@@ -177,23 +172,21 @@ function Sidebar() {
       className={`fixed left-0 top-0 h-full bg-dark-800 border-r border-dark-700 flex flex-col transition-all duration-300 z-[60] ${
         sidebarCollapsed ? 'w-16' : 'w-64'
       }`}
-      style={{ pointerEvents: 'auto', position: 'fixed', zIndex: 9999 }}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-dark-700">
+      <div className="h-16 flex items-center px-4 border-b border-dark-700">
         {!sidebarCollapsed && (
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-sm border border-dark-600 bg-dark-900 flex items-center justify-center">
-              <LambdaLogo className="w-5 h-5 text-dark-100" />
-            </div>
-            <span className="font-display font-semibold text-lg text-white uppercase tracking-widest">
-              Slayt
+          <div className="flex items-center">
+            <span className="font-display font-semibold text-[1.15rem] leading-none text-white tracking-[0.03em]">
+              Atelio
             </span>
           </div>
         )}
         {sidebarCollapsed && (
-          <div className="w-9 h-9 rounded-sm border border-dark-600 bg-dark-900 flex items-center justify-center mx-auto group cursor-pointer">
-            <LambdaLogo className="w-5 h-5 text-dark-100 transition-transform group-hover:rotate-12" />
+          <div className="mx-auto">
+            <span className="font-display font-semibold text-xs leading-none text-white tracking-[0.04em]">
+              Atelio
+            </span>
           </div>
         )}
       </div>
@@ -203,22 +196,33 @@ function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto">
-        <ul className="space-y-1 px-2">
-          {navItems.map((item) => (
-            <NavItem
-              key={item.path || item.id}
-              item={item}
-              collapsed={sidebarCollapsed}
-            />
+        <div className="px-2 space-y-4">
+          {navSections.map((section) => (
+            <div key={section.id}>
+              {!sidebarCollapsed && (
+                <div className="px-2 pb-1">
+                  <span className="micro-label text-dark-500">{section.label}</span>
+                </div>
+              )}
+              <ul className="space-y-0.5">
+                {section.items.map((item) => (
+                  <NavItem
+                    key={item.path || item.id}
+                    item={item}
+                    collapsed={sidebarCollapsed}
+                  />
+                ))}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       </nav>
 
       {/* Collapse Toggle */}
       <div className="p-2 border-t border-dark-700">
         <button
           onClick={toggleSidebar}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-dark-400 hover:bg-dark-700 hover:text-dark-200 transition-colors"
+          className="w-full h-9 flex items-center justify-center gap-2 px-3 text-dark-400 hover:bg-dark-700/30 hover:text-dark-200 transition-colors"
         >
           {sidebarCollapsed ? (
             <ChevronRight className="w-5 h-5" />

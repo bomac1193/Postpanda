@@ -22,12 +22,13 @@ export default {
         },
         // Accent colors
         accent: {
-          purple: '#8b5cf6',
+          purple: '#66023C',
+          'purple-dark': '#520230',
           blue: '#3b82f6',
           cyan: '#06b6d4',
           green: '#10b981',
-          orange: '#f97316',
-          pink: '#ec4899',
+          orange: '#8A4B2F',
+          pink: '#7A1E4E',
         },
         // Platform colors
         instagram: '#E1306C',
@@ -40,8 +41,9 @@ export default {
         threads: '#000000',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        sans: ['Schon', 'system-ui', 'sans-serif'],
+        display: ['Canela', 'Times New Roman', 'serif'],
+        mono: ['Sohne Mono', 'ui-monospace', 'monospace'],
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',

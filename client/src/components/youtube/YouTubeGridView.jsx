@@ -45,6 +45,10 @@ function YouTubeGridView({ isLocked, onUpload }) {
   const [draggedColumn, setDraggedColumn] = useState(null);
   const [dragOverRow, setDragOverRow] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
+  const [selectedRows, setSelectedRows] = useState(new Set());
+  const [selectedColumns, setSelectedColumns] = useState(new Set());
+  const [lastSelectedRow, setLastSelectedRow] = useState(null);
+  const [lastSelectedColumn, setLastSelectedColumn] = useState(null);
 
   // Avatar editing state (same as IG/TikTok)
   const [showAvatarEditor, setShowAvatarEditor] = useState(false);
@@ -180,48 +184,217 @@ function YouTubeGridView({ isLocked, onUpload }) {
     }
   }, [youtubeVideos, gridColumns, reorderYoutubeVideos, currentYoutubeCollectionId]);
 
+  // Row selection handlers
+  const handleRowClick = (e, rowIndex) => {
+    e.stopPropagation();
+
+    if (e.shiftKey && lastSelectedRow !== null) {
+      // Shift-click: select range
+      const start = Math.min(lastSelectedRow, rowIndex);
+      const end = Math.max(lastSelectedRow, rowIndex);
+      const newSelected = new Set(selectedRows);
+      for (let i = start; i <= end; i++) {
+        newSelected.add(i);
+      }
+      setSelectedRows(newSelected);
+    } else if (e.ctrlKey || e.metaKey) {
+      // Ctrl/Cmd-click: toggle selection
+      const newSelected = new Set(selectedRows);
+      if (newSelected.has(rowIndex)) {
+        newSelected.delete(rowIndex);
+      } else {
+        newSelected.add(rowIndex);
+      }
+      setSelectedRows(newSelected);
+      setLastSelectedRow(rowIndex);
+    } else {
+      // Regular click: select only this row
+      setSelectedRows(new Set([rowIndex]));
+      setLastSelectedRow(rowIndex);
+    }
+  };
+
   // Row drag handlers
   const handleRowDragStart = (e, rowIndex) => {
     e.dataTransfer.effectAllowed = 'move';
+
+    // If clicking on unselected row, select just that row
+    if (!selectedRows.has(rowIndex)) {
+      setSelectedRows(new Set([rowIndex]));
+    }
+
     setDraggedRow(rowIndex);
   };
 
   const handleRowDragOver = (e, rowIndex) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (draggedRow !== null && draggedRow !== rowIndex) {
+
+    const isRowSelected = selectedRows.has(rowIndex);
+    if (!isRowSelected && draggedRow !== null && draggedRow !== rowIndex) {
       setDragOverRow(rowIndex);
     }
   };
 
   const handleRowDrop = (e, targetRow) => {
     e.preventDefault();
-    if (draggedRow !== null && draggedRow !== targetRow) {
-      swapRows(draggedRow, targetRow);
+
+    if (selectedRows.size > 0 && !selectedRows.has(targetRow)) {
+      // Move all selected rows
+      const rowsToMove = Array.from(selectedRows).sort((a, b) => a - b);
+      const newVideos = [...youtubeVideos];
+      const numRows = Math.ceil(newVideos.length / gridColumns);
+
+      // Calculate offset
+      const firstRow = rowsToMove[0];
+      const offset = targetRow - firstRow;
+
+      // Extract videos from selected rows
+      const extractedRows = rowsToMove.map(rowIdx => {
+        const start = rowIdx * gridColumns;
+        return newVideos.slice(start, start + gridColumns);
+      });
+
+      // Remove selected rows (mark as null)
+      rowsToMove.forEach(rowIdx => {
+        for (let col = 0; col < gridColumns; col++) {
+          const idx = rowIdx * gridColumns + col;
+          if (idx < newVideos.length) {
+            newVideos[idx] = null;
+          }
+        }
+      });
+
+      // Insert at target position
+      const targetStart = targetRow * gridColumns;
+      extractedRows.forEach((row, i) => {
+        row.forEach((video, col) => {
+          const targetIdx = targetStart + i * gridColumns + col;
+          if (video && targetIdx < newVideos.length) {
+            newVideos[targetIdx] = video;
+          }
+        });
+      });
+
+      // Compact array (remove nulls)
+      const compacted = newVideos.filter(v => v !== null);
+
+      reorderYoutubeVideos(compacted);
+
+      if (currentYoutubeCollectionId) {
+        const videoIds = compacted.map(v => v.id || v._id);
+        youtubeApi.reorderVideos(currentYoutubeCollectionId, videoIds).catch(err =>
+          console.error('Failed to persist multi-row reorder:', err)
+        );
+      }
+
+      setSelectedRows(new Set());
     }
+
     setDraggedRow(null);
     setDragOverRow(null);
+  };
+
+  // Column selection handlers
+  const handleColumnClick = (e, colIndex) => {
+    e.stopPropagation();
+
+    if (e.shiftKey && lastSelectedColumn !== null) {
+      // Shift-click: select range
+      const start = Math.min(lastSelectedColumn, colIndex);
+      const end = Math.max(lastSelectedColumn, colIndex);
+      const newSelected = new Set(selectedColumns);
+      for (let i = start; i <= end; i++) {
+        newSelected.add(i);
+      }
+      setSelectedColumns(newSelected);
+    } else if (e.ctrlKey || e.metaKey) {
+      // Ctrl/Cmd-click: toggle selection
+      const newSelected = new Set(selectedColumns);
+      if (newSelected.has(colIndex)) {
+        newSelected.delete(colIndex);
+      } else {
+        newSelected.add(colIndex);
+      }
+      setSelectedColumns(newSelected);
+      setLastSelectedColumn(colIndex);
+    } else {
+      // Regular click: select only this column
+      setSelectedColumns(new Set([colIndex]));
+      setLastSelectedColumn(colIndex);
+    }
   };
 
   // Column drag handlers
   const handleColumnDragStart = (e, colIndex) => {
     e.dataTransfer.effectAllowed = 'move';
+
+    // If clicking on unselected column, select just that column
+    if (!selectedColumns.has(colIndex)) {
+      setSelectedColumns(new Set([colIndex]));
+    }
+
     setDraggedColumn(colIndex);
   };
 
   const handleColumnDragOver = (e, colIndex) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (draggedColumn !== null && draggedColumn !== colIndex) {
+
+    const isColSelected = selectedColumns.has(colIndex);
+    if (!isColSelected && draggedColumn !== null && draggedColumn !== colIndex) {
       setDragOverColumn(colIndex);
     }
   };
 
   const handleColumnDrop = (e, targetCol) => {
     e.preventDefault();
-    if (draggedColumn !== null && draggedColumn !== targetCol) {
-      swapColumns(draggedColumn, targetCol);
+
+    if (selectedColumns.size > 0 && !selectedColumns.has(targetCol)) {
+      // Move all selected columns
+      const colsToMove = Array.from(selectedColumns).sort((a, b) => a - b);
+      const newVideos = [...youtubeVideos];
+      const numRows = Math.ceil(newVideos.length / gridColumns);
+
+      // Extract videos from selected columns
+      const extractedCols = colsToMove.map(colIdx => {
+        const videos = [];
+        for (let row = 0; row < numRows; row++) {
+          const idx = row * gridColumns + colIdx;
+          if (idx < newVideos.length) {
+            videos.push(newVideos[idx]);
+            newVideos[idx] = null;
+          }
+        }
+        return videos;
+      });
+
+      // Insert at target position
+      extractedCols.forEach((colVideos, i) => {
+        const targetColIdx = targetCol + i;
+        colVideos.forEach((video, row) => {
+          const targetIdx = row * gridColumns + targetColIdx;
+          if (video && targetIdx < newVideos.length) {
+            newVideos[targetIdx] = video;
+          }
+        });
+      });
+
+      // Compact array (remove nulls)
+      const compacted = newVideos.filter(v => v !== null);
+
+      reorderYoutubeVideos(compacted);
+
+      if (currentYoutubeCollectionId) {
+        const videoIds = compacted.map(v => v.id || v._id);
+        youtubeApi.reorderVideos(currentYoutubeCollectionId, videoIds).catch(err =>
+          console.error('Failed to persist multi-column reorder:', err)
+        );
+      }
+
+      setSelectedColumns(new Set());
     }
+
     setDraggedColumn(null);
     setDragOverColumn(null);
   };
@@ -503,21 +676,28 @@ function YouTubeGridView({ isLocked, onUpload }) {
                   <div
                     key={rowIndex}
                     draggable
+                    onClick={(e) => handleRowClick(e, rowIndex)}
                     onDragStart={(e) => handleRowDragStart(e, rowIndex)}
                     onDragOver={(e) => handleRowDragOver(e, rowIndex)}
                     onDragLeave={() => setDragOverRow(null)}
                     onDrop={(e) => handleRowDrop(e, rowIndex)}
                     className={`flex items-center justify-center p-2 rounded cursor-move transition-all ${
-                      draggedRow === rowIndex
+                      selectedRows.has(rowIndex)
+                        ? 'bg-accent-purple/30 ring-2 ring-accent-purple'
+                        : draggedRow === rowIndex
                         ? 'opacity-50'
                         : dragOverRow === rowIndex
                         ? 'bg-blue-500/20 ring-2 ring-blue-500'
                         : 'bg-dark-700 hover:bg-dark-600'
                     }`}
-                    title="Drag to reorder row"
+                    title={
+                      selectedRows.has(rowIndex)
+                        ? 'Selected (Shift-click to select range, Ctrl-click to toggle)'
+                        : 'Click to select, Shift-click to select range, Ctrl-click to toggle'
+                    }
                     style={{ height: `calc((100% / ${Math.ceil((youtubeVideos.length + 1) / gridColumns)}) - 1rem)` }}
                   >
-                    <GripVertical className="w-4 h-4 text-dark-400" />
+                    <GripVertical className={`w-4 h-4 ${selectedRows.has(rowIndex) ? 'text-accent-purple' : 'text-dark-400'}`} />
                   </div>
                 ))}
               </div>
@@ -530,20 +710,27 @@ function YouTubeGridView({ isLocked, onUpload }) {
                     <div
                       key={colIndex}
                       draggable
+                      onClick={(e) => handleColumnClick(e, colIndex)}
                       onDragStart={(e) => handleColumnDragStart(e, colIndex)}
                       onDragOver={(e) => handleColumnDragOver(e, colIndex)}
                       onDragLeave={() => setDragOverColumn(null)}
                       onDrop={(e) => handleColumnDrop(e, colIndex)}
                       className={`flex items-center justify-center p-2 rounded cursor-move transition-all ${
-                        draggedColumn === colIndex
+                        selectedColumns.has(colIndex)
+                          ? 'bg-accent-purple/30 ring-2 ring-accent-purple'
+                          : draggedColumn === colIndex
                           ? 'opacity-50'
                           : dragOverColumn === colIndex
                           ? 'bg-blue-500/20 ring-2 ring-blue-500'
                           : 'bg-dark-700 hover:bg-dark-600'
                       }`}
-                      title="Drag to reorder column"
+                      title={
+                        selectedColumns.has(colIndex)
+                          ? 'Selected (Shift-click to select range, Ctrl-click to toggle)'
+                          : 'Click to select, Shift-click to select range, Ctrl-click to toggle'
+                      }
                     >
-                      <GripHorizontal className="w-4 h-4 text-dark-400" />
+                      <GripHorizontal className={`w-4 h-4 ${selectedColumns.has(colIndex) ? 'text-accent-purple' : 'text-dark-400'}`} />
                     </div>
                   ))}
                 </div>

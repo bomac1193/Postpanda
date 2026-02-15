@@ -226,7 +226,7 @@ function LearningDashboard() {
               <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold text-green-300 mb-1">
-                  Your genome is learning! 🎉
+                  Your genome is learning.
                 </h3>
                 <p className="text-green-200 text-sm">
                   Prediction accuracy has improved by {accuracyTrend.toFixed(1)}% over the selected period.
@@ -308,7 +308,7 @@ function LearningDashboard() {
               </h2>
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <Info className="w-4 h-4" />
-                <span>How well Slayt predicts your content performance</span>
+                <span>How well Atelio predicts your content performance</span>
               </div>
             </div>
             <LearningProgressChart
@@ -388,18 +388,18 @@ function StatCard({ icon: Icon, iconColor, label, value, trend, subtitle }) {
 // Helper function for archetype glyphs
 function getArchetypeGlyph(archetype) {
   const glyphs = {
-    Architect: '🏛️',
-    Maven: '💎',
-    Maverick: '⚡',
-    Artisan: '🎨',
-    Sage: '🧙',
-    Alchemist: '🔮',
-    Titan: '⚔️',
-    Muse: '🌙',
-    Oracle: '👁️',
-    Phoenix: '🔥'
+    Architect: 'AR',
+    Maven: 'MV',
+    Maverick: 'MK',
+    Artisan: 'AT',
+    Sage: 'SG',
+    Alchemist: 'AL',
+    Titan: 'TN',
+    Muse: 'MS',
+    Oracle: 'OR',
+    Phoenix: 'PX'
   };
-  return glyphs[archetype] || '📊';
+  return glyphs[archetype] || 'NA';
 }
 
 export default LearningDashboard;

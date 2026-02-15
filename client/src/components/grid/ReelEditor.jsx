@@ -81,12 +81,12 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
     shares: '89',
   };
 
-  // Realistic TikTok-style comments with emojis
+  // Realistic TikTok-style comments
   const fakeComments = [
-    { user: 'emma.designs', text: 'obsessed with this 😍🔥' },
-    { user: 'creativejay', text: 'tutorial pls!! 🙏' },
-    { user: 'viralqueen_', text: 'POV: perfection 💅✨' },
-    { user: 'contentking', text: 'this is everything 😭💕' },
+    { user: 'emma.designs', text: 'Strong edit. This really lands.' },
+    { user: 'creativejay', text: 'Can you post a quick tutorial?' },
+    { user: 'viralqueen_', text: 'POV: polished execution.' },
+    { user: 'contentking', text: 'This is excellent work.' },
   ];
 
   return (
@@ -96,7 +96,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
         onClick={(e) => e.stopPropagation()}
       >
         {/* Left side - TikTok-style Video preview */}
-        <div className="flex-1 bg-black flex flex-col">
+        <div className="tiktok-native flex-1 bg-black flex flex-col">
           {/* Video Container */}
           <div className="flex-1 relative flex items-center justify-center p-4">
             <div className="relative h-full max-h-[70vh] aspect-[9/16] bg-dark-900 rounded-xl overflow-hidden shadow-2xl">
@@ -201,7 +201,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
                   <Music className="w-3 h-3 text-white" />
                   <div className="overflow-hidden">
                     <p className="text-white/80 text-[10px] truncate animate-marquee">
-                      ♫ {audioTrack || 'Original audio - your_username'}
+                      {audioTrack || 'Original audio - your_username'}
                     </p>
                   </div>
                 </div>

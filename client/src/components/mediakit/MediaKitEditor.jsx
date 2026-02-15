@@ -94,12 +94,12 @@ function MediaKitEditor({ mediaKit, onUpdate, onFetchStats }) {
   };
 
   const sections = [
-    { key: 'about', label: 'About', icon: '👤' },
-    { key: 'stats', label: 'Stats', icon: '📊' },
-    { key: 'services', label: 'Services', icon: '💼' },
-    { key: 'portfolio', label: 'Portfolio', icon: '📁' },
-    { key: 'contact', label: 'Contact', icon: '📧' },
-    { key: 'style', label: 'Style', icon: '🎨' },
+    { key: 'about', label: 'About' },
+    { key: 'stats', label: 'Stats' },
+    { key: 'services', label: 'Services' },
+    { key: 'portfolio', label: 'Portfolio' },
+    { key: 'contact', label: 'Contact' },
+    { key: 'style', label: 'Style' },
   ];
 
   return (
@@ -112,7 +112,7 @@ function MediaKitEditor({ mediaKit, onUpdate, onFetchStats }) {
             className={`editor-tab ${activeSection === section.key ? 'active' : ''}`}
             onClick={() => setActiveSection(section.key)}
           >
-            <span className="tab-icon">{section.icon}</span>
+            {section.icon ? <span className="tab-icon">{section.icon}</span> : null}
             <span className="tab-label">{section.label}</span>
           </button>
         ))}

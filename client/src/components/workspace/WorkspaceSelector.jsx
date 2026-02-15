@@ -77,7 +77,7 @@ function WorkspaceSelector({ workspaces, currentWorkspace, onSelect, onCreate })
                 setIsOpen(false);
               }}
             >
-              <span className="workspace-item-icon">👤</span>
+              <span className="workspace-item-icon">P</span>
               <span className="workspace-item-name">Personal</span>
             </button>
 

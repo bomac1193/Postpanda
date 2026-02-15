@@ -3,6 +3,7 @@ const Content = require('../models/Content');
 const User = require('../models/User');
 const socialMediaService = require('./socialMediaService');
 const convictionService = require('./convictionService');
+const approvalGateService = require('./approvalGateService');
 
 /**
  * Scheduling Service
@@ -330,6 +331,20 @@ class SchedulingService {
 
       const user = await User.findById(collection.userId);
       const content = await Content.findById(item.contentId);
+
+      const gate = await approvalGateService.evaluateContentGate({
+        content,
+        user,
+        action: 'collection_item_post',
+      });
+      if (!gate.allowed) {
+        return {
+          success: false,
+          error: gate.reason || 'Approval gate blocked posting',
+          code: gate.code,
+          gate,
+        };
+      }
 
       const postResult = await this.postContent(user, content, collection.platform);
 

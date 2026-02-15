@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
+import { Instagram, Music2, Youtube, Twitter, RefreshCw } from 'lucide-react';
 import './mediakit.css';
 
 const PLATFORMS = [
-  { id: 'instagram', name: 'Instagram', icon: '📸' },
-  { id: 'tiktok', name: 'TikTok', icon: '🎵' },
-  { id: 'youtube', name: 'YouTube', icon: '▶️' },
-  { id: 'twitter', name: 'Twitter', icon: '🐦' },
+  { id: 'instagram', name: 'Instagram', icon: Instagram },
+  { id: 'tiktok', name: 'TikTok', icon: Music2 },
+  { id: 'youtube', name: 'YouTube', icon: Youtube },
+  { id: 'twitter', name: 'X', icon: Twitter },
 ];
 
 function StatsDisplay({ stats, onUpdateStats, onFetchStats }) {
@@ -69,7 +70,7 @@ function StatsDisplay({ stats, onUpdateStats, onFetchStats }) {
           onClick={handleFetchStats}
           disabled={loading}
         >
-          {loading ? 'Fetching...' : '🔄 Sync Stats'}
+          {loading ? 'Fetching...' : 'Sync Stats'}
         </button>
       </div>
 
@@ -92,11 +93,12 @@ function StatsDisplay({ stats, onUpdateStats, onFetchStats }) {
         {PLATFORMS.map((platform) => {
           const platformStat = stats.platforms?.find(p => p.name === platform.id);
           const isEditing = editingPlatform === platform.id;
+          const PlatformIcon = platform.icon;
 
           return (
             <div key={platform.id} className={`platform-card ${platformStat ? 'active' : ''}`}>
               <div className="platform-header">
-                <span className="platform-icon">{platform.icon}</span>
+                <span className="platform-icon"><PlatformIcon size={16} /></span>
                 <span className="platform-name">{platform.name}</span>
                 {platformStat && !isEditing && (
                   <div className="platform-actions">

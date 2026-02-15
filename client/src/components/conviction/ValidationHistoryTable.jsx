@@ -89,18 +89,18 @@ function ValidationHistoryTable({ validations, onRefresh }) {
 
   const getArchetypeGlyph = (archetype) => {
     const glyphs = {
-      Architect: '🏛️',
-      Maven: '💎',
-      Maverick: '⚡',
-      Artisan: '🎨',
-      Sage: '🧙',
-      Alchemist: '🔮',
-      Titan: '⚔️',
-      Muse: '🌙',
-      Oracle: '👁️',
-      Phoenix: '🔥'
+      Architect: 'AR',
+      Maven: 'MV',
+      Maverick: 'MK',
+      Artisan: 'AT',
+      Sage: 'SG',
+      Alchemist: 'AL',
+      Titan: 'TN',
+      Muse: 'MS',
+      Oracle: 'OR',
+      Phoenix: 'PX'
     };
-    return glyphs[archetype] || '📊';
+    return glyphs[archetype] || 'NA';
   };
 
   if (validations.length === 0) {

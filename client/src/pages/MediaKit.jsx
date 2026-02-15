@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { MediaKitEditor, MediaKitPreview } from '../components/mediakit';
 import '../components/mediakit/mediakit.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 function MediaKit() {
   const [mediaKits, setMediaKits] = useState([]);

@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Profile = require('../models/Profile');
 const tasteGenome = require('./tasteGenome');
+const twinOsService = require('./twinOsService');
 
 /**
  * Build a unified taste context from the stored genome (1193 schema seed).
@@ -115,7 +116,69 @@ function materialize1193Schema(genome) {
   return schema;
 }
 
+/**
+ * Build enhanced taste context with Twin OS data (Visual DNA + Audio DNA).
+ * Merges local genome with Starforge cross-modal identity.
+ */
+async function buildEnhancedContext({ userId, profileId }) {
+  // Get local taste context
+  const localContext = await buildTasteContext({ userId, profileId });
+
+  // Get Twin OS context from Starforge
+  let twinOs = null;
+  try {
+    const twinContext = await twinOsService.getTwinContext(userId || 'default');
+    if (twinContext.source === 'starforge') {
+      twinOs = twinContext.twin_os;
+    }
+  } catch (error) {
+    console.warn('[TasteContext] Could not fetch Twin OS:', error.message);
+  }
+
+  // Merge contexts
+  const enhanced = {
+    ...localContext,
+    twinOs: twinOs ? {
+      archetype: twinOs.archetype,
+      brandKeywords: twinOs.brand_keywords || [],
+      crossModalCoherence: twinOs.cross_modal_coherence,
+      visualDna: twinOs.visual_dna || null,
+      audioDna: twinOs.audio_dna || null
+    } : null
+  };
+
+  // Enhance lexicon with Twin OS brand keywords
+  if (twinOs?.brand_keywords?.length > 0) {
+    enhanced.lexicon.prefer = [
+      ...enhanced.lexicon.prefer,
+      ...twinOs.brand_keywords
+    ].filter(Boolean);
+    enhanced.lexicon.prefer = [...new Set(enhanced.lexicon.prefer)];
+  }
+
+  // Add visual themes to aestheticPatterns
+  if (twinOs?.visual_dna?.themes?.length > 0) {
+    enhanced.aestheticPatterns = {
+      ...enhanced.aestheticPatterns,
+      visualThemes: twinOs.visual_dna.themes,
+      visualWarmth: twinOs.visual_dna.warmth,
+      visualEnergy: twinOs.visual_dna.energy
+    };
+  }
+
+  // Add audio context
+  if (twinOs?.audio_dna?.primary_genre) {
+    enhanced.audioContext = {
+      genre: twinOs.audio_dna.primary_genre,
+      tasteCoherence: twinOs.audio_dna.taste_coherence
+    };
+  }
+
+  return enhanced;
+}
+
 module.exports = {
   buildTasteContext,
   materialize1193Schema,
+  buildEnhancedContext
 };

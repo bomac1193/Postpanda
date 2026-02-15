@@ -3,6 +3,7 @@ const socialMediaService = require('../services/socialMediaService');
 const Collection = require('../models/Collection');
 const Content = require('../models/Content');
 const User = require('../models/User');
+const approvalGateService = require('../services/approvalGateService');
 
 /**
  * Manually post a single content item (legacy endpoint)
@@ -19,6 +20,19 @@ exports.postContent = async (req, res) => {
 
     if (!content) {
       return res.status(404).json({ error: 'Content not found' });
+    }
+
+    const gate = await approvalGateService.evaluateContentGate({
+      content,
+      user: req.user,
+      action: 'post',
+    });
+    if (!gate.allowed) {
+      return res.status(409).json({
+        error: 'Approval gate blocked posting',
+        code: gate.code,
+        gate,
+      });
     }
 
     const user = await User.findById(req.user._id);
@@ -87,6 +101,19 @@ exports.postNow = async (req, res) => {
 
     if (!content) {
       return res.status(404).json({ error: 'Content not found' });
+    }
+
+    const gate = await approvalGateService.evaluateContentGate({
+      content,
+      user: req.user,
+      action: 'post_now',
+    });
+    if (!gate.allowed) {
+      return res.status(409).json({
+        error: 'Approval gate blocked posting',
+        code: gate.code,
+        gate,
+      });
     }
 
     const user = await User.findById(req.user._id);
@@ -363,6 +390,19 @@ exports.schedulePost = async (req, res) => {
 
     if (!content) {
       return res.status(404).json({ error: 'Content not found' });
+    }
+
+    const gate = await approvalGateService.evaluateContentGate({
+      content,
+      user: req.user,
+      action: 'schedule',
+    });
+    if (!gate.allowed) {
+      return res.status(409).json({
+        error: 'Approval gate blocked scheduling',
+        code: gate.code,
+        gate,
+      });
     }
 
     // Update content with scheduling info

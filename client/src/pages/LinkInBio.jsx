@@ -5,7 +5,7 @@ import LinkInBioPreview from '../components/linkinbio/LinkInBioPreview';
 import AnalyticsDashboard from '../components/linkinbio/AnalyticsDashboard';
 import '../components/linkinbio/linkinbio.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 function LinkInBio() {
   const [pages, setPages] = useState([]);
