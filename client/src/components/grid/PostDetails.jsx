@@ -916,8 +916,13 @@ function PostDetails({ post }) {
   const applyFitMode = (mode) => {
     setEditSettings((prev) => {
       const next = { ...prev, fitMode: mode };
-      if (editTarget === 'tiktok' && mode === 'fill') {
-        // Non-destructive TikTok fill baseline: full frame without forced crop.
+      if (mode === 'fill' || mode === 'native') {
+        // Reset to fill baseline: full frame, centered
+        next.scale = 100;
+        next.panX = 0;
+        next.panY = 0;
+      } else if (mode === 'contain') {
+        // Contain: show full image, reset transforms
         next.scale = 100;
         next.panX = 0;
         next.panY = 0;
@@ -1220,8 +1225,9 @@ function PostDetails({ post }) {
     if (!isImagePanning) return;
     const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
     const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-    const nextPanX = Math.max(-400, Math.min(400, panStart.panX + (clientX - panStart.x)));
-    const nextPanY = Math.max(-400, Math.min(400, panStart.panY + (clientY - panStart.y)));
+    const sensitivity = 3;
+    const nextPanX = Math.max(-400, Math.min(400, panStart.panX + sensitivity * (clientX - panStart.x)));
+    const nextPanY = Math.max(-400, Math.min(400, panStart.panY + sensitivity * (clientY - panStart.y)));
     setEditSettings((prev) => ({ ...prev, panX: nextPanX, panY: nextPanY }));
   };
 
@@ -1317,7 +1323,7 @@ function PostDetails({ post }) {
     const delta = e.deltaY > 0 ? -3 : 3;
     setEditSettings((prev) => ({
       ...prev,
-      scale: Math.max(100, Math.min(300, (prev.scale || 100) + delta)),
+      scale: Math.max(40, Math.min(300, (prev.scale || 100) + delta)),
     }));
   };
 
@@ -1354,7 +1360,7 @@ function PostDetails({ post }) {
 
     setEditSettings((prev) => ({
       ...prev,
-      scale: Math.max(100, Math.min(300, (prev.scale || 100) + delta)),
+      scale: Math.max(40, Math.min(300, (prev.scale || 100) + delta)),
     }));
   };
 
@@ -1387,7 +1393,7 @@ function PostDetails({ post }) {
     const brightness = settings.brightness ?? 100;
     const contrast = settings.contrast ?? 100;
 
-    // Pan via object-position (no blank space — cover always fills the frame)
+    // Pan via object-position
     const objPosX = Math.max(0, Math.min(100, 50 - panX * 0.125));
     const objPosY = Math.max(0, Math.min(100, 50 - panY * 0.125));
 
@@ -1397,8 +1403,12 @@ function PostDetails({ post }) {
     if (flipH === -1) transforms.push('scaleX(-1)');
     if (flipV === -1) transforms.push('scaleY(-1)');
 
+    // Fit mode: fill = cover (fills frame, crops), contain = contain (full image, letterbox)
+    const fitMode = settings.fitMode || 'native';
+    const objectFit = fitMode === 'contain' ? 'contain' : 'cover';
+
     return {
-      objectFit: 'cover',
+      objectFit,
       objectPosition: `${objPosX}% ${objPosY}%`,
       filter: `brightness(${brightness}%) contrast(${contrast}%)`,
       transform: transforms.length ? transforms.join(' ') : undefined,
@@ -1845,7 +1855,7 @@ function PostDetails({ post }) {
         </div>
         <input
           type="range"
-          min="100"
+          min="40"
           max="300"
           value={editSettings.scale}
           onChange={(e) => updateEditSetting('scale', parseInt(e.target.value))}
