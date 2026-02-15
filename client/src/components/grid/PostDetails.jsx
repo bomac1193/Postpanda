@@ -1178,7 +1178,8 @@ function PostDetails({ post }) {
         const blob = await new Promise((resolve) =>
           canvas.toBlob(resolve, 'image/jpeg', 0.92)
         );
-        const result = await contentApi.updateMediaFromBlob(postId, blob, 'ig-thumbnail.jpg');
+        // thumbnailOnly: tells backend to NOT reset originalMediaUrl or editSettings
+        const result = await contentApi.updateMediaFromBlob(postId, blob, 'ig-thumbnail.jpg', { thumbnailOnly: true });
         const newMediaUrl = result?.content?.mediaUrl;
 
         // Update grid thumbnail — originalImage stays untouched
@@ -1187,6 +1188,7 @@ function PostDetails({ post }) {
             mediaUrl: newMediaUrl,
             image: newMediaUrl,
             images: [newMediaUrl],
+            originalImage: sourceSrc,
           });
         }
       }

@@ -460,13 +460,19 @@ exports.updateMedia = async (req, res) => {
     }
 
     // Update content with new media URL
-    // Reset originalMediaUrl — the new upload IS the original going forward
-    // Clear editSettings — old crop/transform settings don't apply to the new image
     content.mediaUrl = mediaUrl;
-    content.originalMediaUrl = mediaUrl;
     content.thumbnailUrl = thumbnailUrl;
-    content.editSettings = null;
-    content.markModified('editSettings');
+
+    // thumbnailOnly: saving a rendered crop (e.g. Instagram 1:1 grid thumbnail)
+    // — do NOT reset originalMediaUrl or editSettings
+    // Otherwise: uploading a brand new source image — reset everything
+    const thumbnailOnly = req.body?.thumbnailOnly === 'true';
+    if (!thumbnailOnly) {
+      content.originalMediaUrl = mediaUrl;
+      content.editSettings = null;
+      content.markModified('editSettings');
+    }
+
     await content.save();
 
     res.json({

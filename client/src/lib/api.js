@@ -295,9 +295,12 @@ export const contentApi = {
     return data;
   },
 
-  async updateMedia(id, file) {
+  async updateMedia(id, file, options = {}) {
     const formData = new FormData();
     formData.append('media', file);
+    if (options.thumbnailOnly) {
+      formData.append('thumbnailOnly', 'true');
+    }
 
     const { data } = await api.put(`/api/content/${id}/media`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -305,16 +308,16 @@ export const contentApi = {
     return data;
   },
 
-  async updateMediaFromBlob(id, blob, filename = 'edited-image.png') {
+  async updateMediaFromBlob(id, blob, filename = 'edited-image.png', options = {}) {
     const file = new File([blob], filename, { type: blob.type || 'image/png' });
-    return this.updateMedia(id, file);
+    return this.updateMedia(id, file, options);
   },
 
-  async updateMediaFromDataUrl(id, dataUrl, filename = 'edited-image.png') {
+  async updateMediaFromDataUrl(id, dataUrl, filename = 'edited-image.png', options = {}) {
     // Convert data URL to blob
     const response = await fetch(dataUrl);
     const blob = await response.blob();
-    return this.updateMediaFromBlob(id, blob, filename);
+    return this.updateMediaFromBlob(id, blob, filename, options);
   },
 };
 
