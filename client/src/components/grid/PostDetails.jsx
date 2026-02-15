@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { useNavigate } from 'react-router-dom';
 import { aiApi, postingApi, intelligenceApi, contentApi } from '../../lib/api';
@@ -200,7 +200,9 @@ function PostDetails({ post }) {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0, box: null });
   const previewContainerRef = useRef(null);
   const [isImagePanning, setIsImagePanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0, panX: 0, panY: 0 });
+  // Use refs for pan tracking — avoids re-renders during drag and stale closures
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const isPanningRef = useRef(false);
 
   // Crop box state for resizable crop
   const [cropBox, setCropBox] = useState(DEFAULT_CROP_BOX); // percentages of actual image
@@ -1210,37 +1212,44 @@ function PostDetails({ post }) {
 
   const startImagePan = (e) => {
     if (!isQuickEditing || isDragging || isResizing) return;
+    e.preventDefault(); // prevent browser drag behaviour
     const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
     const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-    setIsImagePanning(true);
-    setPanStart({
+    isPanningRef.current = true;
+    panStartRef.current = {
       x: clientX,
       y: clientY,
       panX: editSettings.panX || 0,
       panY: editSettings.panY || 0,
-    });
+    };
+    setIsImagePanning(true); // drives cursor style only
   };
 
-  const handleImagePanMove = (e) => {
-    if (!isImagePanning) return;
+  // Stable — reads from ref, never stale
+  const handleImagePanMove = useCallback((e) => {
+    if (!isPanningRef.current) return;
     const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
     const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+    const ps = panStartRef.current;
     const sensitivity = 3;
-    const nextPanX = Math.max(-400, Math.min(400, panStart.panX + sensitivity * (clientX - panStart.x)));
-    const nextPanY = Math.max(-400, Math.min(400, panStart.panY + sensitivity * (clientY - panStart.y)));
+    const nextPanX = Math.max(-400, Math.min(400, ps.panX + sensitivity * (clientX - ps.x)));
+    const nextPanY = Math.max(-400, Math.min(400, ps.panY + sensitivity * (clientY - ps.y)));
     setEditSettings((prev) => ({ ...prev, panX: nextPanX, panY: nextPanY }));
-  };
+  }, []);
 
-  const stopImagePan = () => {
+  const stopImagePan = useCallback(() => {
+    isPanningRef.current = false;
     setIsImagePanning(false);
-  };
+  }, []);
 
+  // Window-level listeners — only source of truth for pan move/up.
+  // No duplicate handlers on container elements.
   useEffect(() => {
     if (!isImagePanning) return undefined;
 
     const onMouseMove = (e) => handleImagePanMove(e);
     const onMouseUp = () => stopImagePan();
-    const onTouchMove = (e) => handleImagePanMove(e);
+    const onTouchMove = (e) => { e.preventDefault(); handleImagePanMove(e); };
     const onTouchEnd = () => stopImagePan();
 
     window.addEventListener('mousemove', onMouseMove);
@@ -1254,17 +1263,19 @@ function PostDetails({ post }) {
       window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('touchend', onTouchEnd);
     };
-  }, [isImagePanning, panStart, isQuickEditing, isDragging, isResizing]);
+  }, [isImagePanning, handleImagePanMove, stopImagePan]);
 
   // Instagram preview: auto-enter quick edit + start pan in one React batch
   const startInstagramPan = (e) => {
     if (isDragging || isResizing) return;
+    e.preventDefault();
     const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
     const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
 
     if (isQuickEditing && editTarget === 'instagram') {
+      isPanningRef.current = true;
+      panStartRef.current = { x: clientX, y: clientY, panX: editSettings.panX || 0, panY: editSettings.panY || 0 };
       setIsImagePanning(true);
-      setPanStart({ x: clientX, y: clientY, panX: editSettings.panX || 0, panY: editSettings.panY || 0 });
       return;
     }
 
@@ -1300,8 +1311,9 @@ function PostDetails({ post }) {
       setActiveTab('instagram');
     }
 
+    isPanningRef.current = true;
+    panStartRef.current = { x: clientX, y: clientY, panX: igPanX, panY: igPanY };
     setIsImagePanning(true);
-    setPanStart({ x: clientX, y: clientY, panX: igPanX, panY: igPanY });
   };
 
   // Early return AFTER all hooks to satisfy Rules of Hooks
@@ -1384,7 +1396,7 @@ function PostDetails({ post }) {
   const getTransformedMediaStyle = (surface = null) => {
     const targetSurface = surface || (isQuickEditing ? editTarget : 'instagram');
     const settings = getEffectiveEditSettingsForSurface(targetSurface);
-    const scale = (settings.scale ?? 100) / 100;
+    let scale = (settings.scale ?? 100) / 100;
     const rotation = settings.rotation || 0;
     const panX = settings.panX || 0;
     const panY = settings.panY || 0;
@@ -1396,6 +1408,27 @@ function PostDetails({ post }) {
     // Pan via object-position
     const objPosX = Math.max(0, Math.min(100, 50 - panX * 0.125));
     const objPosY = Math.max(0, Math.min(100, 50 - panY * 0.125));
+
+    // Rotation compensation: object-fit:cover doesn't know about CSS rotation.
+    // For quarter-turn rotations, the image dimensions are effectively swapped,
+    // so cover over-crops. We calculate a compensation scale to correct this.
+    const normalizedRot = ((rotation % 360) + 360) % 360;
+    const isQuarterTurn = normalizedRot === 90 || normalizedRot === 270;
+    if (isQuarterTurn && imageRef.current?.naturalWidth && imageRef.current?.naturalHeight) {
+      const imgW = imageRef.current.naturalWidth;
+      const imgH = imageRef.current.naturalHeight;
+      const imgAR = imgW / imgH;
+      // Container aspect ratio per platform
+      let containerAR;
+      if (targetSurface === 'tiktok') containerAR = 9 / 16;
+      else if (targetSurface === 'twitter') containerAR = 16 / 9;
+      else containerAR = 1; // instagram = square
+      // Cover scale CSS uses (un-rotated) vs what we want (rotated = swapped dims)
+      const actualCover = Math.max(containerAR / imgAR, 1);
+      const desiredCover = Math.max(containerAR * imgAR, 1 / imgAR);
+      const compensation = desiredCover / actualCover;
+      scale *= compensation;
+    }
 
     const transforms = [];
     if (scale !== 1) transforms.push(`scale(${scale})`);
@@ -1893,27 +1926,24 @@ function PostDetails({ post }) {
               onMouseMove={(e) => {
                 if (isResizing) handleResizeMove(e);
                 else if (isDragging) handleCropBoxDragMove(e);
-                else if (isImagePanning) handleImagePanMove(e);
+                // Pan is handled by window-level listeners — no duplicate here
               }}
               onMouseUp={() => {
                 if (isResizing) handleResizeEnd();
                 else if (isDragging) setIsDragging(false);
-                else if (isImagePanning) stopImagePan();
               }}
               onMouseLeave={() => {
                 if (isResizing) handleResizeEnd();
                 else if (isDragging) setIsDragging(false);
-                else if (isImagePanning) stopImagePan();
+                // Pan NOT stopped on mouse leave — window listener handles it
               }}
               onTouchMove={(e) => {
                 if (isResizing) handleResizeMove(e);
                 else if (isDragging) handleCropBoxDragMove(e);
-                else if (isImagePanning) handleImagePanMove(e);
               }}
               onTouchEnd={() => {
                 if (isResizing) handleResizeEnd();
                 else if (isDragging) setIsDragging(false);
-                else if (isImagePanning) stopImagePan();
               }}
             >
               {(editedImage || resolvePrimaryImageSource(post)) ? (
