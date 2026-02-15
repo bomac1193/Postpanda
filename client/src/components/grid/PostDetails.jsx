@@ -107,15 +107,25 @@ const createDefaultDraft = () => ({
   cropBox: { ...DEFAULT_CROP_BOX },
 });
 
+const normalizeMediaValue = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  if (typeof value === 'object') {
+    return normalizeMediaValue(value.url || value.secure_url || value.src || value.mediaUrl);
+  }
+  return null;
+};
+
 const resolvePrimaryImageSource = (post) => {
   if (!post) return null;
-  return (
-    post.originalImage ||
-    post.image ||
-    (Array.isArray(post.images) ? post.images[0] : null) ||
-    post.mediaUrl ||
-    null
-  );
+  return normalizeMediaValue(post.originalImage)
+    || normalizeMediaValue(post.image)
+    || normalizeMediaValue(Array.isArray(post.images) ? post.images[0] : null)
+    || normalizeMediaValue(post.mediaUrl)
+    || null;
 };
 
 function PostDetails({ post }) {
@@ -136,6 +146,8 @@ function PostDetails({ post }) {
   const displayName = currentProfile?.name || user?.name || 'Your Name';
   const username = currentProfile?.username || user?.name?.toLowerCase().replace(/\s+/g, '_') || 'your_username';
   const userAvatar = currentProfile?.avatar || user?.avatar;
+  const primaryImageSrc = resolvePrimaryImageSource(post);
+  const originalImageSrc = post?.originalImage || primaryImageSrc;
 
   // Modal and loading states
   const [generatingCaption, setGeneratingCaption] = useState(false);
@@ -152,7 +164,7 @@ function PostDetails({ post }) {
   // Upscale state
   const [upscaling, setUpscaling] = useState(false);
   const [upscaledImage, setUpscaledImage] = useState(() =>
-    post?.originalImage ? post.image : null
+    post?.originalImage && primaryImageSrc ? primaryImageSrc : null
   );
   const [showUpscaled, setShowUpscaled] = useState(true);
   const [compareMode, setCompareMode] = useState(false);
@@ -182,7 +194,6 @@ function PostDetails({ post }) {
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
   const autosaveTimerRef = useRef(null);
-  const autoStartQuickEditKeyRef = useRef(null);
 
   // Drag state for crop box
   const [isDragging, setIsDragging] = useState(false);
@@ -241,13 +252,13 @@ function PostDetails({ post }) {
 
   // Reset upscale state when switching posts
   useEffect(() => {
-    const hasUpscale = post?.originalImage && post.image !== post.originalImage;
-    setUpscaledImage(hasUpscale ? post.image : null);
+    const hasUpscale = post?.originalImage && primaryImageSrc && primaryImageSrc !== post.originalImage;
+    setUpscaledImage(hasUpscale ? primaryImageSrc : null);
     setShowUpscaled(true);
     setCompareMode(false);
     setComparePosition(50);
     setUpscaleError(null);
-  }, [post?.id, post?._id]);
+  }, [post?.id, post?._id, post?.image, post?.originalImage, post?.images, post?.mediaUrl]);
 
   // Load taste profile once for dice rolls
   useEffect(() => {
@@ -376,18 +387,6 @@ function PostDetails({ post }) {
     setCaption(post?.caption || '');
     setHashtags(post?.hashtags?.join(' ') || '');
   }, [postId]);
-
-  if (!post) {
-    return (
-      <div className="h-full bg-dark-800 rounded-2xl border border-dark-700 p-6 flex flex-col items-center justify-center text-center">
-        <Image className="w-12 h-12 text-dark-500 mb-4" />
-        <p className="text-dark-300 mb-2">No post selected</p>
-        <p className="text-sm text-dark-500">
-          Click on a grid item to view and edit its details
-        </p>
-      </div>
-    );
-  }
 
   const handleCaptionBlur = () => {
     persistPost({ caption });
@@ -633,17 +632,12 @@ function PostDetails({ post }) {
   };
 
   useEffect(() => {
-    const postKey = post?.id || post?._id;
-    if (!postKey) return;
-    const sourceImage = resolvePrimaryImageSource(post);
-    if (!sourceImage) return;
-    const isNewPost = autoStartQuickEditKeyRef.current !== postKey;
-    const missingEditorImage = isQuickEditing && !editedImage;
-    if (!isNewPost && !missingEditorImage) return;
-
-    autoStartQuickEditKeyRef.current = postKey;
-    startQuickEdit();
-  }, [post?.id, post?._id, post?.image, post?.originalImage, post?.images, post?.mediaUrl, isQuickEditing, editedImage]);
+    // Stability: do not auto-open Quick Edit on post select.
+    // User must explicitly enter Quick Edit via button.
+    setIsQuickEditing(false);
+    setEditedImage(null);
+    setActiveTab('details');
+  }, [post?.id, post?._id]);
 
   const cancelQuickEdit = () => {
     setIsQuickEditing(false);
@@ -663,7 +657,7 @@ function PostDetails({ post }) {
   // Completely restore to original image (remove all edits)
   const restoreOriginal = () => {
     const postId = post.id || post._id;
-    const originalImg = post.originalImage || post.image;
+    const originalImg = originalImageSrc;
 
     updatePost(postId, {
       image: originalImg,
@@ -919,6 +913,19 @@ function PostDetails({ post }) {
     setEditSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  const applyFitMode = (mode) => {
+    setEditSettings((prev) => {
+      const next = { ...prev, fitMode: mode };
+      if (editTarget === 'tiktok' && mode === 'fill') {
+        // Non-destructive TikTok fill baseline: full frame without forced crop.
+        next.scale = 100;
+        next.panX = 0;
+        next.panY = 0;
+      }
+      return next;
+    });
+  };
+
   const hydrateDraft = (draftLike = null) => {
     const merged = { ...createDefaultDraft(), ...(draftLike || {}) };
     const nextCropBox = merged.cropBox ? { ...DEFAULT_CROP_BOX, ...merged.cropBox } : { ...DEFAULT_CROP_BOX };
@@ -1142,6 +1149,19 @@ function PostDetails({ post }) {
     };
   }, [isImagePanning, panStart, isQuickEditing, isDragging, isResizing]);
 
+  // Early return AFTER all hooks to satisfy Rules of Hooks
+  if (!post) {
+    return (
+      <div className="h-full bg-dark-800 rounded-2xl border border-dark-700 p-6 flex flex-col items-center justify-center text-center">
+        <Image className="w-12 h-12 text-dark-500 mb-4" />
+        <p className="text-dark-300 mb-2">No post selected</p>
+        <p className="text-sm text-dark-500">
+          Click on a grid item to view and edit its details
+        </p>
+      </div>
+    );
+  }
+
   const handleScaleWheel = (e) => {
     if (!isQuickEditing) return;
     e.preventDefault();
@@ -1197,6 +1217,8 @@ function PostDetails({ post }) {
     const settings = getEffectiveEditSettingsForSurface(targetSurface);
     const fitMode = settings.fitMode || 'native';
 
+    // TikTok Fill uses a dual-layer render (blurred bg + contained fg) to avoid destructive cropping.
+    if (targetSurface === 'tiktok' && fitMode === 'fill') return 'contain';
     if (fitMode === 'fill') return 'cover';
     if (fitMode === 'contain') return 'contain';
 
@@ -1209,9 +1231,9 @@ function PostDetails({ post }) {
   const getSurfaceMediaSrc = (surface = null) => {
     const targetSurface = surface || (isQuickEditing ? editTarget : 'instagram');
     if (targetSurface === 'instagram') {
-      return post.originalImage || post.image;
+      return originalImageSrc;
     }
-    return post.image || post.originalImage;
+    return primaryImageSrc || originalImageSrc;
   };
 
   const flipImage = (direction) => {
@@ -1225,7 +1247,7 @@ function PostDetails({ post }) {
   // Apply edits and save
   const saveQuickEdit = async () => {
     // Always work from original image for non-destructive editing
-    const sourceImage = post.originalImage || post.image;
+    const sourceImage = originalImageSrc;
     if (!sourceImage) return;
 
     setSaving(true);
@@ -1276,7 +1298,7 @@ function PostDetails({ post }) {
 
       {/* Image */}
       <div className="aspect-square bg-gray-900">
-        {post.image ? (
+        {getSurfaceMediaSrc('instagram') ? (
           <img
             src={getSurfaceMediaSrc('instagram')}
             alt=""
@@ -1337,22 +1359,50 @@ function PostDetails({ post }) {
   );
 
   // TikTok Preview Component
-  const TikTokPreview = () => (
+  const TikTokPreview = () => {
+    const tiktokSrc = getSurfaceMediaSrc('tiktok');
+    const tiktokSettings = getEffectiveEditSettingsForSurface('tiktok');
+    const isTiktokFill = (tiktokSettings.fitMode || 'native') === 'fill';
+    const tiktokTransformStyle = getTransformedMediaStyle('tiktok');
+    const foregroundStyle = {
+      ...tiktokTransformStyle,
+      objectFit: getObjectFitForSurface('tiktok'),
+    };
+    const backgroundStyle = {
+      ...tiktokTransformStyle,
+      objectFit: 'cover',
+      // Keep backdrop aligned to the same rotation/pan, while slightly overfilling to avoid edge gaps.
+      transform: `${tiktokTransformStyle.transform} scale(1.12)`,
+      filter: `${tiktokTransformStyle.filter} blur(26px) saturate(1.1)`,
+      opacity: 0.72,
+    };
+    return (
     <div className="tiktok-native bg-black rounded-xl overflow-hidden relative" style={{ aspectRatio: '9/16', maxHeight: '500px' }}>
       {/* Background Image/Video */}
       <div className="absolute inset-0">
-        {post.image ? (
-          <img
-            src={post.image}
-            alt=""
-            className={`w-full h-full bg-black select-none ${isQuickEditing ? (isImagePanning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
-            style={{ ...getTransformedMediaStyle('tiktok'), objectFit: getObjectFitForSurface('tiktok') }}
-            draggable={false}
-            onDragStart={(e) => e.preventDefault()}
-            onMouseDown={isQuickEditing ? startImagePan : undefined}
-            onTouchStart={isQuickEditing ? startImagePan : undefined}
-            onWheel={isQuickEditing ? handleScaleWheel : undefined}
-          />
+        {tiktokSrc ? (
+          <>
+            {isTiktokFill && (
+              <img
+                src={tiktokSrc}
+                alt=""
+                className="w-full h-full"
+                style={backgroundStyle}
+                draggable={false}
+              />
+            )}
+            <img
+              src={tiktokSrc}
+              alt=""
+              className={`absolute inset-0 w-full h-full bg-black select-none ${isQuickEditing ? (isImagePanning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
+              style={foregroundStyle}
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              onMouseDown={isQuickEditing ? startImagePan : undefined}
+              onTouchStart={isQuickEditing ? startImagePan : undefined}
+              onWheel={isQuickEditing ? handleScaleWheel : undefined}
+            />
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: post.color || '#1f1f1f' }}>
             <Play className="w-16 h-16 text-white/50" />
@@ -1403,7 +1453,7 @@ function PostDetails({ post }) {
       <div className="absolute bottom-4 left-3 right-16">
         <p className="text-white font-semibold text-sm mb-1">{displayName}</p>
         <p className="text-white text-sm mb-2 line-clamp-2">
-          {caption || 'Your caption will appear here...'} {hashtags || '#fyp #viral #trending'}
+          {caption || 'Your caption will appear here...'}{hashtags ? ` ${hashtags}` : ''}
         </p>
         <div className="flex items-center gap-2">
           <Music className="w-4 h-4 text-white" />
@@ -1429,6 +1479,7 @@ function PostDetails({ post }) {
       </div>
     </div>
   );
+  };
 
   // Twitter/X Preview Component
   const TwitterPreview = () => (
@@ -1454,10 +1505,10 @@ function PostDetails({ post }) {
             </p>
 
             {/* Image */}
-            {post.image && (
+            {getSurfaceMediaSrc('twitter') && (
               <div className="mt-3 rounded-2xl overflow-hidden border border-gray-800 bg-gray-900 w-full flex items-center justify-center max-h-[420px]">
                 <img
-                  src={post.image}
+                  src={getSurfaceMediaSrc('twitter')}
                   alt=""
                   className={`w-full max-h-[420px] select-none ${isQuickEditing ? (isImagePanning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
                   style={{
@@ -1618,7 +1669,7 @@ function PostDetails({ post }) {
           ].map((mode) => (
             <button
               key={mode.id}
-              onClick={() => updateEditSetting('fitMode', mode.id)}
+              onClick={() => applyFitMode(mode.id)}
               className={`h-8 px-2 text-[11px] border transition-colors ${
                 (editSettings.fitMode || 'native') === mode.id
                   ? 'bg-dark-600 border-dark-400 text-dark-100'
@@ -1862,7 +1913,7 @@ function PostDetails({ post }) {
         ) : (
           // Normal View Mode
           <>
-            {post.image ? (
+            {primaryImageSrc ? (
               compareMode && upscaledImage ? (
                 <div
                   className="relative w-full h-full select-none"
@@ -1884,7 +1935,7 @@ function PostDetails({ post }) {
                 >
                   {/* Base layer: original */}
                   <img
-                    src={post.originalImage || post.image}
+                    src={originalImageSrc}
                     alt="Original"
                     className="w-full h-full"
                     style={{ ...getTransformedMediaStyle(), objectFit: getObjectFitForSurface() }}
@@ -1920,7 +1971,7 @@ function PostDetails({ post }) {
                 </div>
               ) : (
                 <img
-                  src={showUpscaled && upscaledImage ? upscaledImage : (post.originalImage || post.image)}
+                  src={showUpscaled && upscaledImage ? upscaledImage : originalImageSrc}
                   alt={post.caption || 'Post preview'}
                   className="w-full h-full"
                   style={{ ...getTransformedMediaStyle(), objectFit: getObjectFitForSurface() }}
