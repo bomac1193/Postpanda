@@ -104,7 +104,7 @@ function PostDetails({ post }) {
 
       {/* Platform Tabs */}
       <div className="flex border-b border-dark-700 flex-shrink-0">
-        {PLATFORMS.map((p) => (
+        {(qe.editing ? PLATFORMS.filter(t => t.id !== 'details') : PLATFORMS).map((p) => (
           <button
             key={p.id}
             onClick={() => qe.handleTabChange(p.id)}

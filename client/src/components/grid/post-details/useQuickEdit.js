@@ -42,6 +42,7 @@ export function useQuickEdit(post) {
 
   const cropperRef = useRef(null);
   const resetCounter = useRef(0);
+  const imageDimsRef = useRef(null);
   const draftsRef = useRef(drafts);
   draftsRef.current = drafts;
   const platformRef = useRef(platform);
@@ -66,6 +67,7 @@ export function useQuickEdit(post) {
     const target = ['instagram', 'tiktok', 'twitter'].includes(activeTab)
       ? activeTab : 'instagram';
     setPlatform(target);
+    setActiveTab(target);
     resetCounter.current++;
     setEditing(true);
   };
@@ -148,6 +150,7 @@ export function useQuickEdit(post) {
   const getDefaultCoordinates = useCallback(({ imageSize }) => {
     if (!imageSize) return undefined;
     const { width: imgW, height: imgH } = imageSize;
+    imageDimsRef.current = { width: imgW, height: imgH };
     const d = draftsRef.current[platformRef.current] || DEFAULT_DRAFT;
 
     // Restore saved crop box
@@ -174,6 +177,8 @@ export function useQuickEdit(post) {
   const handleCropperChange = useCallback((cropper) => {
     const coords = cropper.getCoordinates();
     if (!coords) return;
+    const imgSize = cropper.getState?.()?.imageSize;
+    if (imgSize) imageDimsRef.current = { width: imgSize.width, height: imgSize.height };
     const p = platformRef.current;
     setDrafts((prev) => {
       const old = prev[p]?.cropBox;
@@ -208,8 +213,9 @@ export function useQuickEdit(post) {
   };
 
   const getCroppedSrc = (surface) => {
-    const cb = getDraft(surface).cropBox;
     const url = resolvePrimaryImageSource(post);
+    if (editing) return url; // CSS handles crop during editing
+    const cb = getDraft(surface).cropBox;
     return cb ? getCroppedCloudinaryUrl(url, cb) : url;
   };
 
@@ -219,6 +225,28 @@ export function useQuickEdit(post) {
     if (d.rotation) transforms.push(`rotate(${d.rotation}deg)`);
     if (d.flipH) transforms.push('scaleX(-1)');
     if (d.flipV) transforms.push('scaleY(-1)');
+
+    const cb = d.cropBox;
+    const dims = imageDimsRef.current;
+
+    // Live CSS crop: position the original image so only the crop region is visible
+    if (editing && cb && dims && cb.width > 0 && cb.height > 0) {
+      return {
+        containerStyle: { overflow: 'hidden', position: 'relative' },
+        imageStyle: {
+          position: 'absolute',
+          width: `${(dims.width / cb.width) * 100}%`,
+          height: `${(dims.height / cb.height) * 100}%`,
+          left: `${-(cb.left / cb.width) * 100}%`,
+          top: `${-(cb.top / cb.height) * 100}%`,
+          maxWidth: 'none',
+          maxHeight: 'none',
+          transform: transforms.length ? transforms.join(' ') : undefined,
+          transformOrigin: 'center center',
+        },
+      };
+    }
+
     return {
       containerStyle: { overflow: 'hidden', position: 'relative' },
       imageStyle: {
