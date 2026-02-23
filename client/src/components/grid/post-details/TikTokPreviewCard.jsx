@@ -1,0 +1,114 @@
+import React from 'react';
+import {
+  Heart,
+  MessageCircle,
+  Bookmark,
+  Share2,
+  Play,
+  Eye,
+  Music,
+} from 'lucide-react';
+import { FAKE_COMMENTS, formatNumber } from './constants';
+
+const TikTokPreviewCard = React.memo(function TikTokPreviewCard({
+  croppedSrc,
+  cropStyles,
+  caption,
+  hashtags,
+  displayName,
+  userAvatar,
+  engagement,
+  postColor,
+}) {
+  return (
+    <div className="tiktok-native bg-black rounded-xl overflow-hidden relative" style={{ aspectRatio: '9/16', maxHeight: '500px' }}>
+      {/* Background Image/Video */}
+      <div className="absolute inset-0 overflow-hidden">
+        {croppedSrc ? (
+          <img
+            src={croppedSrc}
+            alt=""
+            className="w-full h-full select-none"
+            style={cropStyles.imageStyle}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: postColor || '#1f1f1f' }}>
+            <Play className="w-16 h-16 text-white/50" />
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+      </div>
+
+      {/* Right Actions */}
+      <div className="absolute right-3 bottom-24 flex flex-col items-center gap-5">
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border-2 border-white overflow-hidden">
+            {userAvatar ? (
+              <img src={userAvatar} alt="" className="w-full h-full object-cover" />
+            ) : null}
+          </div>
+          <div className="w-5 h-5 rounded-full bg-red-500 -mt-2 flex items-center justify-center">
+            <span className="text-white text-xs">+</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <Heart className="w-8 h-8 text-white" fill="white" />
+          <span className="text-white text-xs mt-1">{formatNumber(engagement.likes)}</span>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <MessageCircle className="w-8 h-8 text-white" />
+          <span className="text-white text-xs mt-1">{formatNumber(engagement.comments)}</span>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <Bookmark className="w-8 h-8 text-white" />
+          <span className="text-white text-xs mt-1">{formatNumber(engagement.shares)}</span>
+        </div>
+
+        <div className="flex flex-col items-center">
+          <Share2 className="w-8 h-8 text-white" />
+          <span className="text-white text-xs mt-1">Share</span>
+        </div>
+
+        <div className="w-10 h-10 rounded-full bg-gray-800 border-2 border-gray-600 overflow-hidden animate-spin" style={{ animationDuration: '3s' }}>
+          <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500" />
+        </div>
+      </div>
+
+      {/* Bottom Info */}
+      <div className="absolute bottom-4 left-3 right-16">
+        <p className="text-white font-semibold text-sm mb-1">{displayName}</p>
+        <p className="text-white text-sm mb-2 line-clamp-2">
+          {caption || 'Your caption will appear here...'}{hashtags ? ` ${hashtags}` : ''}
+        </p>
+        <div className="flex items-center gap-2">
+          <Music className="w-4 h-4 text-white" />
+          <p className="text-white text-xs">Original Sound - {displayName}</p>
+        </div>
+      </div>
+
+      {/* View count */}
+      <div className="absolute top-3 left-3 flex items-center gap-1 bg-black/50 px-2 py-1 rounded">
+        <Eye className="w-4 h-4 text-white" />
+        <span className="text-white text-xs">{formatNumber(engagement.views)}</span>
+      </div>
+
+      {/* Comments Overlay */}
+      <div className="absolute bottom-32 left-3 right-16 space-y-2">
+        {FAKE_COMMENTS.tiktok.slice(0, 2).map((comment, i) => (
+          <div key={i} className="bg-black/40 backdrop-blur-sm rounded-lg px-2 py-1">
+            <p className="text-white text-xs">
+              <span className="font-semibold">{comment.user}</span> {comment.text}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+export default TikTokPreviewCard;

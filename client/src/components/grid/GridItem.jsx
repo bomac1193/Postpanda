@@ -1,8 +1,9 @@
+import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Trash2, GripVertical, Play, Image, Film } from 'lucide-react';
 
-function GridItem({ post, isSelected, isLocked, onClick, onDelete }) {
+const GridItem = React.memo(function GridItem({ post, isSelected, isLocked, onClick, onDelete }) {
   const {
     attributes,
     listeners,
@@ -36,14 +37,25 @@ function GridItem({ post, isSelected, isLocked, onClick, onDelete }) {
       } ${isDragging ? 'z-10 cursor-grabbing' : isLocked ? 'cursor-pointer' : 'cursor-grab'}`}
       onClick={onClick}
     >
-      {/* Image or Placeholder */}
+      {/* Image or Placeholder — show Cloudinary-cropped version if available */}
       {post.image ? (
-        <img
-          src={post.image}
-          alt={post.caption || 'Grid post'}
-          className="w-full h-full object-cover"
-          draggable={false}
-        />
+        (() => {
+          const igCrop = post?.editSettings?.platformDrafts?.instagram?.cropBox;
+          let src = post.image;
+          // Only apply Cloudinary crop for pixel-format data (has `left` property, not old `x` format)
+          if (igCrop && typeof igCrop.left === 'number' && igCrop.width > 0 && igCrop.height > 0 && src.includes('cloudinary.com')) {
+            const params = `c_crop,x_${Math.round(igCrop.left)},y_${Math.round(igCrop.top)},w_${Math.round(igCrop.width)},h_${Math.round(igCrop.height)}`;
+            src = src.replace('/upload/', `/upload/${params}/`);
+          }
+          return (
+            <img
+              src={src}
+              alt={post.caption || 'Grid post'}
+              className="w-full h-full object-cover"
+              draggable={false}
+            />
+          );
+        })()
       ) : (
         <div
           className="w-full h-full flex items-center justify-center"
@@ -115,6 +127,6 @@ function GridItem({ post, isSelected, isLocked, onClick, onDelete }) {
       )}
     </div>
   );
-}
+});
 
 export default GridItem;

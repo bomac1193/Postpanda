@@ -1,0 +1,116 @@
+import React from 'react';
+import {
+  Image,
+  Heart,
+  MessageCircle,
+  Bookmark,
+  Share2,
+  MoreHorizontal,
+} from 'lucide-react';
+import { FAKE_COMMENTS, formatNumber } from './constants';
+
+const InstagramPreview = React.memo(function InstagramPreview({
+  croppedSrc,
+  cropStyles,
+  caption,
+  displayName,
+  userAvatar,
+  engagement,
+  postColor,
+  isEditing,
+  saving,
+  onSave,
+}) {
+  return (
+    <div className="instagram-native bg-black rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-gray-800">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 overflow-hidden">
+            {userAvatar ? (
+              <img src={userAvatar} alt="" className="w-full h-full object-cover" />
+            ) : null}
+          </div>
+          <div>
+            <p className="text-white text-sm font-semibold">{displayName}</p>
+            <p className="text-gray-400 text-xs">Original</p>
+          </div>
+        </div>
+        <MoreHorizontal className="w-5 h-5 text-white" />
+      </div>
+
+      {/* Image */}
+      <div className="aspect-square bg-black" style={cropStyles.containerStyle}>
+        {croppedSrc ? (
+          <img
+            src={croppedSrc}
+            alt=""
+            className="select-none"
+            style={cropStyles.imageStyle}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: postColor || '#1f1f1f' }}>
+            <Image className="w-12 h-12 text-gray-600" />
+          </div>
+        )}
+      </div>
+
+      {/* Save bar */}
+      {isEditing && (
+        <div className="px-3 py-2 border-b border-gray-800 flex items-center justify-between">
+          <span className="text-gray-400 text-xs">Drag crop edges to resize · Drag inside to move</span>
+          <button
+            onClick={onSave}
+            disabled={saving}
+            className="text-xs font-semibold text-blue-400 hover:text-blue-300 disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-4">
+            <Heart className="w-6 h-6 text-white cursor-pointer hover:text-red-500 transition-colors" fill="none" />
+            <MessageCircle className="w-6 h-6 text-white cursor-pointer" />
+            <Share2 className="w-6 h-6 text-white cursor-pointer" />
+          </div>
+          <Bookmark className="w-6 h-6 text-white cursor-pointer" />
+        </div>
+
+        {/* Likes */}
+        <p className="text-white text-sm font-semibold mb-1">
+          {formatNumber(engagement.likes)} likes
+        </p>
+
+        {/* Caption */}
+        <p className="text-white text-sm">
+          <span className="font-semibold">{displayName}</span>{' '}
+          <span className="text-gray-300">{caption || 'Your caption will appear here...'}</span>
+        </p>
+
+        {/* Comments */}
+        <p className="text-gray-400 text-sm mt-2 cursor-pointer">
+          View all {engagement.comments} comments
+        </p>
+
+        <div className="mt-2 space-y-1">
+          {FAKE_COMMENTS.instagram.map((comment, i) => (
+            <p key={i} className="text-sm">
+              <span className="text-white font-semibold">{comment.user}</span>{' '}
+              <span className="text-gray-300">{comment.text}</span>
+            </p>
+          ))}
+        </div>
+
+        <p className="text-gray-500 text-xs mt-2 uppercase">2 hours ago</p>
+      </div>
+    </div>
+  );
+});
+
+export default InstagramPreview;

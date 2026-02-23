@@ -1578,7 +1578,7 @@ function GridPlanner() {
       </div>
 
       {/* Right Sidebar - Post Details */}
-      <div className="w-80 flex-shrink-0">
+      <div className="w-80 flex-shrink-0 relative z-10">
         <PostDetails post={selectedPost} />
       </div>
     </div>

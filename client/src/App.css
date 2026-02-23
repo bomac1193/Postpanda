@@ -417,8 +417,6 @@ button {
   border-color: #111;
 }
 
-/* react-easy-crop injects its own handles; no manual overlay styles needed */
-
 .versions-panel {
   margin-top: 1rem;
 }

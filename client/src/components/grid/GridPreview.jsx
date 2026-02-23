@@ -310,12 +310,47 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
     >
       {images.length > 0 ? (
         <>
-          <img
-            src={images[0]}
-            alt=""
-            className="w-full h-full object-cover pointer-events-none"
-            draggable={false}
-          />
+          {(() => {
+            // Apply non-destructive CSS crop from saved Instagram platform draft
+            const igDraft = post?.editSettings?.platformDrafts?.instagram;
+            const cb = igDraft?.cropBox;
+            const hasCrop = cb && (cb.x !== 0 || cb.y !== 0 || cb.width < 100 || cb.height < 100);
+            const brightness = igDraft?.brightness ?? 100;
+            const contrast = igDraft?.contrast ?? 100;
+            const rotation = igDraft?.rotation || 0;
+            const flipH = igDraft?.flipH;
+            const flipV = igDraft?.flipV;
+            const hasAdjustments = rotation || flipH || flipV || brightness !== 100 || contrast !== 100;
+
+            // Use object-position to center on crop region (no distortion)
+            const style = {};
+            if (hasCrop) {
+              style.objectPosition = `${cb.x + cb.width / 2}% ${cb.y + cb.height / 2}%`;
+            }
+            if (hasAdjustments) {
+              const transforms = [];
+              if (rotation) transforms.push(`rotate(${rotation}deg)`);
+              if (flipH) transforms.push('scaleX(-1)');
+              if (flipV) transforms.push('scaleY(-1)');
+              if (brightness !== 100 || contrast !== 100) {
+                style.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+              }
+              if (transforms.length) {
+                style.transform = transforms.join(' ');
+                style.transformOrigin = 'center center';
+              }
+            }
+
+            return (
+              <img
+                src={images[0]}
+                alt=""
+                className="w-full h-full object-cover pointer-events-none"
+                style={Object.keys(style).length ? style : undefined}
+                draggable={false}
+              />
+            );
+          })()}
           {/* Carousel indicator */}
           {isCarousel && (
             <div className="absolute top-2 right-2 bg-dark-900/70 rounded px-1.5 py-0.5 flex items-center gap-1 pointer-events-none">
@@ -3866,11 +3901,23 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                       >
                         {images.length > 0 ? (
                           <>
-                            <img
-                              src={images[0]}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
+                            {(() => {
+                              const igDraft = post?.editSettings?.platformDrafts?.instagram;
+                              const cb = igDraft?.cropBox;
+                              const hasCrop = cb && (cb.x !== 0 || cb.y !== 0 || cb.width < 100 || cb.height < 100);
+                              const style = {};
+                              if (hasCrop) {
+                                style.objectPosition = `${cb.x + cb.width / 2}% ${cb.y + cb.height / 2}%`;
+                              }
+                              return (
+                                <img
+                                  src={images[0]}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                  style={Object.keys(style).length ? style : undefined}
+                                />
+                              );
+                            })()}
                             {images.length > 1 && (
                               <div className="absolute top-1 right-1 bg-dark-900/70 rounded px-1 py-0.5 flex items-center gap-0.5">
                                 <Layers className="w-2.5 h-2.5 text-white" />
