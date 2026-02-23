@@ -149,11 +149,12 @@ class SocialMediaService {
    */
   async postInstagramImage(userId, accessToken, content, options) {
     try {
-      // Step 1: Create media container
+      // Step 1: Create media container (with per-platform crop applied)
+      const imageUrl = this.getCroppedMediaUrl(content, 'instagram');
       const containerResponse = await axios.post(
         `https://graph.instagram.com/v18.0/${userId}/media`,
         {
-          image_url: this.getPublicMediaUrl(content.mediaUrl),
+          image_url: imageUrl,
           caption: options.caption || content.caption || '',
           access_token: accessToken
         }
@@ -206,7 +207,7 @@ class SocialMediaService {
         `https://graph.instagram.com/v18.0/${userId}/media`,
         {
           media_type: 'VIDEO',
-          video_url: this.getPublicMediaUrl(content.mediaUrl),
+          video_url: this.getCroppedMediaUrl(content, 'instagram'),
           caption: options.caption || content.caption || '',
           access_token: accessToken
         }
@@ -444,6 +445,42 @@ class SocialMediaService {
     // Construct public URL
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     return `${baseUrl}/uploads/${path.basename(mediaPath)}`;
+  }
+
+  /**
+   * Build a Cloudinary URL with per-platform crop/rotation/flip applied.
+   * Reads from content.editSettings.platformDrafts[platform].
+   * Returns the original URL unchanged if no edits exist for the platform.
+   */
+  getCroppedMediaUrl(content, platform) {
+    const url = this.getPublicMediaUrl(content.mediaUrl);
+    const draft = content.editSettings?.platformDrafts?.[platform];
+    if (!draft) return url;
+
+    // Only Cloudinary URLs support on-the-fly transforms
+    if (!url.includes('cloudinary.com')) return url;
+
+    const transforms = [];
+
+    // 1. Crop (pixel coordinates)
+    const cb = draft.cropBox;
+    if (cb && typeof cb.left === 'number' && cb.width > 0 && cb.height > 0) {
+      transforms.push(`c_crop,x_${Math.round(cb.left)},y_${Math.round(cb.top)},w_${Math.round(cb.width)},h_${Math.round(cb.height)}`);
+    }
+
+    // 2. Rotation
+    if (draft.rotation) {
+      transforms.push(`a_${draft.rotation}`);
+    }
+
+    // 3. Flip (Cloudinary: a_hflip / a_vflip via angle, or use e_hflip/e_vflip)
+    if (draft.flipH) transforms.push('a_hflip');
+    if (draft.flipV) transforms.push('a_vflip');
+
+    if (transforms.length === 0) return url;
+
+    const params = transforms.join('/');
+    return url.replace('/upload/', `/upload/${params}/`);
   }
 
   /**

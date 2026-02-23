@@ -150,11 +150,21 @@ export const useAppStore = create(
       addPost: (post) => set((state) => ({
         posts: [{ ...post, id: post.id || crypto.randomUUID(), createdAt: Date.now() }, ...state.posts]
       })),
-      updatePost: (id, updates) => set((state) => ({
-        posts: state.posts.map((p) => (p.id === id || p._id === id) ? { ...p, ...updates } : p),
-        // Also update gridPosts if the post exists there
-        gridPosts: state.gridPosts.map((p) => (p.id === id || p._id === id) ? { ...p, ...updates } : p)
-      })),
+      updatePost: (id, updates) => set((state) => {
+        const merge = (post) => {
+          if (post.id !== id && post._id !== id) return post;
+          // Deep merge editSettings to avoid losing platformDrafts or flags
+          const merged = { ...post, ...updates };
+          if (post.editSettings && updates.editSettings) {
+            merged.editSettings = { ...post.editSettings, ...updates.editSettings };
+          }
+          return merged;
+        };
+        return {
+          posts: state.posts.map(merge),
+          gridPosts: state.gridPosts.map(merge),
+        };
+      }),
       deletePost: (id) => set((state) => ({
         posts: state.posts.filter((p) => p.id !== id && p._id !== id),
         selectedPostId: state.selectedPostId === id ? null : state.selectedPostId

@@ -274,7 +274,10 @@ exports.updateContent = async (req, res) => {
     if (mentions !== undefined) content.mentions = mentions;
     if (audioTrack !== undefined) content.audioTrack = audioTrack;
     if (editSettings !== undefined) {
-      content.editSettings = editSettings;
+      // Deep merge to preserve existing fields (e.g. platformDrafts from other surfaces)
+      content.editSettings = content.editSettings
+        ? { ...content.editSettings, ...editSettings }
+        : editSettings;
       content.markModified('editSettings');
     }
     if (originalMediaUrl !== undefined) content.originalMediaUrl = originalMediaUrl;

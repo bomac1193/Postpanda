@@ -40,12 +40,23 @@ const GridItem = React.memo(function GridItem({ post, isSelected, isLocked, onCl
       {/* Image or Placeholder — show Cloudinary-cropped version if available */}
       {post.image ? (
         (() => {
-          const igCrop = post?.editSettings?.platformDrafts?.instagram?.cropBox;
+          const igDraft = post?.editSettings?.platformDrafts?.instagram;
+          const igCrop = igDraft?.cropBox;
           let src = post.image;
-          // Only apply Cloudinary crop for pixel-format data (has `left` property, not old `x` format)
-          if (igCrop && typeof igCrop.left === 'number' && igCrop.width > 0 && igCrop.height > 0 && src.includes('cloudinary.com')) {
-            const params = `c_crop,x_${Math.round(igCrop.left)},y_${Math.round(igCrop.top)},w_${Math.round(igCrop.width)},h_${Math.round(igCrop.height)}`;
-            src = src.replace('/upload/', `/upload/${params}/`);
+          if (src.includes('cloudinary.com')) {
+            const transforms = [];
+            // Crop (pixel coordinates)
+            if (igCrop && typeof igCrop.left === 'number' && igCrop.width > 0 && igCrop.height > 0) {
+              transforms.push(`c_crop,x_${Math.round(igCrop.left)},y_${Math.round(igCrop.top)},w_${Math.round(igCrop.width)},h_${Math.round(igCrop.height)}`);
+            }
+            // Rotation
+            if (igDraft?.rotation) transforms.push(`a_${igDraft.rotation}`);
+            // Flip
+            if (igDraft?.flipH) transforms.push('a_hflip');
+            if (igDraft?.flipV) transforms.push('a_vflip');
+            if (transforms.length > 0) {
+              src = src.replace('/upload/', `/upload/${transforms.join('/')}/`);
+            }
           }
           return (
             <img
