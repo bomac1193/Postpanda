@@ -16,6 +16,8 @@ const normalizeGrid = (grid) => {
     if (!cell.crop) {
       cell.crop = { ...DEFAULT_CROP };
     }
+    // Reconcile isEmpty with actual content presence
+    cell.isEmpty = cell.contentId == null;
   });
 };
 

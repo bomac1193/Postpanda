@@ -611,7 +611,7 @@ function GridPlanner() {
       }
     }
 
-    const newPosts = [];
+    let uploaded = 0;
     const startPosition = gridPosts.length;
 
     for (let i = 0; i < imageFiles.length; i++) {
@@ -627,11 +627,11 @@ function GridPlanner() {
 
         // Add to grid
         const content = result.content || result;
-        const position = startPosition + newPosts.length;
+        const position = startPosition + uploaded;
         const row = Math.floor(position / cols);
         const col = position % cols;
 
-        newPosts.push({
+        const newPost = {
           id: content._id,
           image: content.mediaUrl,
           images: content.carouselImages?.length > 0 ? content.carouselImages : [content.mediaUrl],
@@ -640,9 +640,9 @@ function GridPlanner() {
           color: '#8b5cf6',
           mediaType: content.mediaType || 'image',
           gridPosition: position,
-        });
+        };
 
-        // Add content to grid cell
+        // Add content to grid cell on backend
         if (gridId && content._id) {
           try {
             await gridApi.addContent(gridId, content._id, { row, col });
@@ -650,6 +650,10 @@ function GridPlanner() {
             console.error('Failed to add to grid:', err);
           }
         }
+
+        // Show image in grid immediately (progressive rendering)
+        setGridPosts(prev => [...prev, newPost]);
+        uploaded++;
 
         // Add delay between uploads to avoid rate limiting (500ms)
         if (i < imageFiles.length - 1) {
@@ -665,26 +669,18 @@ function GridPlanner() {
       }
     }
 
-    // Update grid posts
-    if (newPosts.length > 0) {
-      console.log('[handleFileDrop] Uploaded', newPosts.length, 'files, refreshing from server...');
-      // Refresh from server to ensure state is synced - load the actual server data
-      if (gridId) {
-        try {
-          const response = await gridApi.getById(gridId);
-          const freshGrid = response.grid || response;
-          console.log('[handleFileDrop] Got fresh grid from server, cells:', freshGrid?.cells?.length);
-          setGrids(prev => prev.map(g => g._id === freshGrid._id ? freshGrid : g));
-          // IMPORTANT: Reload the posts from the fresh server data
-          await loadGridContent(freshGrid);
-        } catch (err) {
-          console.error('Failed to refresh grid after upload:', err);
-          // Fall back to using local data if server refresh fails
-          setGridPosts([...gridPosts, ...newPosts]);
-        }
-      } else {
-        // No grid ID - just use local data
-        setGridPosts([...gridPosts, ...newPosts]);
+    // Final sync with server to get fully populated data (editSettings, etc.)
+    if (uploaded > 0 && gridId) {
+      console.log('[handleFileDrop] Uploaded', uploaded, 'files, syncing with server...');
+      try {
+        const response = await gridApi.getById(gridId);
+        const freshGrid = response.grid || response;
+        console.log('[handleFileDrop] Got fresh grid from server, cells:', freshGrid?.cells?.length);
+        setGrids(prev => prev.map(g => g._id === freshGrid._id ? freshGrid : g));
+        await loadGridContent(freshGrid);
+      } catch (err) {
+        console.error('Failed to refresh grid after upload:', err);
+        // Progressive updates already applied — grid is usable even without server sync
       }
     }
 

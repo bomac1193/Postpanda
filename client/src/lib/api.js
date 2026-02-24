@@ -349,16 +349,14 @@ export const gridApi = {
     return data;
   },
 
-  async addContent(gridId, contentId, position) {
-    // Position can be { row, col } object or a number
+  async addContent(gridId, contentId, position, columns = 3) {
     let row, col;
     if (typeof position === 'object') {
       row = position.row;
       col = position.col;
     } else {
-      // Convert flat position to row/col (assuming 3 columns default)
-      row = Math.floor(position / 3);
-      col = position % 3;
+      row = Math.floor(position / columns);
+      col = position % columns;
     }
     const { data } = await api.post(`/api/grid/${gridId}/add-content`, { contentId, row, col });
     return data;
