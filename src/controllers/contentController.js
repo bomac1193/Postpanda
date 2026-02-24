@@ -25,16 +25,23 @@ exports.createContent = async (req, res) => {
       const isImage = req.file.mimetype.startsWith('image/');
       const isVideo = req.file.mimetype.startsWith('video/');
 
-      // Compress large images before uploading (Cloudinary 10MB limit)
+      // Normalize all images: fix EXIF orientation + compress if over 9MB
       let uploadBuffer = req.file.buffer;
-      if (isImage && uploadBuffer.length > 9 * 1024 * 1024) {
-        console.log(`[createContent] Compressing image: ${(uploadBuffer.length / 1024 / 1024).toFixed(1)}MB`);
-        uploadBuffer = await sharp(uploadBuffer)
-          .rotate() // Auto-orient from EXIF before resizing
-          .resize({ width: 4096, height: 4096, fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 85, mozjpeg: true })
+      if (isImage) {
+        const needsCompress = uploadBuffer.length > 9 * 1024 * 1024;
+        if (needsCompress) {
+          console.log(`[createContent] Compressing image: ${(uploadBuffer.length / 1024 / 1024).toFixed(1)}MB`);
+        }
+        let pipeline = sharp(uploadBuffer).rotate(); // Auto-orient from EXIF
+        if (needsCompress) {
+          pipeline = pipeline.resize({ width: 4096, height: 4096, fit: 'inside', withoutEnlargement: true });
+        }
+        uploadBuffer = await pipeline
+          .jpeg({ quality: needsCompress ? 85 : 92, mozjpeg: true })
           .toBuffer();
-        console.log(`[createContent] Compressed to: ${(uploadBuffer.length / 1024 / 1024).toFixed(1)}MB`);
+        if (needsCompress) {
+          console.log(`[createContent] Compressed to: ${(uploadBuffer.length / 1024 / 1024).toFixed(1)}MB`);
+        }
       }
 
       const uploadResult = await cloudinaryService.uploadBuffer(uploadBuffer, {

@@ -626,22 +626,10 @@ function GridPlanner() {
           mediaType: file.type.startsWith('video/') ? 'video' : 'image',
         });
 
-        // Add to grid
         const content = result.content || result;
         const position = startPosition + uploaded;
         const row = Math.floor(position / cols);
         const col = position % cols;
-
-        const newPost = {
-          id: content._id,
-          image: content.mediaUrl,
-          images: content.carouselImages?.length > 0 ? content.carouselImages : [content.mediaUrl],
-          caption: content.caption || content.title || '',
-          hashtags: content.hashtags || [],
-          color: '#8b5cf6',
-          mediaType: content.mediaType || 'image',
-          gridPosition: position,
-        };
 
         // Add content to grid cell on backend
         if (gridId && content._id) {
@@ -652,8 +640,6 @@ function GridPlanner() {
           }
         }
 
-        // Show image in grid immediately (progressive rendering)
-        setGridPosts(prev => [...prev, newPost]);
         uploaded++;
 
         // Add delay between uploads to avoid rate limiting (500ms)
@@ -672,13 +658,17 @@ function GridPlanner() {
       }
     }
 
+    // Hide upload overlay before loading grid data
+    setUploading(false);
+    setUploadProgress({ current: 0, total: 0 });
+
     if (failed > 0) {
       alert(`${failed} file${failed > 1 ? 's' : ''} failed to upload. Check console for details.`);
     }
 
-    // Final sync with server to get fully populated data (editSettings, etc.)
+    // Load all uploaded images from server in one shot
     if (uploaded > 0 && gridId) {
-      console.log('[handleFileDrop] Uploaded', uploaded, 'files, syncing with server...');
+      console.log('[handleFileDrop] Uploaded', uploaded, 'files, loading from server...');
       try {
         const response = await gridApi.getById(gridId);
         const freshGrid = response.grid || response;
@@ -687,12 +677,8 @@ function GridPlanner() {
         await loadGridContent(freshGrid);
       } catch (err) {
         console.error('Failed to refresh grid after upload:', err);
-        // Progressive updates already applied — grid is usable even without server sync
       }
     }
-
-    setUploading(false);
-    setUploadProgress({ current: 0, total: 0 });
   }, [gridPosts, setGridPosts, currentGridId, currentLayout, grids, isAuthenticated, addReel, loadGridContent]);
 
   // Helper to check if any items in dataTransfer are videos
