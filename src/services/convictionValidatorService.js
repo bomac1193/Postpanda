@@ -44,11 +44,11 @@ async function validateConviction(contentId) {
       predicted: {
         convictionScore: content.conviction.score,
         tier: content.conviction.tier,
-        breakdown: content.conviction.breakdown,
-        archetypeMatch: content.conviction.archetypeMatch
+        breakdown: content.conviction.breakdown
       },
       actual: {
         engagementScore: performance.engagementScore,
+        audienceDepthScore: performance.audienceDepthScore || null,
         metrics: performance.metrics,
         postedAt: performance.postedAt
       },
@@ -140,14 +140,6 @@ function analyzeComponents(breakdown, performance) {
     };
   }
 
-  // Taste component (harder to validate - use engagement as proxy)
-  // If engagement is high, taste alignment was likely good
-  analysis.taste = {
-    predicted: breakdown?.taste || 0,
-    proxy: performance.engagementScore,
-    confidence: calculateTasteConfidence(breakdown?.taste || 0, performance.engagementScore)
-  };
-
   // Brand component (validate through consistency)
   analysis.brand = {
     predicted: breakdown?.brand || 0,
@@ -158,21 +150,7 @@ function analyzeComponents(breakdown, performance) {
 }
 
 /**
- * Calculate taste prediction confidence
- */
-function calculateTasteConfidence(predictedTaste, actualEngagement) {
-  // If both are high or both are low, confidence is high
-  const bothHigh = predictedTaste >= 70 && actualEngagement >= 70;
-  const bothLow = predictedTaste < 50 && actualEngagement < 50;
-  const mismatch = Math.abs(predictedTaste - actualEngagement) > 30;
-
-  if (bothHigh || bothLow) return 'high';
-  if (mismatch) return 'low';
-  return 'medium';
-}
-
-/**
- * Generate feedback for genome update
+ * Generate feedback signals from validation
  * @param {Object} validation - Validation result
  * @param {Object} content - Content document (for override detection)
  */
@@ -183,33 +161,25 @@ function generateFeedback(validation, content) {
     signals: []
   };
 
-  const accuracy = validation.validation.accuracy;
   const predicted = validation.predicted.convictionScore;
   const actual = validation.actual.engagementScore;
   const delta = actual - predicted;
 
-  // Only update genome if there's significant learning opportunity
+  // Generate signals if there's a significant delta
   if (Math.abs(delta) >= 15) {
     feedback.shouldUpdateGenome = true;
-    feedback.weight = Math.min(1.0, Math.abs(delta) / 50); // Weight based on error magnitude
+    feedback.weight = Math.min(1.0, Math.abs(delta) / 50);
 
-    // Generate specific signals
     if (delta > 0) {
-      // Underestimated - this archetype/pattern performs better than expected
       feedback.signals.push({
         type: 'underestimated',
         message: 'Content performed better than predicted',
-        action: 'increase_archetype_confidence',
-        archetype: validation.predicted.archetypeMatch?.designation,
         magnitude: delta
       });
     } else {
-      // Overestimated - this pattern performs worse than expected
       feedback.signals.push({
         type: 'overestimated',
         message: 'Content performed worse than predicted',
-        action: 'decrease_archetype_confidence',
-        archetype: validation.predicted.archetypeMatch?.designation,
         magnitude: Math.abs(delta)
       });
     }
@@ -220,21 +190,18 @@ function generateFeedback(validation, content) {
       feedback.signals.push({
         type: 'performance_component',
         assessment: perfAnalysis.assessment,
-        delta: perfAnalysis.delta,
-        action: perfAnalysis.assessment === 'overestimated' ? 'reduce_performance_weight' : 'increase_performance_weight'
+        delta: perfAnalysis.delta
       });
     }
 
-    // Override-aware: if user overrode a low score and actual outperformed by 15+
+    // Override-aware: user overrode a low score and actual outperformed
     if (content?.conviction?.userOverride && delta >= 15) {
       feedback.signals.push({
         type: 'successful_override',
         message: 'User override led to strong performance',
-        action: 'boost_override_confidence',
-        archetype: validation.predicted.archetypeMatch?.designation,
         magnitude: delta
       });
-      feedback.weight = Math.min(1.0, feedback.weight * 2); // Double weight for successful overrides
+      feedback.weight = Math.min(1.0, feedback.weight * 2);
     }
   }
 

@@ -41,7 +41,7 @@ const contentSchema = new mongoose.Schema({
   },
   platform: {
     type: String,
-    enum: ['instagram', 'tiktok'],
+    enum: ['instagram', 'tiktok', 'youtube'],
     required: true
   },
   // AI Scoring
@@ -138,10 +138,14 @@ const contentSchema = new mongoose.Schema({
       instagram: {
         likes: Number,
         comments: Number,
-        impressions: Number,
+        views: Number,
         reach: Number,
-        engagement: Number,
         saved: Number,
+        shares: Number,
+        follows: Number,
+        profileVisits: Number,
+        reelAvgWatchTime: Number,
+        isReel: Boolean,
         timestamp: Date,
         url: String,
         error: String
@@ -154,9 +158,31 @@ const contentSchema = new mongoose.Schema({
         timestamp: Date,
         url: String,
         error: String
+      },
+      youtube: {
+        views: Number,
+        likes: Number,
+        comments: Number,
+        shares: Number,
+        avgViewDuration: Number,
+        avgViewPercentage: Number,
+        subscribersGained: Number,
+        subscribersLost: Number,
+        estimatedMinutesWatched: Number,
+        cardClickRate: Number,
+        timestamp: Date,
+        url: String,
+        error: String
       }
     },
-    engagementScore: Number, // Composite score 0-100
+    engagementScore: Number, // Legacy composite score 0-100
+    audienceDepthScore: Number, // ADS: post-vanity metric 0-100
+    audienceDepthBreakdown: mongoose.Schema.Types.Mixed, // Per-signal scores
+    fetchHistory: [{
+      fetchedAt: Date,
+      audienceDepthScore: Number,
+      rawMetrics: mongoose.Schema.Types.Mixed
+    }],
     fetchedAt: Date
   },
   // Conviction Validation (predicted vs actual)
@@ -196,7 +222,8 @@ const contentSchema = new mongoose.Schema({
   lastMetricsFetch: Date,
   platformPostIds: {
     instagram: String,
-    tiktok: String
+    tiktok: String,
+    youtube: String
   },
   // Platform-specific post data (after publishing)
   platformPosts: {
@@ -206,6 +233,11 @@ const contentSchema = new mongoose.Schema({
       postedAt: Date
     },
     tiktok: {
+      postId: String,
+      postUrl: String,
+      postedAt: Date
+    },
+    youtube: {
       postId: String,
       postUrl: String,
       postedAt: Date

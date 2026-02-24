@@ -194,6 +194,11 @@ class SchedulingService {
         if (postResult.postUrl) {
           content.platformPostUrl = postResult.postUrl;
         }
+        // Populate platformPostIds for performance tracker
+        if (postResult.postId) {
+          if (!content.platformPostIds) content.platformPostIds = {};
+          content.platformPostIds[collection.platform] = postResult.postId;
+        }
         await content.save();
       } else {
         console.error(`❌ Failed to post: ${content.title}`, postResult.error);
@@ -358,6 +363,11 @@ class SchedulingService {
         content.publishedAt = new Date();
         if (postResult.postUrl) {
           content.platformPostUrl = postResult.postUrl;
+        }
+        // Populate platformPostIds for performance tracker
+        if (postResult.postId) {
+          if (!content.platformPostIds) content.platformPostIds = {};
+          content.platformPostIds[collection.platform] = postResult.postId;
         }
         await content.save();
       }

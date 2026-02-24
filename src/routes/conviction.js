@@ -8,6 +8,7 @@ const router = express.Router();
 const { authenticate: auth } = require('../middleware/auth');
 const Content = require('../models/Content');
 const convictionService = require('../services/convictionService');
+const { fetchPerformanceMetrics } = require('../services/performanceTrackerService');
 
 /**
  * POST /api/conviction/calculate
@@ -271,6 +272,162 @@ router.get('/thresholds', auth, async (req, res) => {
   } catch (error) {
     console.error('[Conviction] Thresholds error:', error);
     res.status(500).json({ error: 'Failed to get thresholds' });
+  }
+});
+
+// --- Audience Depth Score endpoints ---
+
+/**
+ * GET /api/conviction/audience-depth/:contentId
+ * Get ADS + breakdown for a published post
+ */
+router.get('/audience-depth/:contentId', auth, async (req, res) => {
+  try {
+    const { contentId } = req.params;
+
+    const content = await Content.findOne({ _id: contentId, userId: req.userId });
+    if (!content) {
+      return res.status(404).json({ error: 'Content not found' });
+    }
+
+    if (content.status !== 'published') {
+      return res.json({
+        success: true,
+        status: 'not_published',
+        message: 'ADS is only available for published content'
+      });
+    }
+
+    const pm = content.performanceMetrics;
+
+    res.json({
+      success: true,
+      contentId: content._id,
+      audienceDepthScore: pm?.audienceDepthScore ?? null,
+      audienceDepthBreakdown: pm?.audienceDepthBreakdown ?? null,
+      engagementScore: pm?.engagementScore ?? null,
+      metrics: pm?.metrics ?? null,
+      fetchedAt: pm?.fetchedAt ?? null,
+      fetchHistory: pm?.fetchHistory ?? [],
+      publishedAt: content.publishedAt
+    });
+  } catch (error) {
+    console.error('[Conviction] Audience depth error:', error);
+    res.status(500).json({ error: 'Failed to get audience depth score' });
+  }
+});
+
+/**
+ * POST /api/conviction/audience-depth/:contentId/refresh
+ * Force-refresh metrics + recalculate ADS
+ */
+router.post('/audience-depth/:contentId/refresh', auth, async (req, res) => {
+  try {
+    const { contentId } = req.params;
+
+    const content = await Content.findOne({ _id: contentId, userId: req.userId });
+    if (!content) {
+      return res.status(404).json({ error: 'Content not found' });
+    }
+
+    if (content.status !== 'published') {
+      return res.status(400).json({ error: 'Content is not published' });
+    }
+
+    const metrics = await fetchPerformanceMetrics(contentId);
+
+    if (metrics.status === 'not_posted') {
+      return res.json({ success: false, message: 'No platform post IDs found' });
+    }
+
+    res.json({
+      success: true,
+      contentId,
+      audienceDepthScore: metrics.audienceDepthScore,
+      audienceDepthBreakdown: metrics.audienceDepthBreakdown,
+      engagementScore: metrics.engagementScore,
+      metrics: metrics.metrics,
+      fetchedAt: metrics.fetchedAt
+    });
+  } catch (error) {
+    console.error('[Conviction] ADS refresh error:', error);
+    res.status(500).json({ error: 'Failed to refresh audience depth score' });
+  }
+});
+
+/**
+ * GET /api/conviction/audience-depth-stats
+ * Aggregate ADS stats across published posts (avg, best, worst, by-platform, trend)
+ */
+router.get('/audience-depth-stats', auth, async (req, res) => {
+  try {
+    const contents = await Content.find({
+      userId: req.userId,
+      status: 'published',
+      'performanceMetrics.audienceDepthScore': { $exists: true, $ne: null }
+    }).select('performanceMetrics.audienceDepthScore performanceMetrics.audienceDepthBreakdown performanceMetrics.fetchedAt publishedAt platform');
+
+    if (contents.length === 0) {
+      return res.json({
+        success: true,
+        stats: {
+          total: 0,
+          avg: 0,
+          best: null,
+          worst: null,
+          byPlatform: {},
+          trend: []
+        }
+      });
+    }
+
+    const scores = contents.map(c => ({
+      id: c._id,
+      score: c.performanceMetrics.audienceDepthScore,
+      platform: c.platform,
+      fetchedAt: c.performanceMetrics.fetchedAt,
+      publishedAt: c.publishedAt
+    }));
+
+    const avg = Math.round(scores.reduce((s, c) => s + c.score, 0) / scores.length);
+    const sorted = [...scores].sort((a, b) => b.score - a.score);
+
+    // By platform
+    const byPlatform = {};
+    for (const s of scores) {
+      if (!byPlatform[s.platform]) {
+        byPlatform[s.platform] = { total: 0, sum: 0 };
+      }
+      byPlatform[s.platform].total++;
+      byPlatform[s.platform].sum += s.score;
+    }
+    for (const [p, data] of Object.entries(byPlatform)) {
+      byPlatform[p] = {
+        count: data.total,
+        avg: Math.round(data.sum / data.total)
+      };
+    }
+
+    // Trend (last 10 by publish date)
+    const trend = [...scores]
+      .sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt))
+      .slice(-10)
+      .map(s => ({ score: s.score, publishedAt: s.publishedAt }));
+
+    res.json({
+      success: true,
+      stats: {
+        total: scores.length,
+        avg,
+        best: { id: sorted[0].id, score: sorted[0].score },
+        worst: { id: sorted[sorted.length - 1].id, score: sorted[sorted.length - 1].score },
+        byPlatform,
+        trend
+      }
+    });
+  } catch (error) {
+    console.error('[Conviction] ADS stats error:', error);
+    res.status(500).json({ error: 'Failed to get audience depth stats' });
   }
 });
 

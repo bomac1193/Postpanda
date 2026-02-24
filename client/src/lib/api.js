@@ -825,6 +825,22 @@ export const convictionApi = {
       params: { profileId }
     });
     return data;
+  },
+
+  // Audience Depth Score
+  async getAudienceDepth(contentId) {
+    const { data } = await api.get(`/api/conviction/audience-depth/${contentId}`);
+    return data;
+  },
+
+  async refreshAudienceDepth(contentId) {
+    const { data } = await api.post(`/api/conviction/audience-depth/${contentId}/refresh`);
+    return data;
+  },
+
+  async getAudienceDepthStats() {
+    const { data } = await api.get('/api/conviction/audience-depth-stats');
+    return data;
   }
 };
 

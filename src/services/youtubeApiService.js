@@ -39,7 +39,8 @@ function getAuthorizationUrl(state = '') {
   const scopes = [
     'https://www.googleapis.com/auth/youtube.upload',
     'https://www.googleapis.com/auth/youtube',
-    'https://www.googleapis.com/auth/youtube.force-ssl'
+    'https://www.googleapis.com/auth/youtube.force-ssl',
+    'https://www.googleapis.com/auth/yt-analytics.readonly'
   ];
 
   const authUrl = oauth2Client.generateAuthUrl({
@@ -482,6 +483,90 @@ async function getVideoAnalytics(user, videoId) {
   }
 }
 
+/**
+ * Get deep video analytics using YouTube Analytics API v2
+ * Falls back to Data API v3 stats if Analytics API fails (missing scope)
+ */
+async function getVideoAnalyticsDeep(user, videoId) {
+  try {
+    const credentialCheck = await validateAndRefreshCredentials(user);
+    if (!credentialCheck.valid) {
+      throw new Error(credentialCheck.error);
+    }
+
+    const oauth2Client = getOAuth2Client();
+    oauth2Client.setCredentials({
+      access_token: credentialCheck.accessToken,
+      refresh_token: user.socialMedia.youtube.refreshToken
+    });
+
+    // First get basic stats from Data API v3
+    const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+    const basicResponse = await youtube.videos.list({
+      part: ['statistics', 'snippet', 'contentDetails'],
+      id: [videoId]
+    });
+
+    if (!basicResponse.data.items || basicResponse.data.items.length === 0) {
+      throw new Error('Video not found');
+    }
+
+    const video = basicResponse.data.items[0];
+    const result = {
+      views: parseInt(video.statistics.viewCount || 0),
+      likes: parseInt(video.statistics.likeCount || 0),
+      comments: parseInt(video.statistics.commentCount || 0),
+      title: video.snippet.title,
+      publishedAt: video.snippet.publishedAt,
+      duration: video.contentDetails.duration,
+      // Deep analytics fields — populated if Analytics API succeeds
+      shares: null,
+      avgViewDuration: null,
+      avgViewPercentage: null,
+      subscribersGained: null,
+      subscribersLost: null,
+      estimatedMinutesWatched: null,
+      cardClickRate: null
+    };
+
+    // Try YouTube Analytics API v2 for deep metrics
+    try {
+      const youtubeAnalytics = google.youtubeAnalytics({ version: 'v2', auth: oauth2Client });
+
+      const publishedDate = new Date(video.snippet.publishedAt);
+      const startDate = publishedDate.toISOString().split('T')[0];
+      const endDate = new Date().toISOString().split('T')[0];
+
+      const analyticsResponse = await youtubeAnalytics.reports.query({
+        ids: 'channel==MINE',
+        startDate,
+        endDate,
+        metrics: 'averageViewDuration,averageViewPercentage,subscribersGained,subscribersLost,shares,estimatedMinutesWatched,cardClickRate',
+        filters: `video==${videoId}`
+      });
+
+      const rows = analyticsResponse.data.rows;
+      if (rows && rows.length > 0) {
+        const row = rows[0];
+        result.avgViewDuration = row[0];
+        result.avgViewPercentage = row[1];
+        result.subscribersGained = row[2];
+        result.subscribersLost = row[3];
+        result.shares = row[4];
+        result.estimatedMinutesWatched = row[5];
+        result.cardClickRate = row[6];
+      }
+    } catch (analyticsError) {
+      console.log('[YouTube] Analytics API unavailable (missing scope or quota), using Data API only:', analyticsError.message);
+    }
+
+    return { success: true, analytics: result };
+  } catch (error) {
+    console.error('Get deep analytics error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   getAuthorizationUrl,
   getTokensFromCode,
@@ -491,5 +576,6 @@ module.exports = {
   updateVideoMetadata,
   deleteVideo,
   getVideoAnalytics,
+  getVideoAnalyticsDeep,
   uploadThumbnail
 };

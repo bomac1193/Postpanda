@@ -67,6 +67,11 @@ exports.postContent = async (req, res) => {
       if (result.postUrl) {
         content.platformPostUrl = result.postUrl;
       }
+      // Populate platformPostIds for performance tracker
+      if (result.postId) {
+        if (!content.platformPostIds) content.platformPostIds = {};
+        content.platformPostIds[platform] = result.postId;
+      }
       await content.save();
     }
 
@@ -170,6 +175,9 @@ exports.postNow = async (req, res) => {
             postUrl: result.postUrl,
             postedAt: result.timestamp
           };
+          // Also populate platformPostIds for performance tracker
+          if (!content.platformPostIds) content.platformPostIds = {};
+          if (result.postId) content.platformPostIds[platform] = result.postId;
         }
       } catch (error) {
         errors.push({ platform, error: error.message });
