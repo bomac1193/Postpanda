@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/useAppStore';
 import { postingApi } from '../../lib/api';
 import { Image, Send, Calendar, Loader2 } from 'lucide-react';
-import { PLATFORMS, getRandomEngagement, resolvePrimaryImageSource } from './post-details/constants';
+import { PLATFORMS, resolvePrimaryImageSource } from './post-details/constants';
 import { usePostPersistence } from './post-details/usePostPersistence';
 import { useQuickEdit } from './post-details/useQuickEdit';
 import ScheduleModal from './post-details/ScheduleModal';
@@ -24,7 +24,6 @@ function PostDetails({ post }) {
   const currentProfileId = useAppStore((s) => s.currentProfileId);
   const currentProfile = profiles?.find((p) => (p._id || p.id) === currentProfileId) || null;
 
-  const [engagement] = useState(getRandomEngagement);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showBestTimeModal, setShowBestTimeModal] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -184,7 +183,6 @@ function PostDetails({ post }) {
               caption={persistence.caption}
               displayName={displayName}
               userAvatar={userAvatar}
-              engagement={engagement}
               postColor={post.color}
               isEditing={qe.editing && qe.platform === 'instagram'}
               saving={qe.saving}
@@ -203,7 +201,6 @@ function PostDetails({ post }) {
                 hashtags={persistence.hashtags}
                 displayName={displayName}
                 userAvatar={userAvatar}
-                engagement={engagement}
                 postColor={post.color}
               />
             </div>
@@ -219,7 +216,6 @@ function PostDetails({ post }) {
               displayName={displayName}
               username={username}
               userAvatar={userAvatar}
-              engagement={engagement}
             />
           </div>
         )}

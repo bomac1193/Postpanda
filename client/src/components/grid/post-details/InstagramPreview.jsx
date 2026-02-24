@@ -7,7 +7,6 @@ import {
   Share2,
   MoreHorizontal,
 } from 'lucide-react';
-import { FAKE_COMMENTS, formatNumber } from './constants';
 
 const InstagramPreview = React.memo(function InstagramPreview({
   croppedSrc,
@@ -15,7 +14,6 @@ const InstagramPreview = React.memo(function InstagramPreview({
   caption,
   displayName,
   userAvatar,
-  engagement,
   postColor,
   isEditing,
   saving,
@@ -82,32 +80,13 @@ const InstagramPreview = React.memo(function InstagramPreview({
           <Bookmark className="w-6 h-6 text-white cursor-pointer" />
         </div>
 
-        {/* Likes */}
-        <p className="text-white text-sm font-semibold mb-1">
-          {formatNumber(engagement.likes)} likes
-        </p>
-
         {/* Caption */}
         <p className="text-white text-sm">
           <span className="font-semibold">{displayName}</span>{' '}
           <span className="text-gray-300">{caption || 'Your caption will appear here...'}</span>
         </p>
 
-        {/* Comments */}
-        <p className="text-gray-400 text-sm mt-2 cursor-pointer">
-          View all {engagement.comments} comments
-        </p>
-
-        <div className="mt-2 space-y-1">
-          {FAKE_COMMENTS.instagram.map((comment, i) => (
-            <p key={i} className="text-sm">
-              <span className="text-white font-semibold">{comment.user}</span>{' '}
-              <span className="text-gray-300">{comment.text}</span>
-            </p>
-          ))}
-        </div>
-
-        <p className="text-gray-500 text-xs mt-2 uppercase">2 hours ago</p>
+        <p className="text-gray-500 text-xs mt-2 uppercase">Preview</p>
       </div>
     </div>
   );

@@ -5,10 +5,8 @@ import {
   Bookmark,
   Share2,
   Play,
-  Eye,
   Music,
 } from 'lucide-react';
-import { FAKE_COMMENTS, formatNumber } from './constants';
 
 const TikTokPreviewCard = React.memo(function TikTokPreviewCard({
   croppedSrc,
@@ -17,7 +15,6 @@ const TikTokPreviewCard = React.memo(function TikTokPreviewCard({
   hashtags,
   displayName,
   userAvatar,
-  engagement,
   postColor,
 }) {
   return (
@@ -56,22 +53,18 @@ const TikTokPreviewCard = React.memo(function TikTokPreviewCard({
 
         <div className="flex flex-col items-center">
           <Heart className="w-8 h-8 text-white" fill="white" />
-          <span className="text-white text-xs mt-1">{formatNumber(engagement.likes)}</span>
         </div>
 
         <div className="flex flex-col items-center">
           <MessageCircle className="w-8 h-8 text-white" />
-          <span className="text-white text-xs mt-1">{formatNumber(engagement.comments)}</span>
         </div>
 
         <div className="flex flex-col items-center">
           <Bookmark className="w-8 h-8 text-white" />
-          <span className="text-white text-xs mt-1">{formatNumber(engagement.shares)}</span>
         </div>
 
         <div className="flex flex-col items-center">
           <Share2 className="w-8 h-8 text-white" />
-          <span className="text-white text-xs mt-1">Share</span>
         </div>
 
         <div className="w-10 h-10 rounded-full bg-gray-800 border-2 border-gray-600 overflow-hidden animate-spin" style={{ animationDuration: '3s' }}>
@@ -91,21 +84,9 @@ const TikTokPreviewCard = React.memo(function TikTokPreviewCard({
         </div>
       </div>
 
-      {/* View count */}
-      <div className="absolute top-3 left-3 flex items-center gap-1 bg-black/50 px-2 py-1 rounded">
-        <Eye className="w-4 h-4 text-white" />
-        <span className="text-white text-xs">{formatNumber(engagement.views)}</span>
-      </div>
-
-      {/* Comments Overlay */}
-      <div className="absolute bottom-32 left-3 right-16 space-y-2">
-        {FAKE_COMMENTS.tiktok.slice(0, 2).map((comment, i) => (
-          <div key={i} className="bg-black/40 backdrop-blur-sm rounded-lg px-2 py-1">
-            <p className="text-white text-xs">
-              <span className="font-semibold">{comment.user}</span> {comment.text}
-            </p>
-          </div>
-        ))}
+      {/* Preview label */}
+      <div className="absolute top-3 left-3 bg-black/50 px-2 py-1 rounded">
+        <span className="text-white text-xs">Preview</span>
       </div>
     </div>
   );

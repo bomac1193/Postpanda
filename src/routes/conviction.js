@@ -9,6 +9,7 @@ const { authenticate: auth } = require('../middleware/auth');
 const Content = require('../models/Content');
 const convictionService = require('../services/convictionService');
 const { fetchPerformanceMetrics } = require('../services/performanceTrackerService');
+const { getAccuracyStats } = require('../services/convictionValidatorService');
 
 /**
  * POST /api/conviction/calculate
@@ -272,6 +273,20 @@ router.get('/thresholds', auth, async (req, res) => {
   } catch (error) {
     console.error('[Conviction] Thresholds error:', error);
     res.status(500).json({ error: 'Failed to get thresholds' });
+  }
+});
+
+/**
+ * GET /api/conviction/accuracy-stats
+ * Get prediction accuracy statistics (how well pre-publish scores track real ADS)
+ */
+router.get('/accuracy-stats', auth, async (req, res) => {
+  try {
+    const stats = await getAccuracyStats(req.userId);
+    res.json({ success: true, stats });
+  } catch (error) {
+    console.error('[Conviction] Accuracy stats error:', error);
+    res.status(500).json({ error: 'Failed to get accuracy stats' });
   }
 });
 

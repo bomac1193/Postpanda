@@ -841,6 +841,11 @@ export const convictionApi = {
   async getAudienceDepthStats() {
     const { data } = await api.get('/api/conviction/audience-depth-stats');
     return data;
+  },
+
+  async getAccuracyStats() {
+    const { data } = await api.get('/api/conviction/accuracy-stats');
+    return data;
   }
 };
 

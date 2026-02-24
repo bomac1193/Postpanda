@@ -17,32 +17,6 @@ export const PLATFORMS = [
   { id: 'twitter', name: 'X/Twitter' },
 ];
 
-// Fake comments for preview
-export const FAKE_COMMENTS = {
-  instagram: [
-    { user: 'sarah.designs', text: 'Love this. Strong frame and tone.', verified: false },
-    { user: 'mike_photo', text: 'Amazing content as always', verified: false },
-    { user: 'lifestyle.mag', text: 'This is incredible! Can we feature this?', verified: true },
-  ],
-  tiktok: [
-    { user: 'user8273', text: 'This is so satisfying to watch', likes: '2.4K' },
-    { user: 'creativequeen', text: 'Tutorial please.', likes: '892' },
-    { user: 'viralking', text: 'POV: you found the best content', likes: '1.1K' },
-  ],
-  twitter: [
-    { user: 'techbro', text: 'This is the content I signed up for', likes: '142', retweets: '23' },
-    { user: 'designlover', text: 'Bookmarked. Returning to this.', likes: '89', retweets: '12' },
-  ],
-};
-
-// Random engagement generator
-export const getRandomEngagement = () => ({
-  likes: Math.floor(Math.random() * 50000) + 1000,
-  comments: Math.floor(Math.random() * 500) + 50,
-  shares: Math.floor(Math.random() * 200) + 20,
-  views: Math.floor(Math.random() * 500000) + 10000,
-});
-
 export const formatNumber = (num) => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K';

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   ChevronDown, ChevronUp, Loader2, AlertTriangle, CheckCircle, XCircle,
   TrendingUp, Shield, Lightbulb, ArrowRight, RefreshCw,
-  Bookmark, Share2, UserPlus, Eye, MessageCircle
+  Bookmark, Share2, UserPlus, Eye, MessageCircle, Star
 } from 'lucide-react';
 import { convictionApi } from '../../../lib/api';
 import ConvictionBadge from '../../conviction/ConvictionBadge';
@@ -54,6 +54,12 @@ const SIGNAL_META = {
   commentDepth: { label: 'Comment Depth', icon: MessageCircle, color: 'amber', meaning: 'I have something to say' },
   cardCTR:      { label: 'Card Click Rate', icon: ArrowRight, color: 'rose', meaning: 'I followed the thread' },
 };
+
+function getCalibrationStatus(adsCount) {
+  if (adsCount >= 20) return { label: 'Calibrated', class: 'text-green-400 bg-green-500/10', desc: 'Predictions are grounded in real performance data' };
+  if (adsCount >= 5) return { label: 'Learning', class: 'text-amber-400 bg-amber-500/10', desc: `${20 - adsCount} more published posts to calibrate` };
+  return { label: 'Uncalibrated', class: 'text-dark-500 bg-dark-700/50', desc: `${5 - adsCount} more published posts to start learning` };
+}
 
 function getAdsTier(score) {
   if (score >= 80) return { label: 'Deep', class: 'text-green-400 bg-green-500/15' };
@@ -252,6 +258,16 @@ function AudienceDepthView({ postId }) {
           </div>
         </div>
       )}
+
+      {/* Fan Signal placeholder — StanVault teaser */}
+      <div className="border-t border-dark-700/50 pt-2">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-900/30 border border-dashed border-dark-700/50">
+          <Star className="w-3 h-3 text-dark-600" />
+          <p className="text-[10px] text-dark-600">
+            Fan Signals — superfan conversion tracking coming soon
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -266,8 +282,16 @@ const ConvictionBreakdown = React.memo(function ConvictionBreakdown({ postId, pr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
+  const [adsPostCount, setAdsPostCount] = useState(0);
 
   const isPublished = contentStatus === 'published' || propContentStatus === 'published';
+
+  // Fetch ADS post count for calibration status
+  useEffect(() => {
+    convictionApi.getAudienceDepthStats()
+      .then(res => setAdsPostCount(res?.stats?.total || 0))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!postId) return;
@@ -340,6 +364,11 @@ const ConvictionBreakdown = React.memo(function ConvictionBreakdown({ postId, pr
           {!isPublished && tierInfo && (
             <span className={`text-[11px] ${tierInfo.class}`}>{tierInfo.label}</span>
           )}
+          {!isPublished && (
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${getCalibrationStatus(adsPostCount).class}`}>
+              {getCalibrationStatus(adsPostCount).label}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           {loading && <Loader2 className="w-3.5 h-3.5 text-dark-400 animate-spin" />}
@@ -374,6 +403,14 @@ const ConvictionBreakdown = React.memo(function ConvictionBreakdown({ postId, pr
 
               {breakdown && (
                 <>
+                  {/* AI estimate disclaimer with calibration */}
+                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-dark-900/50 border border-dark-700/50">
+                    <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0 text-dark-500" />
+                    <p className="text-[10px] text-dark-500 leading-relaxed">
+                      {getCalibrationStatus(adsPostCount).desc}
+                    </p>
+                  </div>
+
                   {/* Component scores */}
                   <div className="space-y-3">
                     {['performance', 'brand'].map((key) => {

@@ -5,10 +5,10 @@ import ImprovementSuggestions from './ImprovementSuggestions';
 import './ai-components.css';
 
 const SCORE_DESCRIPTIONS = {
-  virality: 'Measures potential for shares, saves, and organic reach based on content appeal and trend alignment',
-  engagement: 'Predicts likes, comments, and interactions based on caption quality, hashtags, and call-to-actions',
-  aesthetic: 'Evaluates visual quality including composition, lighting, colors, and overall professional appearance',
-  trend: 'Assesses alignment with current trends, optimal hashtag usage, and timing relevance',
+  virality: 'Potential for saves, shares, and organic discovery — the signals that matter post-vanity',
+  engagement: 'Depth of interaction: comments that start conversations, not just drive counts',
+  aesthetic: 'Visual coherence with your brand — composition, palette, and feed consistency',
+  trend: 'Timing and format alignment with current platform patterns',
 };
 
 function PerformancePredictor({ contentId, onAnalyze, disabled }) {
@@ -81,31 +81,31 @@ function PerformancePredictor({ contentId, onAnalyze, disabled }) {
   return (
     <div className="ai-performance-predictor">
       <div className="ai-section-header">
-        <h4>Performance Predictor</h4>
-        <p className="ai-section-subtitle">AI-powered analysis of your content's potential</p>
+        <h4>Conviction Analysis</h4>
+        <p className="ai-section-subtitle">AI estimate — calibrates as your Audience Depth Score grows</p>
       </div>
 
       <div className="ai-scores-grid">
         <ScoreCard
-          label="Virality"
+          label="Discovery"
           score={scores.viralityScore}
           description={SCORE_DESCRIPTIONS.virality}
           loading={loading}
         />
         <ScoreCard
-          label="Engagement"
+          label="Depth"
           score={scores.engagementScore}
           description={SCORE_DESCRIPTIONS.engagement}
           loading={loading}
         />
         <ScoreCard
-          label="Aesthetic"
+          label="Brand"
           score={scores.aestheticScore}
           description={SCORE_DESCRIPTIONS.aesthetic}
           loading={loading}
         />
         <ScoreCard
-          label="Trend"
+          label="Timing"
           score={scores.trendScore}
           description={SCORE_DESCRIPTIONS.trend}
           loading={loading}
@@ -114,7 +114,7 @@ function PerformancePredictor({ contentId, onAnalyze, disabled }) {
 
       {hasScores && (
         <div className="ai-overall-score">
-          <div className="ai-overall-label">Overall Score</div>
+          <div className="ai-overall-label">Conviction Estimate</div>
           <div className="ai-overall-value" style={{
             color: overallScore >= 70 ? '#4CAF50' : overallScore >= 50 ? '#FF9800' : '#f44336'
           }}>

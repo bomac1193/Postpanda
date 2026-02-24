@@ -857,15 +857,15 @@ function ContentStudio() {
               <div className="flex items-center gap-8">
                 <div className="text-center">
                   <ScoreRing score={scoreResult.overallScore} size={100} strokeWidth={6} />
-                  <p className="text-sm text-dark-400 mt-2">Overall</p>
+                  <p className="text-sm text-dark-400 mt-2">Conviction</p>
                 </div>
                 <div className="text-center">
                   <ScoreRing score={scoreResult.performanceScore} size={80} />
-                  <p className="text-sm text-dark-400 mt-2">Performance</p>
+                  <p className="text-sm text-dark-400 mt-2">Depth Potential</p>
                 </div>
                 <div className="text-center">
                   <ScoreRing score={scoreResult.tasteScore} size={80} />
-                  <p className="text-sm text-dark-400 mt-2">Taste Match</p>
+                  <p className="text-sm text-dark-400 mt-2">Brand Fit</p>
                 </div>
               </div>
 
