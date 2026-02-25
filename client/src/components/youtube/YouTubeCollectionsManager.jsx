@@ -555,12 +555,134 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
         </div>
       )}
 
-      {/* Folders and Collections */}
+      {/* Uncategorized folder — pinned above scroll */}
+      {(() => {
+        const rootCollections = collectionsByFolder['root'] || [];
+        const rootExpanded = expandedFolders.has('root');
+        const rootDragOver = dragOverFolder === 'root';
+
+        return (
+          <div className="flex-shrink-0">
+            {/* Root Folder Header */}
+            <div
+              className={`border-b transition-colors ${
+                rootDragOver
+                  ? 'bg-accent-purple/20 border-accent-purple'
+                  : 'bg-dark-750 border-dark-700'
+              }`}
+              onDragOver={(e) => handleDragOver(e, 'root')}
+              onDragLeave={() => setDragOverFolder(null)}
+              onDrop={(e) => handleDrop(e, 'root')}
+            >
+              <div className="flex items-center gap-2 px-3 py-2 transition-colors cursor-pointer hover:bg-dark-700">
+                <button
+                  type="button"
+                  onClick={() => toggleFolder('root')}
+                  className="p-0.5 text-dark-400 hover:text-dark-200"
+                >
+                  {rootExpanded ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                </button>
+
+                {rootExpanded ? (
+                  <FolderOpen className="w-4 h-4 text-yellow-500" />
+                ) : (
+                  <Folder className="w-4 h-4 text-yellow-500" />
+                )}
+
+                <div className="flex items-center gap-1.5 flex-1">
+                  <span className="text-sm font-medium text-dark-100">Uncategorized</span>
+                  <span className="text-xs text-dark-500">({rootCollections.length})</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleCreateCollection('root')}
+                  className="p-1 text-dark-500 hover:text-accent-purple transition-colors"
+                  title="Add collection to this folder"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Root Collections */}
+            {rootExpanded && (
+              <div className="py-1 border-b border-dark-700">
+                {rootCollections.length === 0 ? (
+                  <div className="px-4 py-4 text-center text-dark-500 text-sm">
+                    No collections
+                  </div>
+                ) : (
+                  rootCollections.map((collection) => {
+                    const collectionId = collection.id || collection._id;
+                    const isSelected = collectionId === selectedCollectionId;
+                    const isDraggedOver = dragOverCollection === collectionId;
+
+                    return (
+                      <div
+                        key={collectionId}
+                        draggable
+                        tabIndex={0}
+                        onDragStart={(e) => handleDragStart(e, collection)}
+                        onDragOver={(e) => handleCollectionDragOver(e, collection)}
+                        onDragLeave={() => setDragOverCollection(null)}
+                        onDrop={(e) => handleCollectionDrop(e, collection)}
+                        className={`flex items-center gap-2 px-4 py-2 hover:bg-dark-700 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-accent-purple focus:ring-inset relative ${
+                          isSelected ? 'bg-dark-700 border-l-2 border-accent-purple' : ''
+                        } ${
+                          isDraggedOver ? 'border-t-2 border-blue-400' : ''
+                        }`}
+                        onClick={() => onSelectCollection?.(collectionId)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Delete' || e.key === 'Backspace') {
+                            e.preventDefault();
+                            handleDeleteCollection(collectionId, collection.name);
+                          }
+                        }}
+                      >
+                        <GripVertical className="w-4 h-4 text-dark-600 opacity-0 group-hover:opacity-100" />
+                        <Youtube className="w-4 h-4 text-red-400 flex-shrink-0" />
+                        <EditableCollectionName
+                          name={collection.name}
+                          onSave={(newName) => handleSaveCollectionName(collectionId, newName)}
+                          className="flex-1 min-w-0 text-sm text-dark-200"
+                          showEditIcon={false}
+                          editIconPosition="hover"
+                          disabled={!renameMode}
+                        />
+                        <span className="text-xs text-dark-500 flex-shrink-0">
+                          {collection.videoCount || 0}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCollection(collectionId, collection.name);
+                          }}
+                          className="p-0.5 text-dark-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                          title="Delete collection"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Other folders — scrollable */}
       <div className="flex-1 overflow-y-auto">
-        {folders.map((folder) => {
+        {folders.filter(f => f !== 'root').map((folder) => {
           const isExpanded = expandedFolders.has(folder);
           const collections = collectionsByFolder[folder] || [];
-          const isRoot = folder === 'root';
           const isSelected = selectedFolders.has(folder);
           const isDragOver = dragOverFolder === folder;
 
@@ -583,14 +705,14 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                       ? 'bg-accent-purple/20 border-l-2 border-accent-purple'
                       : 'hover:bg-dark-700'
                   }`}
-                  tabIndex={isRoot ? -1 : 0}
+                  tabIndex={0}
                   onClick={(e) => {
                     // Don't interfere with button clicks
                     if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
                     handleFolderClick(folder, e);
                   }}
                   onKeyDown={(e) => {
-                    if (!isRoot && (e.key === 'Delete' || e.key === 'Backspace')) {
+                    if (e.key === 'Delete' || e.key === 'Backspace') {
                       e.preventDefault();
                       // Delete selected folders if any, otherwise delete this folder
                       if (selectedFolders.size > 0) {
@@ -640,54 +762,52 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                   ) : (
                     <div className="flex items-center gap-1.5 flex-1 group/folder">
                       <span className="text-sm font-medium text-dark-100">
-                        {isRoot ? 'Uncategorized' : folder}
+                        {folder}
                       </span>
                       <span className="text-xs text-dark-500">({collections.length})</span>
-                      {!isRoot && (
-                        <>
-                          {renameMode && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingFolder(folder);
-                              }}
-                              className="p-0.5 text-dark-500 hover:text-accent-purple transition-colors opacity-0 group-hover/folder:opacity-100"
-                              title="Rename folder"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                          )}
+                      <>
+                        {renameMode && (
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              // If folders are selected and this is one of them, delete all selected
-                              // Otherwise just delete this folder
-                              if (selectedFolders.size > 0 && selectedFolders.has(folder)) {
-                                handleDeleteSelectedFolders();
-                              } else {
-                                handleDeleteFolder(folder);
-                              }
+                              setEditingFolder(folder);
                             }}
-                            className={`p-0.5 text-dark-500 hover:text-red-400 transition-colors ${
-                              isSelected ? 'opacity-100' : 'opacity-0 group-hover/folder:opacity-100'
-                            }`}
-                            title={
-                              selectedFolders.size > 0 && selectedFolders.has(folder)
-                                ? `Delete ${selectedFolders.size} selected folder${selectedFolders.size === 1 ? '' : 's'}`
-                                : 'Delete folder (and all collections inside)'
-                            }
+                            className="p-0.5 text-dark-500 hover:text-accent-purple transition-colors opacity-0 group-hover/folder:opacity-100"
+                            title="Rename folder"
                           >
-                            <Trash2 className="w-3 h-3" />
-                            {selectedFolders.size > 1 && isSelected && (
-                              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                                {selectedFolders.size}
-                              </span>
-                            )}
+                            <Edit2 className="w-3 h-3" />
                           </button>
-                        </>
-                      )}
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // If folders are selected and this is one of them, delete all selected
+                            // Otherwise just delete this folder
+                            if (selectedFolders.size > 0 && selectedFolders.has(folder)) {
+                              handleDeleteSelectedFolders();
+                            } else {
+                              handleDeleteFolder(folder);
+                            }
+                          }}
+                          className={`p-0.5 text-dark-500 hover:text-red-400 transition-colors ${
+                            isSelected ? 'opacity-100' : 'opacity-0 group-hover/folder:opacity-100'
+                          }`}
+                          title={
+                            selectedFolders.size > 0 && selectedFolders.has(folder)
+                              ? `Delete ${selectedFolders.size} selected folder${selectedFolders.size === 1 ? '' : 's'}`
+                              : 'Delete folder (and all collections inside)'
+                          }
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          {selectedFolders.size > 1 && isSelected && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                              {selectedFolders.size}
+                            </span>
+                          )}
+                        </button>
+                      </>
                     </div>
                   )}
 
@@ -748,7 +868,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                             disabled={!renameMode}
                           />
                           <span className="text-xs text-dark-500 flex-shrink-0">
-                            {collection.itemCount || 0}
+                            {collection.videoCount || 0}
                           </span>
                           <button
                             type="button"
