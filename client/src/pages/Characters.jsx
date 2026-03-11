@@ -118,7 +118,7 @@ function CharacterCard({ character, onEdit, onDelete, onGenerate, onEditArchetyp
         </button>
         <button
           onClick={() => onDelete(character._id)}
-          className="p-2 text-dark-400 hover:text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
+          className="p-2 text-dark-400 hover:text-dark-200 hover:bg-dark-700 rounded-lg transition-colors"
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -398,7 +398,7 @@ function GenerateModal({ character, onClose }) {
                     onClick={() => copyToClipboard(v.variant, i)}
                     className="p-2 text-dark-400 hover:text-white rounded-lg flex-shrink-0"
                   >
-                    {copied === i ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                    {copied === i ? <Check className="w-4 h-4 text-dark-100" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
                 <div className="flex items-center gap-4 mt-3 text-xs text-dark-400">

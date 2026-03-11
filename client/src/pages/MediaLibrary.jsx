@@ -401,7 +401,7 @@ function MediaLibrary() {
 
       {/* Error State */}
       {error && (
-        <div className="mb-4 p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400">
+        <div className="mb-4 p-4 bg-dark-700/50 border border-dark-600 rounded-lg text-dark-300">
           {error}
           <button onClick={fetchAll} className="ml-4 underline">
             Retry

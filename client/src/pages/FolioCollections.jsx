@@ -4,8 +4,8 @@ import folioApi, { folioAuth, isFolioConnected, getFolioUser } from '../lib/foli
 import { RefreshCw, Link2, ExternalLink, Youtube, Film, Instagram, Folder } from 'lucide-react';
 
 const PLATFORM_BADGES = {
-  YOUTUBE_LONG: { label: 'YouTube', icon: <Youtube className="w-4 h-4" />, color: 'text-red-400' },
-  YOUTUBE_SHORT: { label: 'YT Short', icon: <Youtube className="w-4 h-4" />, color: 'text-red-300' },
+  YOUTUBE_LONG: { label: 'YouTube', icon: <Youtube className="w-4 h-4" />, color: 'text-dark-300' },
+  YOUTUBE_SHORT: { label: 'YT Short', icon: <Youtube className="w-4 h-4" />, color: 'text-dark-200' },
   TIKTOK: { label: 'TikTok', icon: <Film className="w-4 h-4" />, color: 'text-cyan-400' },
   INSTAGRAM_REEL: { label: 'IG Reel', icon: <Instagram className="w-4 h-4" />, color: 'text-pink-400' },
   INSTAGRAM: { label: 'Instagram', icon: <Instagram className="w-4 h-4" />, color: 'text-pink-300' },
@@ -94,14 +94,14 @@ export default function FolioCollections() {
           href="https://folio.subtaste.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-dark-400 hover:text-accent-purple flex items-center gap-1"
+          className="text-xs text-dark-400 hover:text-dark-100 flex items-center gap-1"
         >
           Open Folio <ExternalLink className="w-3 h-3" />
         </a>
       </div>
 
       {error && (
-        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs">
+        <div className="p-3 bg-dark-600/20 border border-dark-500/30 rounded-lg text-dark-300 text-xs">
           {error}
         </div>
       )}
@@ -122,7 +122,7 @@ export default function FolioCollections() {
               </div>
               <div className="text-white text-sm font-medium line-clamp-2">{c.title || c.name || 'Untitled'}</div>
               {c.url && (
-                <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-xs text-accent-purple hover:underline">
+                <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-xs text-dark-100 hover:underline">
                   Open source
                 </a>
               )}

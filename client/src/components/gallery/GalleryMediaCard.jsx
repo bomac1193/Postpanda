@@ -60,7 +60,7 @@ function GalleryMediaCard({
             </div>
           )}
           {isYouTube && (
-            <div className="absolute bottom-0.5 right-0.5 w-5 h-5 rounded bg-red-600 flex items-center justify-center">
+            <div className="absolute bottom-0.5 right-0.5 w-5 h-5 rounded bg-dark-100 flex items-center justify-center">
               <Youtube className="w-3 h-3 text-white" />
             </div>
           )}
@@ -89,7 +89,7 @@ function GalleryMediaCard({
                 e.stopPropagation();
                 onDelete?.(item._id);
               }}
-              className="btn-icon text-dark-400 hover:text-red-400"
+              className="btn-icon text-dark-400 hover:text-dark-200"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -157,7 +157,7 @@ function GalleryMediaCard({
 
       {/* YouTube Badge */}
       {isYouTube && (
-        <div className="absolute top-2 right-2 w-6 h-6 rounded bg-red-600 flex items-center justify-center">
+        <div className="absolute top-2 right-2 w-6 h-6 rounded bg-dark-100 flex items-center justify-center">
           <Youtube className="w-3 h-3 text-white" />
         </div>
       )}
@@ -186,7 +186,7 @@ function GalleryMediaCard({
               e.stopPropagation();
               onDelete?.(item._id);
             }}
-            className="p-2 bg-white/20 rounded-lg backdrop-blur-sm hover:bg-red-500/50"
+            className="p-2 bg-white/20 rounded-lg backdrop-blur-sm hover:bg-dark-600/50"
           >
             <Trash2 className="w-4 h-4 text-white" />
           </button>

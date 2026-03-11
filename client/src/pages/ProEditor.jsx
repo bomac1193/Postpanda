@@ -84,7 +84,7 @@ function ProEditor() {
               onClick={() => setActiveTool(tool.id)}
               className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                 activeTool === tool.id
-                  ? 'bg-accent-purple text-white'
+                  ? 'bg-dark-100 text-white'
                   : 'text-dark-400 hover:bg-dark-700 hover:text-dark-200'
               }`}
               title={tool.label}
@@ -116,7 +116,7 @@ function ProEditor() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${
                   activeTab === tab.id
-                    ? 'text-accent-purple border-b-2 border-accent-purple'
+                    ? 'text-dark-100 border-b-2 border-dark-100'
                     : 'text-dark-400 hover:text-dark-200'
                 }`}
               >

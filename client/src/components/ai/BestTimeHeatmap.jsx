@@ -16,11 +16,11 @@ function getColorForValue(value, maxValue) {
   if (value === 0 || maxValue === 0) return '#e8e2d9';
   const intensity = value / maxValue;
 
-  if (intensity >= 0.8) return '#2E7D32';
-  if (intensity >= 0.6) return '#4CAF50';
-  if (intensity >= 0.4) return '#8BC34A';
-  if (intensity >= 0.2) return '#C5E1A5';
-  return '#DCEDC8';
+  if (intensity >= 0.8) return '#66023C';
+  if (intensity >= 0.6) return '#520230';
+  if (intensity >= 0.4) return '#7a3460';
+  if (intensity >= 0.2) return '#a3708c';
+  return '#d4c0cb';
 }
 
 function BestTimeHeatmap({ data, platform, onCellClick }) {

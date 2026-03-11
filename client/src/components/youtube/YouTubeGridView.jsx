@@ -15,7 +15,7 @@ import {
 import { useAppStore } from '../../stores/useAppStore';
 import { youtubeApi } from '../../lib/api';
 import YouTubeVideoCard from './YouTubeVideoCard';
-import { Upload, ImagePlus, Youtube, Settings, X, Camera, ZoomIn, ZoomOut, RotateCcw, Save, Pencil, Move, GripVertical, GripHorizontal } from 'lucide-react';
+import { Upload, ImagePlus, Youtube, Settings, X, Camera, ZoomIn, ZoomOut, RotateCcw, Save, Pencil, Move, GripVertical } from 'lucide-react';
 
 // Remap zoom: slider 80%-200% maps to actual 80%-400%
 const getActualZoom = (sliderValue) => {
@@ -40,15 +40,9 @@ function YouTubeGridView({ isLocked, onUpload }) {
   // Settings modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showGridControls, setShowGridControls] = useState(false);
-  const [gridColumns, setGridColumns] = useState(4); // Fixed columns for row/column controls
-  const [draggedRow, setDraggedRow] = useState(null);
-  const [draggedColumn, setDraggedColumn] = useState(null);
-  const [dragOverRow, setDragOverRow] = useState(null);
-  const [dragOverColumn, setDragOverColumn] = useState(null);
-  const [selectedRows, setSelectedRows] = useState(new Set());
-  const [selectedColumns, setSelectedColumns] = useState(new Set());
-  const [lastSelectedRow, setLastSelectedRow] = useState(null);
-  const [lastSelectedColumn, setLastSelectedColumn] = useState(null);
+  const [gridColumns] = useState(4); // Row size for swap logic
+  const [rowDragSource, setRowDragSource] = useState(null);
+  const [rowDragTarget, setRowDragTarget] = useState(null);
 
   // Avatar editing state (same as IG/TikTok)
   const [showAvatarEditor, setShowAvatarEditor] = useState(false);
@@ -129,275 +123,70 @@ function YouTubeGridView({ isLocked, onUpload }) {
     setOverItemId(overId !== activeDragId ? overId : null);
   }, [activeDragId]);
 
-  // Swap two rows
-  const swapRows = useCallback((row1, row2) => {
-    if (row1 === row2) return;
+  // Move a row from one position to another (insert, not swap)
+  const moveRow = useCallback((fromRow, toRow) => {
+    if (fromRow === toRow) return;
+    const numRows = Math.ceil(youtubeVideos.length / gridColumns);
+    if (fromRow < 0 || fromRow >= numRows || toRow < 0 || toRow >= numRows) return;
 
-    const newVideos = [...youtubeVideos];
+    // Extract the source row
+    const fromStart = fromRow * gridColumns;
+    const rowVideos = youtubeVideos.slice(fromStart, fromStart + gridColumns);
 
-    // Swap rows
-    for (let col = 0; col < gridColumns; col++) {
-      const index1 = row1 * gridColumns + col;
-      const index2 = row2 * gridColumns + col;
+    // Remove source row, then insert at target position
+    const without = [
+      ...youtubeVideos.slice(0, fromStart),
+      ...youtubeVideos.slice(fromStart + gridColumns),
+    ];
+    const insertAt = toRow * gridColumns;
+    const result = [
+      ...without.slice(0, insertAt),
+      ...rowVideos,
+      ...without.slice(insertAt),
+    ];
 
-      if (index1 < newVideos.length && index2 < newVideos.length) {
-        [newVideos[index1], newVideos[index2]] = [newVideos[index2], newVideos[index1]];
-      }
-    }
+    reorderYoutubeVideos(result);
 
-    reorderYoutubeVideos(newVideos);
-
-    // Persist to backend
     if (currentYoutubeCollectionId) {
-      const videoIds = newVideos.map(v => v.id || v._id);
+      const videoIds = result.map(v => v.id || v._id);
       youtubeApi.reorderVideos(currentYoutubeCollectionId, videoIds).catch(err =>
-        console.error('Failed to persist row reorder:', err)
+        console.error('Failed to persist row move:', err)
       );
     }
   }, [youtubeVideos, gridColumns, reorderYoutubeVideos, currentYoutubeCollectionId]);
 
-  // Swap two columns
-  const swapColumns = useCallback((col1, col2) => {
-    if (col1 === col2) return;
+  // Row drag via mouse events (no native HTML5 drag — nothing disappears)
+  const handleRowMouseDown = useCallback((rowIndex) => {
+    setRowDragSource(rowIndex);
+    document.body.style.cursor = 'grabbing';
+  }, []);
 
-    const newVideos = [...youtubeVideos];
-    const numRows = Math.ceil(newVideos.length / gridColumns);
-
-    // Swap columns
-    for (let row = 0; row < numRows; row++) {
-      const index1 = row * gridColumns + col1;
-      const index2 = row * gridColumns + col2;
-
-      if (index1 < newVideos.length && index2 < newVideos.length) {
-        [newVideos[index1], newVideos[index2]] = [newVideos[index2], newVideos[index1]];
-      }
+  const handleRowMouseEnter = useCallback((rowIndex) => {
+    if (rowDragSource !== null && rowIndex !== rowDragSource) {
+      setRowDragTarget(rowIndex);
     }
+  }, [rowDragSource]);
 
-    reorderYoutubeVideos(newVideos);
-
-    // Persist to backend
-    if (currentYoutubeCollectionId) {
-      const videoIds = newVideos.map(v => v.id || v._id);
-      youtubeApi.reorderVideos(currentYoutubeCollectionId, videoIds).catch(err =>
-        console.error('Failed to persist column reorder:', err)
-      );
+  const handleRowMouseUp = useCallback(() => {
+    if (rowDragSource !== null && rowDragTarget !== null) {
+      moveRow(rowDragSource, rowDragTarget);
     }
-  }, [youtubeVideos, gridColumns, reorderYoutubeVideos, currentYoutubeCollectionId]);
+    setRowDragSource(null);
+    setRowDragTarget(null);
+    document.body.style.cursor = '';
+  }, [rowDragSource, rowDragTarget, moveRow]);
 
-  // Row selection handlers
-  const handleRowClick = (e, rowIndex) => {
-    e.stopPropagation();
-
-    if (e.shiftKey && lastSelectedRow !== null) {
-      // Shift-click: select range
-      const start = Math.min(lastSelectedRow, rowIndex);
-      const end = Math.max(lastSelectedRow, rowIndex);
-      const newSelected = new Set(selectedRows);
-      for (let i = start; i <= end; i++) {
-        newSelected.add(i);
-      }
-      setSelectedRows(newSelected);
-    } else if (e.ctrlKey || e.metaKey) {
-      // Ctrl/Cmd-click: toggle selection
-      const newSelected = new Set(selectedRows);
-      if (newSelected.has(rowIndex)) {
-        newSelected.delete(rowIndex);
-      } else {
-        newSelected.add(rowIndex);
-      }
-      setSelectedRows(newSelected);
-      setLastSelectedRow(rowIndex);
-    } else {
-      // Regular click: select only this row
-      setSelectedRows(new Set([rowIndex]));
-      setLastSelectedRow(rowIndex);
-    }
-  };
-
-  // Row drag handlers
-  const handleRowDragStart = (e, rowIndex) => {
-    e.dataTransfer.effectAllowed = 'move';
-
-    // If clicking on unselected row, select just that row
-    if (!selectedRows.has(rowIndex)) {
-      setSelectedRows(new Set([rowIndex]));
-    }
-
-    setDraggedRow(rowIndex);
-  };
-
-  const handleRowDragOver = (e, rowIndex) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-
-    const isRowSelected = selectedRows.has(rowIndex);
-    if (!isRowSelected && draggedRow !== null && draggedRow !== rowIndex) {
-      setDragOverRow(rowIndex);
-    }
-  };
-
-  const handleRowDrop = (e, targetRow) => {
-    e.preventDefault();
-
-    if (selectedRows.size > 0 && !selectedRows.has(targetRow)) {
-      // Move all selected rows
-      const rowsToMove = Array.from(selectedRows).sort((a, b) => a - b);
-      const newVideos = [...youtubeVideos];
-      const numRows = Math.ceil(newVideos.length / gridColumns);
-
-      // Calculate offset
-      const firstRow = rowsToMove[0];
-      const offset = targetRow - firstRow;
-
-      // Extract videos from selected rows
-      const extractedRows = rowsToMove.map(rowIdx => {
-        const start = rowIdx * gridColumns;
-        return newVideos.slice(start, start + gridColumns);
-      });
-
-      // Remove selected rows (mark as null)
-      rowsToMove.forEach(rowIdx => {
-        for (let col = 0; col < gridColumns; col++) {
-          const idx = rowIdx * gridColumns + col;
-          if (idx < newVideos.length) {
-            newVideos[idx] = null;
-          }
-        }
-      });
-
-      // Insert at target position
-      const targetStart = targetRow * gridColumns;
-      extractedRows.forEach((row, i) => {
-        row.forEach((video, col) => {
-          const targetIdx = targetStart + i * gridColumns + col;
-          if (video && targetIdx < newVideos.length) {
-            newVideos[targetIdx] = video;
-          }
-        });
-      });
-
-      // Compact array (remove nulls)
-      const compacted = newVideos.filter(v => v !== null);
-
-      reorderYoutubeVideos(compacted);
-
-      if (currentYoutubeCollectionId) {
-        const videoIds = compacted.map(v => v.id || v._id);
-        youtubeApi.reorderVideos(currentYoutubeCollectionId, videoIds).catch(err =>
-          console.error('Failed to persist multi-row reorder:', err)
-        );
-      }
-
-      setSelectedRows(new Set());
-    }
-
-    setDraggedRow(null);
-    setDragOverRow(null);
-  };
-
-  // Column selection handlers
-  const handleColumnClick = (e, colIndex) => {
-    e.stopPropagation();
-
-    if (e.shiftKey && lastSelectedColumn !== null) {
-      // Shift-click: select range
-      const start = Math.min(lastSelectedColumn, colIndex);
-      const end = Math.max(lastSelectedColumn, colIndex);
-      const newSelected = new Set(selectedColumns);
-      for (let i = start; i <= end; i++) {
-        newSelected.add(i);
-      }
-      setSelectedColumns(newSelected);
-    } else if (e.ctrlKey || e.metaKey) {
-      // Ctrl/Cmd-click: toggle selection
-      const newSelected = new Set(selectedColumns);
-      if (newSelected.has(colIndex)) {
-        newSelected.delete(colIndex);
-      } else {
-        newSelected.add(colIndex);
-      }
-      setSelectedColumns(newSelected);
-      setLastSelectedColumn(colIndex);
-    } else {
-      // Regular click: select only this column
-      setSelectedColumns(new Set([colIndex]));
-      setLastSelectedColumn(colIndex);
-    }
-  };
-
-  // Column drag handlers
-  const handleColumnDragStart = (e, colIndex) => {
-    e.dataTransfer.effectAllowed = 'move';
-
-    // If clicking on unselected column, select just that column
-    if (!selectedColumns.has(colIndex)) {
-      setSelectedColumns(new Set([colIndex]));
-    }
-
-    setDraggedColumn(colIndex);
-  };
-
-  const handleColumnDragOver = (e, colIndex) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-
-    const isColSelected = selectedColumns.has(colIndex);
-    if (!isColSelected && draggedColumn !== null && draggedColumn !== colIndex) {
-      setDragOverColumn(colIndex);
-    }
-  };
-
-  const handleColumnDrop = (e, targetCol) => {
-    e.preventDefault();
-
-    if (selectedColumns.size > 0 && !selectedColumns.has(targetCol)) {
-      // Move all selected columns
-      const colsToMove = Array.from(selectedColumns).sort((a, b) => a - b);
-      const newVideos = [...youtubeVideos];
-      const numRows = Math.ceil(newVideos.length / gridColumns);
-
-      // Extract videos from selected columns
-      const extractedCols = colsToMove.map(colIdx => {
-        const videos = [];
-        for (let row = 0; row < numRows; row++) {
-          const idx = row * gridColumns + colIdx;
-          if (idx < newVideos.length) {
-            videos.push(newVideos[idx]);
-            newVideos[idx] = null;
-          }
-        }
-        return videos;
-      });
-
-      // Insert at target position
-      extractedCols.forEach((colVideos, i) => {
-        const targetColIdx = targetCol + i;
-        colVideos.forEach((video, row) => {
-          const targetIdx = row * gridColumns + targetColIdx;
-          if (video && targetIdx < newVideos.length) {
-            newVideos[targetIdx] = video;
-          }
-        });
-      });
-
-      // Compact array (remove nulls)
-      const compacted = newVideos.filter(v => v !== null);
-
-      reorderYoutubeVideos(compacted);
-
-      if (currentYoutubeCollectionId) {
-        const videoIds = compacted.map(v => v.id || v._id);
-        youtubeApi.reorderVideos(currentYoutubeCollectionId, videoIds).catch(err =>
-          console.error('Failed to persist multi-column reorder:', err)
-        );
-      }
-
-      setSelectedColumns(new Set());
-    }
-
-    setDraggedColumn(null);
-    setDragOverColumn(null);
-  };
+  // Cancel row drag if mouse leaves the controls area or mouseup anywhere
+  useEffect(() => {
+    if (rowDragSource === null) return;
+    const cancel = () => {
+      setRowDragSource(null);
+      setRowDragTarget(null);
+      document.body.style.cursor = '';
+    };
+    window.addEventListener('mouseup', cancel);
+    return () => window.removeEventListener('mouseup', cancel);
+  }, [rowDragSource]);
 
   // Open settings modal
   const openSettingsModal = () => {
@@ -579,8 +368,8 @@ function YouTubeGridView({ isLocked, onUpload }) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center py-16 px-8 border-2 border-dashed border-dark-600 rounded-xl max-w-md">
-          <div className="w-16 h-16 mx-auto mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
-            <Youtube className="w-8 h-8 text-red-500" />
+          <div className="w-16 h-16 mx-auto mb-4 bg-dark-700 rounded-full flex items-center justify-center">
+            <Youtube className="w-8 h-8 text-dark-100" />
           </div>
           <h3 className="text-lg font-semibold text-dark-100 mb-2">
             Plan Your YouTube Channel
@@ -611,7 +400,7 @@ function YouTubeGridView({ isLocked, onUpload }) {
         {/* Channel Avatar - Clickable to edit */}
         <div
           onClick={handleAvatarClick}
-          className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-700 overflow-hidden flex-shrink-0 cursor-pointer group relative"
+          className="w-12 h-12 rounded-full bg-gradient-to-br from-dark-500 to-dark-700 overflow-hidden flex-shrink-0 cursor-pointer group relative"
         >
           {displayAvatar ? (
             <img
@@ -653,7 +442,7 @@ function YouTubeGridView({ isLocked, onUpload }) {
           <Settings className="w-5 h-5" />
         </button>
 
-        <Youtube className="w-5 h-5 text-red-500" />
+        <Youtube className="w-5 h-5 text-dark-100" />
       </div>
 
       {/* Video Grid - 3-4 columns responsive */}
@@ -668,103 +457,38 @@ function YouTubeGridView({ isLocked, onUpload }) {
           items={youtubeVideos.map((v) => v.id)}
           strategy={() => null}
         >
-          {showGridControls ? (
-            <div className="flex gap-2">
-              {/* Row Controls on Left - Draggable Handles */}
-              <div className="flex flex-col gap-4 pt-10">
-                {Array.from({ length: Math.ceil((youtubeVideos.length + 1) / gridColumns) }).map((_, rowIndex) => (
-                  <div
-                    key={rowIndex}
-                    draggable
-                    onClick={(e) => handleRowClick(e, rowIndex)}
-                    onDragStart={(e) => handleRowDragStart(e, rowIndex)}
-                    onDragOver={(e) => handleRowDragOver(e, rowIndex)}
-                    onDragLeave={() => setDragOverRow(null)}
-                    onDrop={(e) => handleRowDrop(e, rowIndex)}
-                    className={`flex items-center justify-center p-2 rounded cursor-move transition-all ${
-                      selectedRows.has(rowIndex)
-                        ? 'bg-accent-purple/30 ring-2 ring-accent-purple'
-                        : draggedRow === rowIndex
-                        ? 'opacity-50'
-                        : dragOverRow === rowIndex
-                        ? 'bg-blue-500/20 ring-2 ring-blue-500'
-                        : 'bg-dark-700 hover:bg-dark-600'
-                    }`}
-                    title={
-                      selectedRows.has(rowIndex)
-                        ? 'Selected (Shift-click to select range, Ctrl-click to toggle)'
-                        : 'Click to select, Shift-click to select range, Ctrl-click to toggle'
-                    }
-                    style={{ height: `calc((100% / ${Math.ceil((youtubeVideos.length + 1) / gridColumns)}) - 1rem)` }}
-                  >
-                    <GripVertical className={`w-4 h-4 ${selectedRows.has(rowIndex) ? 'text-accent-purple' : 'text-dark-400'}`} />
-                  </div>
-                ))}
-              </div>
-
-              {/* Main Grid with Column Controls */}
-              <div className="flex-1">
-                {/* Column Controls on Top - Draggable Handles */}
-                <div className="grid gap-4 mb-2" style={{ gridTemplateColumns: `repeat(${gridColumns}, 1fr)` }}>
-                  {Array.from({ length: gridColumns }).map((_, colIndex) => (
+          <div className={showGridControls ? 'flex gap-2' : ''}>
+            {/* Row Controls — thin strip on left, only when grid controls active */}
+            {showGridControls && (() => {
+              const numRows = Math.ceil(youtubeVideos.length / gridColumns);
+              return (
+                <div className="flex flex-col w-8 flex-shrink-0 select-none">
+                  {Array.from({ length: numRows }).map((_, rowIndex) => (
                     <div
-                      key={colIndex}
-                      draggable
-                      onClick={(e) => handleColumnClick(e, colIndex)}
-                      onDragStart={(e) => handleColumnDragStart(e, colIndex)}
-                      onDragOver={(e) => handleColumnDragOver(e, colIndex)}
-                      onDragLeave={() => setDragOverColumn(null)}
-                      onDrop={(e) => handleColumnDrop(e, colIndex)}
-                      className={`flex items-center justify-center p-2 rounded cursor-move transition-all ${
-                        selectedColumns.has(colIndex)
-                          ? 'bg-accent-purple/30 ring-2 ring-accent-purple'
-                          : draggedColumn === colIndex
-                          ? 'opacity-50'
-                          : dragOverColumn === colIndex
-                          ? 'bg-blue-500/20 ring-2 ring-blue-500'
-                          : 'bg-dark-700 hover:bg-dark-600'
+                      key={rowIndex}
+                      onMouseDown={(e) => { e.preventDefault(); handleRowMouseDown(rowIndex); }}
+                      onMouseEnter={() => handleRowMouseEnter(rowIndex)}
+                      onMouseUp={() => handleRowMouseUp()}
+                      className={`flex-1 flex items-center justify-center cursor-grab active:cursor-grabbing rounded transition-colors ${
+                        rowDragSource === rowIndex
+                          ? 'bg-dark-600 ring-1 ring-dark-300'
+                          : rowDragTarget === rowIndex
+                          ? 'bg-blue-500/20 ring-1 ring-blue-400'
+                          : 'hover:bg-dark-700'
                       }`}
-                      title={
-                        selectedColumns.has(colIndex)
-                          ? 'Selected (Shift-click to select range, Ctrl-click to toggle)'
-                          : 'Click to select, Shift-click to select range, Ctrl-click to toggle'
-                      }
+                      title="Drag to reorder row"
                     >
-                      <GripHorizontal className={`w-4 h-4 ${selectedColumns.has(colIndex) ? 'text-accent-purple' : 'text-dark-400'}`} />
+                      <GripVertical className={`w-4 h-4 ${
+                        rowDragSource === rowIndex ? 'text-dark-100' : 'text-dark-500'
+                      }`} />
                     </div>
                   ))}
                 </div>
+              );
+            })()}
 
-                {/* Grid */}
-                <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${gridColumns}, 1fr)` }}>
-                  {youtubeVideos.map((video) => (
-                    <YouTubeVideoCard
-                      key={video.id}
-                      video={video}
-                      isSelected={video.id === selectedYoutubeVideoId}
-                      isLocked={isLocked}
-                      isDropTarget={video.id === overItemId}
-                      onClick={() => selectYoutubeVideo(video.id)}
-                      onDelete={() => handleDelete(video.id)}
-                    />
-                  ))}
-
-                  {/* Add New Card */}
-                  <label className="relative aspect-video bg-dark-700 rounded-lg border-2 border-dashed border-dark-500 hover:border-red-500 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 text-dark-400 hover:text-red-500">
-                    <ImagePlus className="w-8 h-8" />
-                    <span className="text-sm font-medium">Add Video</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={onUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {/* Video Grid — same responsive layout always */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 flex-1">
               {youtubeVideos.map((video) => (
                 <YouTubeVideoCard
                   key={video.id}
@@ -778,7 +502,7 @@ function YouTubeGridView({ isLocked, onUpload }) {
               ))}
 
               {/* Add New Card */}
-              <label className="relative aspect-video bg-dark-700 rounded-lg border-2 border-dashed border-dark-500 hover:border-red-500 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 text-dark-400 hover:text-red-500">
+              <label className="relative aspect-video bg-dark-700 rounded-lg border-2 border-dashed border-dark-500 hover:border-dark-100 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 text-dark-400 hover:text-dark-100">
                 <ImagePlus className="w-8 h-8" />
                 <span className="text-sm font-medium">Add Video</span>
                 <input
@@ -789,12 +513,12 @@ function YouTubeGridView({ isLocked, onUpload }) {
                 />
               </label>
             </div>
-          )}
+          </div>
         </SortableContext>
 
         <DragOverlay dropAnimation={null}>
           {activeDragVideo ? (
-            <div className="aspect-video bg-dark-600 rounded-lg overflow-hidden opacity-90 ring-2 ring-red-500 shadow-2xl shadow-red-500/20 scale-105">
+            <div className="aspect-video bg-dark-600 rounded-lg overflow-hidden opacity-90 ring-2 ring-dark-300 shadow-2xl shadow-dark-900/30 scale-105">
               {activeDragVideo.thumbnail ? (
                 <img
                   src={activeDragVideo.thumbnail}
@@ -827,8 +551,8 @@ function YouTubeGridView({ isLocked, onUpload }) {
             {/* Content */}
             <div className="p-4 space-y-4">
               {/* Info Banner */}
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <p className="text-sm text-red-400">
+              <div className="p-3 bg-dark-700 border border-dark-100/20 rounded-lg">
+                <p className="text-sm text-dark-300">
                   Profile settings are synced across Instagram, TikTok, and YouTube.
                 </p>
               </div>
@@ -841,7 +565,7 @@ function YouTubeGridView({ isLocked, onUpload }) {
                 <div className="flex items-center gap-4">
                   <div
                     onClick={handleAvatarClick}
-                    className="relative w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-red-700 overflow-hidden flex-shrink-0 cursor-pointer group"
+                    className="relative w-20 h-20 rounded-full bg-gradient-to-br from-dark-500 to-dark-700 overflow-hidden flex-shrink-0 cursor-pointer group"
                   >
                     {displayAvatar ? (
                       <img
@@ -902,7 +626,7 @@ function YouTubeGridView({ isLocked, onUpload }) {
             <div className="px-4 py-3 border-t border-dark-700">
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="w-full btn-primary bg-red-600 hover:bg-red-700"
+                className="w-full btn-primary bg-dark-100 hover:bg-white text-dark-900"
               >
                 Done
               </button>
@@ -990,7 +714,7 @@ function YouTubeGridView({ isLocked, onUpload }) {
                       step="0.05"
                       value={zoom}
                       onChange={(e) => setZoom(parseFloat(e.target.value))}
-                      className="flex-1 h-2 bg-dark-600 rounded-lg appearance-none cursor-pointer accent-red-500"
+                      className="flex-1 h-2 bg-dark-600 rounded-lg appearance-none cursor-pointer accent-white"
                     />
                     <ZoomIn className="w-4 h-4 text-dark-400" />
                   </div>
@@ -1006,7 +730,7 @@ function YouTubeGridView({ isLocked, onUpload }) {
                     </button>
                     <button
                       onClick={handleSaveAvatar}
-                      className="flex-1 btn-primary bg-red-600 hover:bg-red-700"
+                      className="flex-1 btn-primary bg-dark-100 hover:bg-white text-dark-900"
                       disabled={isSaving}
                     >
                       <Save className="w-4 h-4" />
@@ -1093,7 +817,7 @@ function YouTubeGridView({ isLocked, onUpload }) {
               </button>
               <button
                 onClick={handleSaveProfile}
-                className="flex-1 btn-primary bg-red-600 hover:bg-red-700"
+                className="flex-1 btn-primary bg-dark-100 hover:bg-white text-dark-900"
                 disabled={isSaving}
               >
                 {isSaving ? 'Saving...' : 'Save'}

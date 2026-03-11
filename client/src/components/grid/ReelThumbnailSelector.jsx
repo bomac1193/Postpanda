@@ -395,7 +395,7 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
                     onMouseUp={handleSeekEnd}
                     onTouchStart={handleSeekStart}
                     onTouchEnd={handleSeekEnd}
-                    className="flex-1 h-2 bg-dark-600 rounded-lg appearance-none cursor-pointer accent-accent-purple"
+                    className="flex-1 h-2 bg-dark-600 rounded-lg appearance-none cursor-pointer accent-white"
                   />
 
                   <button
@@ -417,7 +417,7 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
                   <button
                     onClick={captureCurrentFrame}
                     disabled={!isVideoReady}
-                    className="w-full mt-3 py-2 bg-accent-purple hover:bg-accent-purple/80 disabled:bg-dark-600 disabled:text-dark-400 text-white rounded-lg transition-colors text-sm font-medium"
+                    className="w-full mt-3 py-2 bg-dark-100 hover:bg-white disabled:bg-dark-600 disabled:text-dark-400 text-white rounded-lg transition-colors text-sm font-medium"
                   >
                     Capture Current Frame
                   </button>
@@ -455,13 +455,13 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
                 onDrop={handleDrop}
                 className={`aspect-[9/16] max-h-[300px] rounded-lg border-2 border-dashed cursor-pointer transition-colors flex flex-col items-center justify-center gap-3 ${
                   isDraggingOver
-                    ? 'border-accent-purple bg-accent-purple/10'
+                    ? 'border-dark-100 bg-dark-700'
                     : 'border-dark-600 hover:border-dark-500 bg-dark-700/50'
                 }`}
               >
-                <Upload className={`w-8 h-8 ${isDraggingOver ? 'text-accent-purple' : 'text-dark-400'}`} />
+                <Upload className={`w-8 h-8 ${isDraggingOver ? 'text-dark-100' : 'text-dark-400'}`} />
                 <div className="text-center">
-                  <p className={`text-sm ${isDraggingOver ? 'text-accent-purple' : 'text-dark-300'}`}>
+                  <p className={`text-sm ${isDraggingOver ? 'text-dark-100' : 'text-dark-300'}`}>
                     {isDraggingOver ? 'Drop image here' : 'Click or drag image'}
                   </p>
                   <p className="text-xs text-dark-500 mt-1">JPG, PNG, WebP</p>
@@ -497,7 +497,7 @@ function ReelThumbnailSelector({ reel, videoFile, onSave, onClose }) {
           <button
             onClick={handleSave}
             disabled={isSaving || !thumbnailPreview}
-            className="flex-1 py-2.5 bg-accent-purple hover:bg-accent-purple/80 disabled:bg-dark-600 disabled:text-dark-400 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 bg-dark-100 hover:bg-white disabled:bg-dark-600 disabled:text-dark-400 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
           >
             {isSaving ? (
               <>

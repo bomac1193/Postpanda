@@ -26,6 +26,22 @@ router.put('/collections/:id', youtubeController.updateCollection);
 router.delete('/collections/:id', youtubeController.deleteCollection);
 
 /**
+ * Collection Version Routes
+ */
+
+// Save a version (snapshot)
+router.post('/collections/:id/versions', youtubeController.saveVersion);
+
+// Get all versions for a collection
+router.get('/collections/:id/versions', youtubeController.getVersions);
+
+// Restore a version by index
+router.post('/collections/:id/versions/:index/restore', youtubeController.restoreVersion);
+
+// Delete a version by index
+router.delete('/collections/:id/versions/:index', youtubeController.deleteVersion);
+
+/**
  * YouTube Video Routes
  */
 

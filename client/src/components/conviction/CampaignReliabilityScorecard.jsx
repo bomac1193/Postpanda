@@ -65,7 +65,7 @@ const CampaignReliabilityScorecard = ({ gridItems = [] }) => {
         </div>
         <div className="h-7 px-2 border border-dark-700 bg-dark-800/70 flex items-center justify-between text-xs">
           <span className="text-dark-300">At-risk assets</span>
-          <span className={`tabular-nums ${metrics.atRiskCount > 0 ? 'text-orange-400' : 'text-green-400'}`}>
+          <span className="text-dark-100 tabular-nums">
             {metrics.atRiskCount}
           </span>
         </div>
@@ -74,8 +74,8 @@ const CampaignReliabilityScorecard = ({ gridItems = [] }) => {
       <div
         className={`mt-2 h-8 px-2 border text-xs flex items-center gap-1.5 ${
           metrics.gateReady
-            ? 'border-green-500/30 bg-green-500/10 text-green-300'
-            : 'border-orange-500/30 bg-orange-500/10 text-orange-300'
+            ? 'border-accent-purple/30 bg-accent-purple/10 text-dark-200'
+            : 'border-dark-600 bg-dark-800 text-dark-300'
         }`}
       >
         {metrics.gateReady ? (

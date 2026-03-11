@@ -12,15 +12,15 @@
 }
 
 .publishing-modal {
-  background: #fff;
-  border-radius: 20px;
+  background: #111113;
+  border: 1px solid #27272a;
+  border-radius: 12px;
   width: 100%;
   max-width: 480px;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
 
 .publishing-modal-header {
@@ -28,12 +28,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid rgba(17, 15, 14, 0.08);
+  border-bottom: 1px solid #18181b;
 }
 
 .publishing-modal-header h3 {
   margin: 0;
   font-size: 1.1rem;
+  color: #d4d4d8;
 }
 
 .publishing-close-btn {
@@ -41,13 +42,13 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #7a6f65;
+  color: #52525b;
   padding: 0;
   line-height: 1;
 }
 
 .publishing-close-btn:hover {
-  color: #111;
+  color: #d4d4d8;
 }
 
 .publishing-modal-body {
@@ -61,8 +62,8 @@
   display: flex;
   gap: 1rem;
   padding: 1rem;
-  background: #f9f6f1;
-  border-radius: 14px;
+  background: #18181b;
+  border-radius: 8px;
   margin-bottom: 1.5rem;
 }
 
@@ -77,13 +78,13 @@
 .publishing-preview-placeholder {
   width: 80px;
   height: 80px;
-  background: #e8e2d9;
-  border-radius: 10px;
+  background: #27272a;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
-  color: #7a6f65;
+  color: #52525b;
   flex-shrink: 0;
 }
 
@@ -136,16 +137,16 @@
   align-items: center;
   gap: 0.5rem;
   padding: 1rem;
-  border: 2px solid rgba(17, 15, 14, 0.1);
-  border-radius: 14px;
-  background: #fdfbf7;
+  border: 2px solid #27272a;
+  border-radius: 8px;
+  background: #18181b;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .publishing-platform-btn:hover {
-  border-color: var(--platform-color, #111);
-  background: #f5f0e8;
+  border-color: #52525b;
+  background: #27272a;
 }
 
 .publishing-platform-btn.selected {
@@ -168,7 +169,7 @@
 
 .publishing-platform-label {
   font-size: 0.75rem;
-  color: #5a524a;
+  color: #71717a;
 }
 
 .publishing-platform-btn.selected .publishing-platform-label {
@@ -199,12 +200,13 @@
 
 .publishing-cancel-btn {
   background: transparent;
-  border-color: rgba(17, 15, 14, 0.2);
+  border-color: #27272a;
+  color: #71717a;
 }
 
 .publishing-submit-btn {
-  background: #111;
-  color: #fdfbf7;
+  background: #d4d4d8;
+  color: #0a0a0b;
 }
 
 .publishing-submit-btn:disabled {
@@ -213,13 +215,14 @@
 }
 
 .publishing-retry-btn {
-  background: #e4d8cf;
-  border-color: rgba(17, 15, 14, 0.2);
+  background: #27272a;
+  border-color: #27272a;
+  color: #d4d4d8;
 }
 
 .publishing-done-btn {
-  background: #4CAF50;
-  color: #fff;
+  background: #d4d4d8;
+  color: #0a0a0b;
 }
 
 /* Status Container */
@@ -245,17 +248,17 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  background: #f9f6f1;
-  border-radius: 12px;
+  background: #18181b;
+  border-radius: 8px;
   transition: all 0.2s ease;
 }
 
 .posting-status-item.success {
-  background: rgba(76, 175, 80, 0.1);
+  background: #18181b;
 }
 
 .posting-status-item.error {
-  background: rgba(244, 67, 54, 0.1);
+  background: #18181b;
 }
 
 .posting-status-icon {
@@ -285,11 +288,11 @@
 .posting-status-message {
   display: block;
   font-size: 0.75rem;
-  color: #7a6f65;
+  color: #52525b;
 }
 
 .posting-status-item.error .posting-status-message {
-  color: #c44536;
+  color: #71717a;
 }
 
 .posting-status-indicator {
@@ -311,22 +314,22 @@
 }
 
 .posting-indicator.pending {
-  background: #e8e2d9;
+  background: #27272a;
 }
 
 .posting-indicator.publishing {
-  background: #2196F3;
+  background: rgba(102, 2, 60, 0.3);
 }
 
 .posting-indicator.success {
-  background: #4CAF50;
-  color: #fff;
+  background: #d4d4d8;
+  color: #0a0a0b;
   font-size: 0.7rem;
 }
 
 .posting-indicator.error {
-  background: #f44336;
-  color: #fff;
+  background: #27272a;
+  color: #71717a;
   font-size: 1rem;
   font-weight: bold;
 }
@@ -348,7 +351,7 @@
 
 .posting-progress-bar {
   height: 4px;
-  background: #e8e2d9;
+  background: #27272a;
   border-radius: 2px;
   margin-top: 1rem;
   overflow: hidden;
@@ -356,7 +359,7 @@
 
 .posting-progress-fill {
   height: 100%;
-  background: #4CAF50;
+  background: #66023C;
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -373,7 +376,7 @@
 
 .publishing-success-message {
   margin: 0;
-  color: #4CAF50;
+  color: #d4d4d8;
   font-weight: 500;
   text-align: center;
 }

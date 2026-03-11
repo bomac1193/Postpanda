@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
-import { youtubeApi } from '../../lib/api';
+import { youtubeApi, cruciblaApi } from '../../lib/api';
 import {
   Folder,
   FolderOpen,
+  FolderInput,
   Plus,
-  Youtube,
   ChevronDown,
   ChevronRight,
   Edit2,
@@ -14,6 +14,10 @@ import {
   GripVertical,
   Trash2,
   Pencil,
+  Unlink,
+  Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import EditableCollectionName from './EditableCollectionName';
 
@@ -21,7 +25,7 @@ import EditableCollectionName from './EditableCollectionName';
  * YouTube Collections Manager
  * Organized view with folders, inline editing, and drag-and-drop
  */
-function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId }) {
+function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId, collapsed, onToggleCollapsed }) {
   const youtubeCollections = useAppStore((state) => state.youtubeCollections);
   const updateYoutubeCollection = useAppStore((state) => state.updateYoutubeCollection);
   const addYoutubeCollection = useAppStore((state) => state.addYoutubeCollection);
@@ -38,19 +42,109 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
   const [lastClickedFolder, setLastClickedFolder] = useState(null);
   const [emptyFolders, setEmptyFolders] = useState(new Set()); // Folders without collections yet
   const [renameMode, setRenameMode] = useState(false); // Toggle for enabling/disabling rename
+  const [moveDropdown, setMoveDropdown] = useState(null); // collectionId currently showing move dropdown
+  const moveDropdownRef = React.useRef(null);
 
-  // Clear selection on ESC key
+  // Crucibla project linking
+  const [cruciblaPickerFor, setCruciblaPickerFor] = useState(null); // collectionId showing picker
+  const [cruciblaProjects, setCruciblaProjects] = useState([]);
+  const [loadingCrucibla, setLoadingCrucibla] = useState(false);
+  const [cruciblaLoaded, setCruciblaLoaded] = useState(false);
+  const cruciblaPickerRef = React.useRef(null);
+
+  // Clear selection on ESC key, close move dropdown
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && selectedFolders.size > 0) {
-        setSelectedFolders(new Set());
-        setLastClickedFolder(null);
+      if (e.key === 'Escape') {
+        if (moveDropdown) setMoveDropdown(null);
+        if (selectedFolders.size > 0) {
+          setSelectedFolders(new Set());
+          setLastClickedFolder(null);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFolders.size]);
+  }, [selectedFolders.size, moveDropdown]);
+
+  // Close move dropdown on outside click
+  useEffect(() => {
+    if (!moveDropdown) return;
+    const handleClick = (e) => {
+      if (moveDropdownRef.current && !moveDropdownRef.current.contains(e.target)) {
+        setMoveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [moveDropdown]);
+
+  // Close crucibla picker on outside click
+  useEffect(() => {
+    if (!cruciblaPickerFor) return;
+    const handleClick = (e) => {
+      if (cruciblaPickerRef.current && !cruciblaPickerRef.current.contains(e.target)) {
+        setCruciblaPickerFor(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [cruciblaPickerFor]);
+
+  const fetchCruciblaProjects = async () => {
+    if (cruciblaLoaded) return;
+    setLoadingCrucibla(true);
+    try {
+      const projects = await cruciblaApi.getProjects();
+      setCruciblaProjects(projects);
+      setCruciblaLoaded(true);
+    } catch (err) {
+      console.error('Failed to fetch Crucibla projects:', err);
+    } finally {
+      setLoadingCrucibla(false);
+    }
+  };
+
+  const [cruciblaSelectedProject, setCruciblaSelectedProject] = useState(null); // project selected in step 1
+
+  const handleLinkCruciblaProject = async (collectionId, project, album) => {
+    const updates = {
+      cruciblaProjectId: project.id,
+      cruciblaProjectName: project.name,
+      cruciblaProjectType: project.type,
+      cruciblaEra: project.era || '',
+      cruciblaAlbum: album?.name || null,
+      cruciblaAlbumColor: album?.group_color || null,
+    };
+    try {
+      await youtubeApi.updateCollection(collectionId, updates);
+      updateYoutubeCollection(collectionId, updates);
+    } catch (err) {
+      console.error('Failed to link Crucibla project:', err);
+    }
+    setCruciblaPickerFor(null);
+    setCruciblaSelectedProject(null);
+  };
+
+  const handleUnlinkCruciblaProject = async (collectionId) => {
+    const updates = {
+      cruciblaProjectId: null,
+      cruciblaProjectName: null,
+      cruciblaProjectType: null,
+      cruciblaEra: null,
+      cruciblaAlbum: null,
+      cruciblaAlbumColor: null,
+    };
+    try {
+      await youtubeApi.updateCollection(collectionId, updates);
+      updateYoutubeCollection(collectionId, updates);
+    } catch (err) {
+      console.error('Failed to unlink Crucibla project:', err);
+    }
+    setCruciblaPickerFor(null);
+    setCruciblaSelectedProject(null);
+  };
 
   // Group collections by folder with safety checks
   const collectionsByFolder = React.useMemo(() => {
@@ -449,34 +543,118 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
     }
   };
 
+  const handleMoveToFolder = async (collectionId, targetFolder) => {
+    const newFolder = targetFolder === 'root' ? null : targetFolder;
+    try {
+      await youtubeApi.updateCollection(collectionId, { folder: newFolder });
+      updateYoutubeCollection(collectionId, { folder: newFolder });
+      setMoveDropdown(null);
+
+      // Expand target folder so user sees where it went
+      const newExpanded = new Set(expandedFolders);
+      newExpanded.add(targetFolder);
+      setExpandedFolders(newExpanded);
+    } catch (error) {
+      console.error('Failed to move collection:', error);
+    }
+  };
+
+  // Render the "Move to" button + dropdown for a collection
+  const renderMoveButton = (collection) => {
+    const collectionId = collection.id || collection._id;
+    const currentFolder = collection.folder || 'root';
+    const isOpen = moveDropdown === collectionId;
+
+    return (
+      <div className="relative" ref={isOpen ? moveDropdownRef : undefined}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMoveDropdown(isOpen ? null : collectionId);
+          }}
+          className="p-0.5 text-dark-500 hover:text-dark-200 transition-colors opacity-0 group-hover:opacity-100"
+          title="Move to folder"
+        >
+          <FolderInput className="w-3.5 h-3.5" />
+        </button>
+        {isOpen && (
+          <div className="absolute left-0 top-full mt-1 w-44 max-h-48 overflow-y-auto bg-dark-800 border border-dark-600 rounded-lg shadow-xl z-50">
+            {folders.map(folder => {
+              if (folder === currentFolder) return null;
+              return (
+                <button
+                  key={folder}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMoveToFolder(collectionId, folder);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-dark-700 text-left transition-colors"
+                >
+                  <Folder className="w-3.5 h-3.5 text-dark-400" />
+                  <span className="text-xs text-dark-200 truncate">
+                    {folder === 'root' ? 'Uncategorized' : folder}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (collapsed) {
+    return (
+      <div className="h-full flex flex-col bg-dark-800 w-10 border-r border-dark-700">
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          className="p-2.5 text-dark-400 hover:text-dark-200 transition-colors"
+          title="Expand collections"
+        >
+          <PanelLeftOpen className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col bg-dark-800">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-dark-700">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-dark-100">YouTube Collections</h3>
-          <button
-            type="button"
-            onClick={() => setRenameMode(!renameMode)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors ${
-              renameMode
-                ? 'bg-accent-purple/20 text-accent-purple border border-accent-purple/30'
-                : 'bg-dark-700 text-dark-400 border border-dark-600 hover:text-dark-200 hover:border-dark-500'
-            }`}
-            title={renameMode ? 'Disable rename mode' : 'Enable rename mode'}
-          >
-            <Pencil className="w-3 h-3" />
-            <span>{renameMode ? 'Rename: ON' : 'Rename: OFF'}</span>
-          </button>
+      <div className="px-3 py-2 border-b border-dark-700">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-dark-100 uppercase tracking-wide">Collections</h3>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setRenameMode(!renameMode)}
+              className={`p-1 rounded transition-colors ${
+                renameMode ? 'text-dark-100 bg-dark-700' : 'text-dark-500 hover:text-dark-300'
+              }`}
+              title={renameMode ? 'Disable rename mode' : 'Enable rename mode'}
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCreatingFolder(true)}
+              className="p-1 text-dark-500 hover:text-dark-300 transition-colors"
+              title="New folder"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+            <button
+              type="button"
+              onClick={onToggleCollapsed}
+              className="p-1 text-dark-500 hover:text-dark-300 transition-colors"
+              title="Collapse panel"
+            >
+              <PanelLeftClose className="w-3 h-3" />
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsCreatingFolder(true)}
-          className="w-full flex items-center justify-center gap-2 py-1.5 border border-dashed border-dark-600 rounded-lg text-dark-400 hover:border-accent-purple hover:text-accent-purple transition-colors text-sm"
-        >
-          <Folder className="w-4 h-4" />
-          <span>New Folder</span>
-        </button>
       </div>
 
       {/* Create Folder Input */}
@@ -501,12 +679,12 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
               }}
               placeholder="Folder name..."
               autoFocus
-              className="flex-1 px-2 py-1 bg-dark-700 border border-dark-600 rounded text-sm text-white focus:outline-none focus:border-accent-purple"
+              className="flex-1 px-2 py-1 bg-dark-700 border border-dark-600 rounded text-sm text-white focus:outline-none focus:border-dark-100"
             />
             <button
               type="button"
               onClick={handleCreateFolder}
-              className="p-1 text-green-400 hover:text-green-300"
+              className="p-1 text-dark-100 hover:text-white"
             >
               <Check className="w-4 h-4" />
             </button>
@@ -516,7 +694,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                 setIsCreatingFolder(false);
                 setNewFolderName('');
               }}
-              className="p-1 text-red-400 hover:text-red-300"
+              className="p-1 text-dark-300 hover:text-dark-100"
             >
               <X className="w-4 h-4" />
             </button>
@@ -526,16 +704,16 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
 
       {/* Selection Bar */}
       {selectedFolders.size > 0 && (
-        <div className="px-4 py-2 bg-accent-purple/10 border-b border-accent-purple/30">
+        <div className="px-4 py-2 bg-dark-700 border-b border-dark-100/30">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-accent-purple font-medium">
+            <span className="text-sm text-dark-100 font-medium">
               {selectedFolders.size} folder{selectedFolders.size === 1 ? '' : 's'} selected
             </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleDeleteSelectedFolders}
-                className="px-2 py-1 text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded transition-colors flex items-center gap-1"
+                className="px-2 py-1 text-xs bg-dark-600/30 text-dark-300 hover:bg-dark-600/40 rounded transition-colors flex items-center gap-1"
               >
                 <Trash2 className="w-3 h-3" />
                 Delete
@@ -567,44 +745,38 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
             <div
               className={`border-b transition-colors ${
                 rootDragOver
-                  ? 'bg-accent-purple/20 border-accent-purple'
+                  ? 'bg-dark-700 border-dark-100'
                   : 'bg-dark-750 border-dark-700'
               }`}
               onDragOver={(e) => handleDragOver(e, 'root')}
               onDragLeave={() => setDragOverFolder(null)}
               onDrop={(e) => handleDrop(e, 'root')}
             >
-              <div className="flex items-center gap-2 px-3 py-2 transition-colors cursor-pointer hover:bg-dark-700">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 transition-colors cursor-pointer hover:bg-dark-700">
                 <button
                   type="button"
                   onClick={() => toggleFolder('root')}
-                  className="p-0.5 text-dark-400 hover:text-dark-200"
+                  className="p-0 text-dark-400 hover:text-dark-200"
                 >
                   {rootExpanded ? (
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className="w-3.5 h-3.5" />
                   ) : (
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-3.5 h-3.5" />
                   )}
                 </button>
 
-                {rootExpanded ? (
-                  <FolderOpen className="w-4 h-4 text-yellow-500" />
-                ) : (
-                  <Folder className="w-4 h-4 text-yellow-500" />
-                )}
-
-                <div className="flex items-center gap-1.5 flex-1">
-                  <span className="text-sm font-medium text-dark-100">Uncategorized</span>
-                  <span className="text-xs text-dark-500">({rootCollections.length})</span>
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="text-xs font-medium text-dark-300">Uncategorized</span>
+                  <span className="text-[10px] text-dark-500">{rootCollections.length}</span>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleCreateCollection('root')}
-                  className="p-1 text-dark-500 hover:text-accent-purple transition-colors"
-                  title="Add collection to this folder"
+                  className="p-0.5 text-dark-500 hover:text-dark-100 transition-colors opacity-0 group-hover:opacity-100"
+                  title="Add collection"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
                 </button>
               </div>
             </div>
@@ -613,7 +785,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
             {rootExpanded && (
               <div className="py-1 border-b border-dark-700">
                 {rootCollections.length === 0 ? (
-                  <div className="px-4 py-4 text-center text-dark-500 text-sm">
+                  <div className="px-3 py-2 text-center text-dark-600 text-[10px]">
                     No collections
                   </div>
                 ) : (
@@ -631,8 +803,8 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                         onDragOver={(e) => handleCollectionDragOver(e, collection)}
                         onDragLeave={() => setDragOverCollection(null)}
                         onDrop={(e) => handleCollectionDrop(e, collection)}
-                        className={`flex items-center gap-2 px-4 py-2 hover:bg-dark-700 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-accent-purple focus:ring-inset relative ${
-                          isSelected ? 'bg-dark-700 border-l-2 border-accent-purple' : ''
+                        className={`hover:bg-dark-700 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-dark-300 focus:ring-inset relative ${
+                          isSelected ? 'bg-dark-700 border-l-2 border-dark-100' : ''
                         } ${
                           isDraggedOver ? 'border-t-2 border-blue-400' : ''
                         }`}
@@ -644,30 +816,178 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                           }
                         }}
                       >
-                        <GripVertical className="w-4 h-4 text-dark-600 opacity-0 group-hover:opacity-100" />
-                        <Youtube className="w-4 h-4 text-red-400 flex-shrink-0" />
-                        <EditableCollectionName
-                          name={collection.name}
-                          onSave={(newName) => handleSaveCollectionName(collectionId, newName)}
-                          className="flex-1 min-w-0 text-sm text-dark-200"
-                          showEditIcon={false}
-                          editIconPosition="hover"
-                          disabled={!renameMode}
-                        />
-                        <span className="text-xs text-dark-500 flex-shrink-0">
-                          {collection.videoCount || 0}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteCollection(collectionId, collection.name);
-                          }}
-                          className="p-0.5 text-dark-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                          title="Delete collection"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-1.5 px-3 py-1">
+                          <GripVertical className="w-3 h-3 text-dark-600 opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                          <EditableCollectionName
+                            name={collection.name}
+                            onSave={(newName) => handleSaveCollectionName(collectionId, newName)}
+                            className="flex-1 min-w-0 text-xs text-dark-200"
+                            showEditIcon={false}
+                            editIconPosition="hover"
+                            disabled={!renameMode}
+                          />
+                          {/* Right-aligned group: crucibla + count + actions */}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="relative">
+                              {collection.cruciblaProjectName ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const target = cruciblaPickerFor === collectionId ? null : collectionId;
+                                    setCruciblaPickerFor(target);
+                                    setCruciblaSelectedProject(null);
+                                    if (target) fetchCruciblaProjects();
+                                  }}
+                                  className="inline-flex items-center gap-1 text-[10px] leading-tight px-1.5 py-0.5 rounded hover:opacity-80 transition-opacity max-w-[100px]"
+                                  style={{
+                                    color: collection.cruciblaAlbumColor || '#818cf8',
+                                    backgroundColor: `${collection.cruciblaAlbumColor || '#818cf8'}15`,
+                                  }}
+                                  title={`${collection.cruciblaProjectName}${collection.cruciblaAlbum ? ' / ' + collection.cruciblaAlbum : ''}`}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: collection.cruciblaAlbumColor || '#818cf8' }} />
+                                  <span className="truncate">{collection.cruciblaAlbum || collection.cruciblaProjectName}</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const target = cruciblaPickerFor === collectionId ? null : collectionId;
+                                    setCruciblaPickerFor(target);
+                                    setCruciblaSelectedProject(null);
+                                    if (target) fetchCruciblaProjects();
+                                  }}
+                                  className="text-[10px] text-indigo-400/70 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100"
+                                  title="Connect to Crucibla"
+                                >
+                                  crucibla
+                                </button>
+                              )}
+                              {/* Crucibla picker dropdown — two-step: Project → Album */}
+                              {cruciblaPickerFor === collectionId && (
+                                <div
+                                  ref={cruciblaPickerRef}
+                                  className="absolute right-0 top-full mt-1 w-56 bg-dark-900 border border-dark-600 rounded-lg shadow-xl z-50 p-2 max-h-72 overflow-y-auto"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {loadingCrucibla ? (
+                                    <div className="flex items-center justify-center py-3">
+                                      <Loader2 className="w-4 h-4 text-dark-400 animate-spin" />
+                                      <span className="ml-2 text-xs text-dark-400">Loading...</span>
+                                    </div>
+                                  ) : cruciblaProjects.length === 0 ? (
+                                    <p className="text-xs text-dark-500 px-1 py-2">No projects found</p>
+                                  ) : !cruciblaSelectedProject ? (
+                                    <>
+                                      <p className="text-xs text-dark-400 mb-2 px-1">Select Project</p>
+                                      {cruciblaProjects.map((project) => (
+                                        <button
+                                          key={project.id}
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (project.albums && project.albums.length > 0) {
+                                              setCruciblaSelectedProject(project);
+                                            } else {
+                                              handleLinkCruciblaProject(collectionId, project, null);
+                                            }
+                                          }}
+                                          className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
+                                            collection.cruciblaProjectId === project.id ? 'bg-dark-700' : ''
+                                          }`}
+                                        >
+                                          <div className="flex-1 min-w-0">
+                                            <span className="text-xs text-dark-200 block truncate">{project.name}</span>
+                                            <span className="text-xs text-dark-500">
+                                              {project.type}{project.era ? ` · ${project.era}` : ''}
+                                              {project.albums?.length ? ` · ${project.albums.length} album${project.albums.length > 1 ? 's' : ''}` : ''}
+                                            </span>
+                                          </div>
+                                          {project.albums?.length > 0 && (
+                                            <ChevronRight className="w-3 h-3 text-dark-500 flex-shrink-0" />
+                                          )}
+                                        </button>
+                                      ))}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setCruciblaSelectedProject(null); }}
+                                        className="flex items-center gap-1 text-xs text-dark-400 hover:text-dark-200 mb-2 px-1"
+                                      >
+                                        <ChevronRight className="w-3 h-3 rotate-180" />
+                                        {cruciblaSelectedProject.name}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleLinkCruciblaProject(collectionId, cruciblaSelectedProject, null);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 text-xs text-dark-400 italic"
+                                      >
+                                        Project only (no album)
+                                      </button>
+                                      <div className="border-t border-dark-700 my-1" />
+                                      {cruciblaSelectedProject.albums.map((album) => (
+                                        <button
+                                          key={album.name}
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleLinkCruciblaProject(collectionId, cruciblaSelectedProject, album);
+                                          }}
+                                          className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
+                                            collection.cruciblaProjectId === cruciblaSelectedProject.id && collection.cruciblaAlbum === album.name ? 'bg-dark-700' : ''
+                                          }`}
+                                        >
+                                          {album.group_color && (
+                                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: album.group_color }} />
+                                          )}
+                                          <span className="text-xs text-dark-200 truncate">{album.name}</span>
+                                          {collection.cruciblaProjectId === cruciblaSelectedProject.id && collection.cruciblaAlbum === album.name && (
+                                            <Check className="w-3 h-3 text-dark-100 flex-shrink-0 ml-auto" />
+                                          )}
+                                        </button>
+                                      ))}
+                                    </>
+                                  )}
+                                  {collection.cruciblaProjectId && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleUnlinkCruciblaProject(collectionId);
+                                      }}
+                                      className="w-full mt-1 px-2 py-1.5 text-xs text-dark-400 hover:text-dark-200 hover:bg-dark-700 rounded flex items-center gap-1.5 border-t border-dark-700 pt-2"
+                                    >
+                                      <Unlink className="w-3 h-3" />
+                                      Unlink
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-dark-600 flex-shrink-0 tabular-nums w-4 text-right">
+                              {collection.videoCount || 0}
+                            </span>
+                            {renderMoveButton(collection)}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteCollection(collectionId, collection.name);
+                              }}
+                              className="p-0.5 text-dark-600 hover:text-dark-300 transition-colors opacity-0 group-hover:opacity-100"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     );
                   })
@@ -692,7 +1012,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
               <div
                 className={`sticky top-0 border-b z-10 transition-colors ${
                   isDragOver
-                    ? 'bg-accent-purple/20 border-accent-purple'
+                    ? 'bg-dark-700 border-dark-100'
                     : 'bg-dark-750 border-dark-700'
                 }`}
                 onDragOver={(e) => handleDragOver(e, folder)}
@@ -700,21 +1020,19 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                 onDrop={(e) => handleDrop(e, folder)}
               >
                 <div
-                  className={`flex items-center gap-2 px-3 py-2 transition-colors focus:outline-none cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors focus:outline-none cursor-pointer ${
                     isSelected
-                      ? 'bg-accent-purple/20 border-l-2 border-accent-purple'
+                      ? 'bg-dark-700 border-l-2 border-dark-100'
                       : 'hover:bg-dark-700'
                   }`}
                   tabIndex={0}
                   onClick={(e) => {
-                    // Don't interfere with button clicks
                     if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
                     handleFolderClick(folder, e);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Delete' || e.key === 'Backspace') {
                       e.preventDefault();
-                      // Delete selected folders if any, otherwise delete this folder
                       if (selectedFolders.size > 0) {
                         handleDeleteSelectedFolders();
                       } else {
@@ -726,20 +1044,14 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                   <button
                     type="button"
                     onClick={() => toggleFolder(folder)}
-                    className="p-0.5 text-dark-400 hover:text-dark-200"
+                    className="p-0 text-dark-400 hover:text-dark-200"
                   >
                     {isExpanded ? (
-                      <ChevronDown className="w-4 h-4" />
+                      <ChevronDown className="w-3.5 h-3.5" />
                     ) : (
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-3.5 h-3.5" />
                     )}
                   </button>
-
-                  {isExpanded ? (
-                    <FolderOpen className="w-4 h-4 text-yellow-500" />
-                  ) : (
-                    <Folder className="w-4 h-4 text-yellow-500" />
-                  )}
 
                   {/* Folder Name */}
                   {editingFolder === folder ? (
@@ -756,15 +1068,15 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                           }
                         }}
                         autoFocus
-                        className="flex-1 px-2 py-0.5 bg-dark-600 border border-accent-purple rounded text-sm text-white focus:outline-none"
+                        className="flex-1 px-2 py-0.5 bg-dark-600 border border-dark-100 rounded text-xs text-white focus:outline-none"
                       />
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1.5 flex-1 group/folder">
-                      <span className="text-sm font-medium text-dark-100">
+                    <div className="flex items-center gap-1 flex-1 group/folder">
+                      <span className="text-xs font-medium text-dark-300">
                         {folder}
                       </span>
-                      <span className="text-xs text-dark-500">({collections.length})</span>
+                      <span className="text-[10px] text-dark-500">{collections.length}</span>
                       <>
                         {renameMode && (
                           <button
@@ -773,7 +1085,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                               e.stopPropagation();
                               setEditingFolder(folder);
                             }}
-                            className="p-0.5 text-dark-500 hover:text-accent-purple transition-colors opacity-0 group-hover/folder:opacity-100"
+                            className="p-0.5 text-dark-500 hover:text-dark-100 transition-colors opacity-0 group-hover/folder:opacity-100"
                             title="Rename folder"
                           >
                             <Edit2 className="w-3 h-3" />
@@ -791,7 +1103,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                               handleDeleteFolder(folder);
                             }
                           }}
-                          className={`p-0.5 text-dark-500 hover:text-red-400 transition-colors ${
+                          className={`p-0.5 text-dark-500 hover:text-dark-200 transition-colors ${
                             isSelected ? 'opacity-100' : 'opacity-0 group-hover/folder:opacity-100'
                           }`}
                           title={
@@ -802,7 +1114,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                         >
                           <Trash2 className="w-3 h-3" />
                           {selectedFolders.size > 1 && isSelected && (
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                            <span className="absolute -top-1 -right-1 bg-dark-100 text-dark-900 text-xs rounded-full w-4 h-4 flex items-center justify-center">
                               {selectedFolders.size}
                             </span>
                           )}
@@ -814,10 +1126,10 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                   <button
                     type="button"
                     onClick={() => handleCreateCollection(folder)}
-                    className="p-1 text-dark-500 hover:text-accent-purple transition-colors"
-                    title="Add collection to this folder"
+                    className="p-0.5 text-dark-500 hover:text-dark-100 transition-colors"
+                    title="Add collection"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -844,8 +1156,8 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                           onDragOver={(e) => handleCollectionDragOver(e, collection)}
                           onDragLeave={() => setDragOverCollection(null)}
                           onDrop={(e) => handleCollectionDrop(e, collection)}
-                          className={`flex items-center gap-2 px-4 py-2 hover:bg-dark-700 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-accent-purple focus:ring-inset relative ${
-                            isSelected ? 'bg-dark-700 border-l-2 border-accent-purple' : ''
+                          className={`hover:bg-dark-700 transition-colors cursor-pointer group focus:outline-none focus:ring-2 focus:ring-dark-300 focus:ring-inset relative ${
+                            isSelected ? 'bg-dark-700 border-l-2 border-dark-100' : ''
                           } ${
                             isDraggedOver ? 'border-t-2 border-blue-400' : ''
                           }`}
@@ -857,30 +1169,178 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId })
                             }
                           }}
                         >
-                          <GripVertical className="w-4 h-4 text-dark-600 opacity-0 group-hover:opacity-100" />
-                          <Youtube className="w-4 h-4 text-red-400 flex-shrink-0" />
-                          <EditableCollectionName
-                            name={collection.name}
-                            onSave={(newName) => handleSaveCollectionName(collectionId, newName)}
-                            className="flex-1 min-w-0 text-sm text-dark-200"
-                            showEditIcon={false}
-                            editIconPosition="hover"
-                            disabled={!renameMode}
-                          />
-                          <span className="text-xs text-dark-500 flex-shrink-0">
-                            {collection.videoCount || 0}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteCollection(collectionId, collection.name);
-                            }}
-                            className="p-0.5 text-dark-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                            title="Delete collection"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                          <div className="flex items-center gap-1.5 px-3 py-1">
+                            <GripVertical className="w-3 h-3 text-dark-600 opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                            <EditableCollectionName
+                              name={collection.name}
+                              onSave={(newName) => handleSaveCollectionName(collectionId, newName)}
+                              className="flex-1 min-w-0 text-xs text-dark-200"
+                              showEditIcon={false}
+                              editIconPosition="hover"
+                              disabled={!renameMode}
+                            />
+                            {/* Right-aligned group: crucibla + count + actions */}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="relative">
+                                {collection.cruciblaProjectName ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const target = cruciblaPickerFor === collectionId ? null : collectionId;
+                                      setCruciblaPickerFor(target);
+                                      setCruciblaSelectedProject(null);
+                                      if (target) fetchCruciblaProjects();
+                                    }}
+                                    className="inline-flex items-center gap-1 text-[10px] leading-tight px-1.5 py-0.5 rounded hover:opacity-80 transition-opacity max-w-[100px]"
+                                    style={{
+                                      color: collection.cruciblaAlbumColor || '#818cf8',
+                                      backgroundColor: `${collection.cruciblaAlbumColor || '#818cf8'}15`,
+                                    }}
+                                    title={`${collection.cruciblaProjectName}${collection.cruciblaAlbum ? ' / ' + collection.cruciblaAlbum : ''}`}
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: collection.cruciblaAlbumColor || '#818cf8' }} />
+                                    <span className="truncate">{collection.cruciblaAlbum || collection.cruciblaProjectName}</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const target = cruciblaPickerFor === collectionId ? null : collectionId;
+                                      setCruciblaPickerFor(target);
+                                      setCruciblaSelectedProject(null);
+                                      if (target) fetchCruciblaProjects();
+                                    }}
+                                    className="text-[10px] text-indigo-400/70 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Connect to Crucibla"
+                                  >
+                                    crucibla
+                                  </button>
+                                )}
+                                {/* Crucibla picker dropdown — two-step: Project → Album */}
+                                {cruciblaPickerFor === collectionId && (
+                                  <div
+                                    ref={cruciblaPickerRef}
+                                    className="absolute right-0 top-full mt-1 w-56 bg-dark-900 border border-dark-600 rounded-lg shadow-xl z-50 p-2 max-h-72 overflow-y-auto"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {loadingCrucibla ? (
+                                      <div className="flex items-center justify-center py-3">
+                                        <Loader2 className="w-4 h-4 text-dark-400 animate-spin" />
+                                        <span className="ml-2 text-xs text-dark-400">Loading...</span>
+                                      </div>
+                                    ) : cruciblaProjects.length === 0 ? (
+                                      <p className="text-xs text-dark-500 px-1 py-2">No projects found</p>
+                                    ) : !cruciblaSelectedProject ? (
+                                      <>
+                                        <p className="text-xs text-dark-400 mb-2 px-1">Select Project</p>
+                                        {cruciblaProjects.map((project) => (
+                                          <button
+                                            key={project.id}
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (project.albums && project.albums.length > 0) {
+                                                setCruciblaSelectedProject(project);
+                                              } else {
+                                                handleLinkCruciblaProject(collectionId, project, null);
+                                              }
+                                            }}
+                                            className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
+                                              collection.cruciblaProjectId === project.id ? 'bg-dark-700' : ''
+                                            }`}
+                                          >
+                                            <div className="flex-1 min-w-0">
+                                              <span className="text-xs text-dark-200 block truncate">{project.name}</span>
+                                              <span className="text-xs text-dark-500">
+                                                {project.type}{project.era ? ` · ${project.era}` : ''}
+                                                {project.albums?.length ? ` · ${project.albums.length} album${project.albums.length > 1 ? 's' : ''}` : ''}
+                                              </span>
+                                            </div>
+                                            {project.albums?.length > 0 && (
+                                              <ChevronRight className="w-3 h-3 text-dark-500 flex-shrink-0" />
+                                            )}
+                                          </button>
+                                        ))}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); setCruciblaSelectedProject(null); }}
+                                          className="flex items-center gap-1 text-xs text-dark-400 hover:text-dark-200 mb-2 px-1"
+                                        >
+                                          <ChevronRight className="w-3 h-3 rotate-180" />
+                                          {cruciblaSelectedProject.name}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleLinkCruciblaProject(collectionId, cruciblaSelectedProject, null);
+                                          }}
+                                          className="w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 text-xs text-dark-400 italic"
+                                        >
+                                          Project only (no album)
+                                        </button>
+                                        <div className="border-t border-dark-700 my-1" />
+                                        {cruciblaSelectedProject.albums.map((album) => (
+                                          <button
+                                            key={album.name}
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleLinkCruciblaProject(collectionId, cruciblaSelectedProject, album);
+                                            }}
+                                            className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
+                                              collection.cruciblaProjectId === cruciblaSelectedProject.id && collection.cruciblaAlbum === album.name ? 'bg-dark-700' : ''
+                                            }`}
+                                          >
+                                            {album.group_color && (
+                                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: album.group_color }} />
+                                            )}
+                                            <span className="text-xs text-dark-200 truncate">{album.name}</span>
+                                            {collection.cruciblaProjectId === cruciblaSelectedProject.id && collection.cruciblaAlbum === album.name && (
+                                              <Check className="w-3 h-3 text-dark-100 flex-shrink-0 ml-auto" />
+                                            )}
+                                          </button>
+                                        ))}
+                                      </>
+                                    )}
+                                    {collection.cruciblaProjectId && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleUnlinkCruciblaProject(collectionId);
+                                        }}
+                                        className="w-full mt-1 px-2 py-1.5 text-xs text-dark-400 hover:text-dark-200 hover:bg-dark-700 rounded flex items-center gap-1.5 border-t border-dark-700 pt-2"
+                                      >
+                                        <Unlink className="w-3 h-3" />
+                                        Unlink
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-dark-600 flex-shrink-0 tabular-nums w-4 text-right">
+                                {collection.videoCount || 0}
+                              </span>
+                              {renderMoveButton(collection)}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteCollection(collectionId, collection.name);
+                                }}
+                                className="p-0.5 text-dark-600 hover:text-dark-300 transition-colors opacity-0 group-hover:opacity-100"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       );
                     })

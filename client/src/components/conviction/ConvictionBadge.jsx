@@ -21,24 +21,24 @@ const ConvictionBadge = ({
 
     if (score >= 70) {
       return {
-        bg: 'bg-green-700',
+        bg: 'bg-accent-purple',
         text: 'text-white',
-        ring: 'ring-green-600',
-        shadow: 'shadow-green-900/50'
+        ring: 'ring-accent-purple',
+        shadow: 'shadow-accent-purple/50'
       };
     } else if (score >= 50) {
       return {
-        bg: 'bg-orange-700',
+        bg: 'bg-dark-500',
         text: 'text-white',
-        ring: 'ring-orange-600',
-        shadow: 'shadow-orange-900/50'
+        ring: 'ring-dark-400',
+        shadow: 'shadow-dark-900/50'
       };
     } else {
       return {
-        bg: 'bg-red-700',
+        bg: 'bg-dark-600',
         text: 'text-white',
-        ring: 'ring-red-600',
-        shadow: 'shadow-red-900/50'
+        ring: 'ring-dark-500',
+        shadow: 'shadow-dark-900/50'
       };
     }
   };

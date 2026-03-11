@@ -757,7 +757,7 @@ function GridPlanner() {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-accent-purple animate-spin" />
+        <Loader2 className="w-8 h-8 text-dark-100 animate-spin" />
       </div>
     );
   }
@@ -772,11 +772,11 @@ function GridPlanner() {
     >
       {/* Drop Overlay */}
       {isDraggingFiles && (
-        <div className="absolute inset-0 z-50 bg-dark-900/90 backdrop-blur-sm flex items-center justify-center rounded-2xl border-2 border-dashed border-accent-purple">
+        <div className="absolute inset-0 z-50 bg-dark-900/90 backdrop-blur-sm flex items-center justify-center rounded-2xl border-2 border-dashed border-dark-100">
           <div className="text-center">
             {isDraggingVideo ? (
               <>
-                <svg className="w-16 h-16 text-accent-purple mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-16 h-16 text-dark-100 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -785,7 +785,7 @@ function GridPlanner() {
               </>
             ) : (
               <>
-                <ImagePlus className="w-16 h-16 text-accent-purple mx-auto mb-4" />
+                <ImagePlus className="w-16 h-16 text-dark-100 mx-auto mb-4" />
                 <p className="text-xl font-semibold text-dark-100 mb-2">Drop images here</p>
                 <p className="text-dark-400">Release to upload and add to grid</p>
               </>
@@ -798,13 +798,13 @@ function GridPlanner() {
       {uploading && (
         <div className="absolute inset-0 z-50 bg-dark-900/90 backdrop-blur-sm flex items-center justify-center rounded-2xl">
           <div className="text-center">
-            <Loader2 className="w-12 h-12 text-accent-purple mx-auto mb-4 animate-spin" />
+            <Loader2 className="w-12 h-12 text-dark-100 mx-auto mb-4 animate-spin" />
             <p className="text-lg font-semibold text-dark-100 mb-2">
               Uploading {uploadProgress.current} of {uploadProgress.total}
             </p>
             <div className="w-64 h-2 bg-dark-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-accent-purple transition-all duration-300"
+                className="h-full bg-dark-100 transition-all duration-300"
                 style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
               />
             </div>
@@ -823,7 +823,7 @@ function GridPlanner() {
                 onClick={() => setShowGridSelector(!showGridSelector)}
                 className="flex items-center gap-2 px-3 py-2 bg-dark-800 rounded-lg text-dark-200 hover:bg-dark-700 transition-colors"
               >
-                <LayoutGrid className="w-4 h-4 text-accent-purple" />
+                <LayoutGrid className="w-4 h-4 text-dark-100" />
                 <span className="text-sm max-w-32 truncate">
                   {currentGrid?.name || 'Select Grid'}
                 </span>
@@ -842,7 +842,7 @@ function GridPlanner() {
                         key={grid._id}
                         className={`group relative ${
                           currentGridId === grid._id
-                            ? 'bg-accent-purple/20'
+                            ? 'bg-dark-700'
                             : 'hover:bg-dark-600'
                         }`}
                       >
@@ -858,13 +858,13 @@ function GridPlanner() {
                                 if (e.key === 'Enter') handleSaveRename(e, grid._id);
                                 if (e.key === 'Escape') handleCancelRename(e);
                               }}
-                              className="flex-1 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-dark-100 focus:outline-none focus:border-accent-purple"
+                              className="flex-1 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-dark-100 focus:outline-none focus:border-dark-300"
                               autoFocus
                               onClick={(e) => e.stopPropagation()}
                             />
                             <button
                               onClick={(e) => handleSaveRename(e, grid._id)}
-                              className="p-1 text-green-400 hover:bg-dark-500 rounded"
+                              className="p-1 text-dark-100 hover:bg-dark-500 rounded"
                               title="Save"
                             >
                               <Check className="w-4 h-4" />
@@ -884,7 +884,7 @@ function GridPlanner() {
                             <div className="flex gap-2">
                               <button
                                 onClick={(e) => handleDeleteGrid(e, grid._id)}
-                                className="flex-1 px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                                className="flex-1 px-2 py-1 text-xs bg-dark-600/30 text-dark-300 rounded hover:bg-dark-600/40"
                               >
                                 Delete
                               </button>
@@ -903,7 +903,7 @@ function GridPlanner() {
                               onClick={() => handleSelectGrid(grid)}
                               className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors ${
                                 currentGridId === grid._id
-                                  ? 'text-accent-purple'
+                                  ? 'text-dark-100'
                                   : 'text-dark-200'
                               }`}
                             >
@@ -927,7 +927,7 @@ function GridPlanner() {
                                     setShowColorPickerFor(showColorPickerFor === grid._id ? null : grid._id);
                                     setShowRolloutPickerFor(null);
                                   }}
-                                  className="p-1 text-dark-400 hover:text-accent-purple hover:bg-dark-500 rounded"
+                                  className="p-1 text-dark-400 hover:text-white hover:bg-dark-500 rounded"
                                   title="Set Color"
                                 >
                                   <Palette className="w-3.5 h-3.5" />
@@ -940,7 +940,7 @@ function GridPlanner() {
                                     setShowColorPickerFor(null);
                                   }}
                                   className={`p-1 hover:bg-dark-500 rounded ${
-                                    gridMeta[grid._id]?.rolloutId ? 'text-green-400' : 'text-dark-400 hover:text-accent-purple'
+                                    gridMeta[grid._id]?.rolloutId ? 'text-dark-100' : 'text-dark-400 hover:text-white'
                                   }`}
                                   title={gridMeta[grid._id]?.rolloutId ? 'Change Rollout' : 'Assign to Rollout'}
                                 >
@@ -948,14 +948,14 @@ function GridPlanner() {
                                 </button>
                                 <button
                                   onClick={(e) => handleStartRename(e, grid)}
-                                  className="p-1 text-dark-400 hover:text-accent-purple hover:bg-dark-500 rounded"
+                                  className="p-1 text-dark-400 hover:text-white hover:bg-dark-500 rounded"
                                   title="Rename"
                                 >
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                 onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(grid._id); }}
-                                className="p-1 text-dark-400 hover:text-red-400 hover:bg-dark-500 rounded"
+                                className="p-1 text-dark-400 hover:text-dark-200 hover:bg-dark-500 rounded"
                                 title="Delete"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1032,7 +1032,7 @@ function GridPlanner() {
                                             />
                                             <span className="text-xs text-dark-200 truncate">{section.name}</span>
                                             {gridMeta[grid._id]?.sectionId === section.id && (
-                                              <Check className="w-3 h-3 text-green-400 ml-auto" />
+                                              <Check className="w-3 h-3 text-dark-100 ml-auto" />
                                             )}
                                           </button>
                                         ))
@@ -1043,7 +1043,7 @@ function GridPlanner() {
                                 {gridMeta[grid._id]?.rolloutId && (
                                   <button
                                     onClick={(e) => handleUnassignGridFromRollout(e, grid._id)}
-                                    className="w-full mt-2 px-2 py-1.5 text-xs text-red-400 hover:bg-red-500/20 rounded flex items-center gap-2"
+                                    className="w-full mt-2 px-2 py-1.5 text-xs text-dark-300 hover:bg-dark-600/30 rounded flex items-center gap-2"
                                   >
                                     <Unlink className="w-3 h-3" />
                                     Remove from Rollout
@@ -1067,7 +1067,7 @@ function GridPlanner() {
                   <div className="p-2 border-t border-dark-600">
                     <button
                       onClick={handleCreateGrid}
-                      className="w-full px-3 py-2 text-sm text-accent-purple hover:bg-dark-600 rounded-md flex items-center gap-2"
+                      className="w-full px-3 py-2 text-sm text-dark-100 hover:bg-dark-600 rounded-md flex items-center gap-2"
                     >
                       <FolderPlus className="w-4 h-4" />
                       Create New Collection
@@ -1094,7 +1094,7 @@ function GridPlanner() {
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(currentGrid._id); }}
-                    className="btn-icon hover:text-red-400"
+                    className="btn-icon hover:text-dark-200"
                     title="Delete Collection"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -1116,7 +1116,7 @@ function GridPlanner() {
                       if (e.key === 'Enter') handleSaveRename(e, editingGridId);
                       if (e.key === 'Escape') handleCancelRename(e);
                     }}
-                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-dark-100 focus:outline-none focus:border-accent-purple mb-3"
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-dark-100 focus:outline-none focus:border-dark-300 mb-3"
                     autoFocus
                     placeholder="Collection name"
                   />
@@ -1155,7 +1155,7 @@ function GridPlanner() {
                     </button>
                     <button
                       onClick={(e) => handleDeleteGrid(e, showDeleteConfirm)}
-                      className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
+                      className="flex-1 px-4 py-2 bg-dark-600/30 text-dark-300 rounded-lg hover:bg-dark-600/40 transition-colors"
                     >
                       Delete
                     </button>
@@ -1172,7 +1172,7 @@ function GridPlanner() {
                   onClick={() => setActiveLayout(layout.id)}
                   className={`p-2 rounded-md transition-colors ${
                     activeLayout === layout.id
-                      ? 'bg-accent-purple text-white'
+                      ? 'bg-dark-100 text-dark-900'
                       : 'text-dark-400 hover:text-dark-200'
                   }`}
                   title={layout.label}
@@ -1187,7 +1187,7 @@ function GridPlanner() {
               onClick={() => setIsLocked(!isLocked)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                 isLocked
-                  ? 'bg-accent-orange/20 text-accent-orange'
+                  ? 'bg-dark-700 text-dark-100'
                   : 'bg-dark-700 text-dark-300 hover:text-dark-100'
               }`}
             >
@@ -1209,7 +1209,7 @@ function GridPlanner() {
               onClick={() => setShowRowHandles(!showRowHandles)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                 showRowHandles
-                  ? 'bg-accent-purple/20 text-accent-purple'
+                  ? 'bg-dark-700 text-dark-100'
                   : 'bg-dark-700 text-dark-300 hover:text-dark-100'
               }`}
               title={showRowHandles ? 'Hide row handles' : 'Show row handles'}
@@ -1245,7 +1245,7 @@ function GridPlanner() {
                     onClick={() => { setSelectedPlatform('instagram'); setShowPlatformSelector(false); }}
                     className={`w-full px-4 py-3 text-left text-sm flex items-center gap-3 transition-colors ${
                       selectedPlatform === 'instagram'
-                        ? 'bg-accent-purple/20 text-accent-purple'
+                        ? 'bg-dark-700 text-dark-100'
                         : 'text-dark-200 hover:bg-dark-600'
                     }`}
                   >
@@ -1259,7 +1259,7 @@ function GridPlanner() {
                     onClick={() => { setSelectedPlatform('tiktok'); setShowPlatformSelector(false); }}
                     className={`w-full px-4 py-3 text-left text-sm flex items-center gap-3 transition-colors ${
                       selectedPlatform === 'tiktok'
-                        ? 'bg-accent-purple/20 text-accent-purple'
+                        ? 'bg-dark-700 text-dark-100'
                         : 'text-dark-200 hover:bg-dark-600'
                     }`}
                   >
@@ -1278,7 +1278,7 @@ function GridPlanner() {
               onClick={() => setShowPreview(!showPreview)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
                 showPreview
-                  ? 'bg-accent-purple/20 text-accent-purple'
+                  ? 'bg-dark-700 text-dark-100'
                   : 'bg-dark-700 text-dark-300 hover:text-dark-100'
               }`}
             >
@@ -1325,7 +1325,7 @@ function GridPlanner() {
 
         {/* Error State */}
         {error && (
-          <div className="mb-4 p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400">
+          <div className="mb-4 p-4 bg-dark-700/50 border border-dark-600 rounded-lg text-dark-300">
             {error}
             <button onClick={fetchGrids} className="ml-4 underline">
               Retry
@@ -1335,8 +1335,8 @@ function GridPlanner() {
 
         {/* Login Required Banner */}
         {!isAuthenticated && (
-          <div className="mb-4 p-4 bg-accent-purple/20 border border-accent-purple/50 rounded-lg flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-accent-purple flex-shrink-0" />
+          <div className="mb-4 p-4 bg-dark-700 border border-dark-600 rounded-lg flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-dark-300 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-dark-100 font-medium">Sign in to save your grids</p>
               <p className="text-sm text-dark-400">Your uploads won't be saved until you log in</p>
@@ -1366,7 +1366,7 @@ function GridPlanner() {
                 <div className={`w-10 h-10 rounded-full ${
                   selectedPlatform === 'tiktok'
                     ? 'bg-gradient-to-br from-cyan-400 to-pink-500'
-                    : 'bg-gradient-to-br from-accent-purple to-accent-pink'
+                    : 'bg-dark-100'
                 }`} />
                 <div>
                   <p className="text-sm font-medium text-dark-100">
@@ -1410,7 +1410,7 @@ function GridPlanner() {
                             className={`p-1 rounded transition-colors ${
                               rowIndex === 0 || isLocked
                                 ? 'text-dark-600 cursor-not-allowed'
-                                : 'text-dark-400 hover:text-accent-purple hover:bg-dark-700'
+                                : 'text-dark-400 hover:text-white hover:bg-dark-700'
                             }`}
                             title="Move row up"
                           >
@@ -1425,7 +1425,7 @@ function GridPlanner() {
                             className={`p-1 rounded transition-colors ${
                               rowIndex === getRows().length - 1 || isLocked
                                 ? 'text-dark-600 cursor-not-allowed'
-                                : 'text-dark-400 hover:text-accent-purple hover:bg-dark-700'
+                                : 'text-dark-400 hover:text-white hover:bg-dark-700'
                             }`}
                             title="Move row down"
                           >
@@ -1466,7 +1466,7 @@ function GridPlanner() {
 
                   <DragOverlay>
                     {activePost ? (
-                      <div className="aspect-square bg-dark-600 rounded-lg overflow-hidden opacity-80 ring-2 ring-accent-purple">
+                      <div className="aspect-square bg-dark-600 rounded-lg overflow-hidden opacity-80 ring-2 ring-dark-300">
                         {activePost.image ? (
                           <img
                             src={activePost.image}
@@ -1511,7 +1511,7 @@ function GridPlanner() {
         <div className="mt-4 flex items-center gap-6 text-sm text-dark-400">
           <span>{gridPosts.length} posts</span>
           <span>{Math.ceil(gridPosts.length / (currentLayout?.cols || 3))} rows</span>
-          <span className="text-accent-purple">
+          <span className="text-dark-100">
             {isLocked ? 'Grid locked' : 'Drag to reorder'}
           </span>
 
@@ -1536,13 +1536,13 @@ function GridPlanner() {
                   [&::-webkit-slider-thumb]:w-3
                   [&::-webkit-slider-thumb]:h-3
                   [&::-webkit-slider-thumb]:rounded-full
-                  [&::-webkit-slider-thumb]:bg-accent-purple
+                  [&::-webkit-slider-thumb]:bg-dark-100
                   [&::-webkit-slider-thumb]:cursor-pointer
-                  [&::-webkit-slider-thumb]:hover:bg-accent-purple/80
+                  [&::-webkit-slider-thumb]:hover:bg-white
                   [&::-moz-range-thumb]:w-3
                   [&::-moz-range-thumb]:h-3
                   [&::-moz-range-thumb]:rounded-full
-                  [&::-moz-range-thumb]:bg-accent-purple
+                  [&::-moz-range-thumb]:bg-dark-100
                   [&::-moz-range-thumb]:border-0
                   [&::-moz-range-thumb]:cursor-pointer"
               />

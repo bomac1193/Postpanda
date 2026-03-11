@@ -47,7 +47,7 @@ function SortableVideoItem({ video, isSelected, isLocked, isDropTarget, onClick,
   const statusColors = {
     draft: 'bg-dark-500 text-dark-300',
     scheduled: 'bg-amber-500/20 text-amber-400',
-    published: 'bg-green-500/20 text-green-400',
+    published: 'bg-dark-600/30 text-dark-100',
   };
 
   const statusLabels = {
@@ -63,9 +63,9 @@ function SortableVideoItem({ video, isSelected, isLocked, isDropTarget, onClick,
       onClick={onClick}
       className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
         isDropTarget
-          ? 'bg-red-500/15 border border-red-400/60 scale-[1.01]'
+          ? 'bg-dark-600/25 border border-dark-400/60 scale-[1.01]'
           : isSelected
-            ? 'bg-red-500/20 border border-red-500/50'
+            ? 'bg-dark-700 border border-dark-500/50'
             : 'bg-dark-700 hover:bg-dark-600 border border-transparent'
       } ${isDragging ? 'opacity-30' : ''}`}
     >
@@ -102,7 +102,7 @@ function SortableVideoItem({ video, isSelected, isLocked, isDropTarget, onClick,
       {/* Video Info */}
       <div className="flex-1 min-w-0">
         <h4 className="text-sm font-medium text-dark-100 truncate">
-          {video.title || 'Untitled Video'}
+          {video.artistName ? `${video.artistName} - ${video.title}` : video.title || 'Untitled Video'}
         </h4>
         <div className="flex items-center gap-2 mt-1">
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColors[video.status] || statusColors.draft}`}>
@@ -129,7 +129,7 @@ function SortableVideoItem({ video, isSelected, isLocked, isDropTarget, onClick,
             e.stopPropagation();
             onDelete();
           }}
-          className="p-1.5 text-dark-500 hover:text-red-400 hover:bg-dark-600 rounded transition-colors"
+          className="p-1.5 text-dark-500 hover:text-dark-200 hover:bg-dark-600 rounded transition-colors"
           title="Delete"
         >
           <Trash2 className="w-4 h-4" />
@@ -229,8 +229,8 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center py-16 px-8 border-2 border-dashed border-dark-600 rounded-xl max-w-md">
-          <div className="w-16 h-16 mx-auto mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
-            <Youtube className="w-8 h-8 text-red-500" />
+          <div className="w-16 h-16 mx-auto mb-4 bg-dark-700 rounded-full flex items-center justify-center">
+            <Youtube className="w-8 h-8 text-dark-100" />
           </div>
           <h3 className="text-lg font-semibold text-dark-100 mb-2">
             No Videos Yet
@@ -259,7 +259,7 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-dark-700">
         <div className="flex items-center gap-2">
-          <Youtube className="w-5 h-5 text-red-500" />
+          <Youtube className="w-5 h-5 text-dark-100" />
           <span className="text-sm font-medium text-dark-200">
             {youtubeVideos.length} Videos
           </span>
@@ -300,7 +300,7 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
 
           <DragOverlay dropAnimation={null}>
             {activeDragVideo ? (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-dark-700 border border-red-500/50 opacity-90 shadow-2xl shadow-red-500/20">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-dark-700 border border-dark-500/50 opacity-90 shadow-2xl">
                 <div className="relative w-32 aspect-video rounded-md overflow-hidden flex-shrink-0 bg-dark-600">
                   {activeDragVideo.thumbnail ? (
                     <img
@@ -314,7 +314,7 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-medium text-dark-100 truncate">
-                    {activeDragVideo.title || 'Untitled Video'}
+                    {activeDragVideo.artistName ? `${activeDragVideo.artistName} - ${activeDragVideo.title}` : activeDragVideo.title || 'Untitled Video'}
                   </h4>
                 </div>
               </div>
@@ -323,7 +323,7 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
         </DndContext>
 
         {/* Add New Button */}
-        <label className="mt-3 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-dark-600 hover:border-red-500 rounded-lg cursor-pointer text-dark-400 hover:text-red-500 transition-colors">
+        <label className="mt-3 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-dark-600 hover:border-dark-100 rounded-lg cursor-pointer text-dark-400 hover:text-dark-100 transition-colors">
           <Upload className="w-4 h-4" />
           <span className="text-sm font-medium">Add Video</span>
           <input
@@ -339,7 +339,7 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
       <div className="px-4 py-2 border-t border-dark-700 flex items-center gap-4 text-xs text-dark-400">
         <span>{youtubeVideos.filter((v) => v.status === 'draft').length} drafts</span>
         <span>{youtubeVideos.filter((v) => v.status === 'scheduled').length} scheduled</span>
-        <span className="text-red-400 ml-auto">
+        <span className="text-dark-300 ml-auto">
           {isLocked ? 'List locked' : 'Drag to reorder'}
         </span>
       </div>

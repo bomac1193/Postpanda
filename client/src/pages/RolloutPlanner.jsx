@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, ChevronDown, Trash2, Edit3, Check, X, GripVertical, Folder, Search, Tag, Youtube, Instagram, LayoutGrid, Film, Loader2, Calendar, Flag, Target, Sparkles } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, ChevronDown, Trash2, Edit3, Check, X, GripVertical, Folder, Search, Tag, Youtube, Instagram, LayoutGrid, Film, Loader2, Calendar } from 'lucide-react';
 import { useAppStore } from '../stores/useAppStore';
 import { gridApi, reelCollectionApi, rolloutApi } from '../lib/api';
 import RolloutIntelligencePanel from '../components/rollout/RolloutIntelligencePanel';
@@ -108,32 +108,30 @@ function RolloutSchedulingPanel({ rollout, onSchedule, saving }) {
   const daysUntilEnd = getDaysUntil(rollout.endDate);
 
   return (
-    <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
+    <div className="bg-dark-800/60 rounded-lg overflow-hidden">
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-dark-750 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-dark-800 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <Calendar className="w-5 h-5 text-accent-purple" />
-          <span className="font-medium text-white">Rollout Schedule</span>
+          <span className="text-xs text-dark-300 uppercase tracking-wider">Schedule</span>
           {(rollout.startDate || rollout.endDate) && (
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-xs text-dark-400">
               {rollout.startDate && (
-                <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 rounded">
-                  <Flag className="w-3 h-3" />
+                <span>
                   {new Date(rollout.startDate).toLocaleDateString()}
                   {daysUntilStart !== null && daysUntilStart >= 0 && (
-                    <span className="text-xs opacity-75">({daysUntilStart}d)</span>
+                    <span className="ml-1 opacity-60">({daysUntilStart}d)</span>
                   )}
                 </span>
               )}
+              {rollout.startDate && rollout.endDate && <span className="text-dark-600">&mdash;</span>}
               {rollout.endDate && (
-                <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded">
-                  <Target className="w-3 h-3" />
+                <span>
                   {new Date(rollout.endDate).toLocaleDateString()}
                   {daysUntilEnd !== null && (
-                    <span className={`text-xs opacity-75 ${daysUntilEnd < 0 ? 'text-red-400' : ''}`}>
+                    <span className={`ml-1 opacity-60 ${daysUntilEnd < 0 ? 'text-dark-300' : ''}`}>
                       ({daysUntilEnd < 0 ? 'overdue' : `${daysUntilEnd}d`})
                     </span>
                   )}
@@ -142,27 +140,25 @@ function RolloutSchedulingPanel({ rollout, onSchedule, saving }) {
             </div>
           )}
         </div>
-        <ChevronDown className={`w-5 h-5 text-dark-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-dark-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
       </button>
 
       {isExpanded && (
-        <div className="px-4 py-4 border-t border-dark-700">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="px-4 py-3 border-t border-dark-800">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-dark-300 mb-2">
-                <Flag className="w-4 h-4 inline mr-1" />
-                Start Date
+              <label className="block text-[11px] text-dark-500 uppercase tracking-wider mb-1.5">
+                Start
               </label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-accent-purple"
+                className="w-full px-3 py-2 bg-dark-800 border border-dark-700/50 rounded text-white text-sm focus:outline-none focus:border-dark-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-dark-300 mb-2">
-                <Target className="w-4 h-4 inline mr-1" />
+              <label className="block text-[11px] text-dark-500 uppercase tracking-wider mb-1.5">
                 Deadline
               </label>
               <input
@@ -170,18 +166,18 @@ function RolloutSchedulingPanel({ rollout, onSchedule, saving }) {
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 min={startDate || undefined}
-                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-accent-purple"
+                className="w-full px-3 py-2 bg-dark-800 border border-dark-700/50 rounded text-white text-sm focus:outline-none focus:border-dark-500"
               />
             </div>
           </div>
 
           {hasChanges && (
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end mt-3">
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/90 disabled:opacity-50"
+                className="flex items-center gap-2 px-3 py-1.5 text-xs text-white bg-white/10 rounded hover:bg-white/20 disabled:opacity-50 transition-colors"
               >
                 {saving ? (
                   <>
@@ -572,31 +568,18 @@ function RolloutPlanner() {
     ? currentRollout?.sections?.find((s) => s.id === pickerSectionId)?.collectionIds || []
     : [];
 
-  const recommendedTemplate = useMemo(() => {
-    if (currentRollout?.templateId) {
-      return ROLLOUT_TEMPLATES.find((tpl) => tpl.id === currentRollout.templateId) || null;
-    }
-    return ROLLOUT_TEMPLATES.find((tpl) => tpl.tag === 'Core') || ROLLOUT_TEMPLATES[0];
-  }, [currentRollout]);
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-display font-semibold text-white uppercase tracking-widest">Rollout Planner</h1>
-          <p className="text-dark-400 text-sm mt-1">Organize your campaign phases</p>
-        </div>
-      </div>
+    <div className="space-y-4">
+      {/* Header + Toolbar */}
+      <div className="flex items-center gap-3">
+        <h2 className="text-sm font-medium text-dark-300 uppercase tracking-widest">Rollout</h2>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-4 flex-wrap">
         {/* Dropdown Selector */}
         <div className="relative">
           <button
             type="button"
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-3 px-4 py-2.5 bg-dark-800 border border-dark-700 rounded-lg text-white hover:border-dark-600 transition-colors min-w-[200px]"
+            className="flex items-center gap-2 px-3 py-1.5 bg-transparent border border-dark-700/50 rounded text-white hover:border-dark-500 transition-colors min-w-[180px]"
           >
             <span className="flex-1 text-left truncate">
               {currentRollout?.name || 'Select Rollout'}
@@ -605,7 +588,7 @@ function RolloutPlanner() {
           </button>
 
           {dropdownOpen && (
-            <div className="absolute top-full left-0 mt-2 w-72 bg-dark-800 border border-dark-700 rounded-lg shadow-xl z-50 overflow-hidden">
+            <div className="absolute top-full left-0 mt-1 w-64 bg-dark-900 border border-dark-700/50 rounded-lg shadow-2xl z-50 overflow-hidden">
               {rollouts.length > 0 && (
                 <div className="max-h-60 overflow-y-auto">
                   {rollouts.map((rollout) => (
@@ -613,22 +596,14 @@ function RolloutPlanner() {
                       key={rollout.id}
                       type="button"
                       onClick={() => handleSelectRollout(rollout)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                      className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
                         rollout.id === currentRolloutId
-                          ? 'bg-accent-purple/20 text-accent-purple'
-                          : 'text-dark-200 hover:bg-dark-700'
+                          ? 'bg-dark-800 text-white'
+                          : 'text-dark-300 hover:text-white hover:bg-dark-800/50'
                       }`}
                     >
                       <span className="flex-1 truncate">{rollout.name}</span>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          rollout.status === 'active'
-                            ? 'bg-green-500/20 text-green-400'
-                            : rollout.status === 'completed'
-                            ? 'bg-blue-500/20 text-blue-400'
-                            : 'bg-dark-600 text-dark-300'
-                        }`}
-                      >
+                      <span className="text-[10px] text-dark-500 uppercase tracking-wider">
                         {rollout.status}
                       </span>
                     </button>
@@ -636,7 +611,7 @@ function RolloutPlanner() {
                 </div>
               )}
 
-              <div className="p-3 border-t border-dark-700">
+              <div className="p-2.5 border-t border-dark-700/50">
                 {isCreating ? (
                   <div className="flex gap-2">
                     <input
@@ -649,12 +624,12 @@ function RolloutPlanner() {
                         if (e.key === 'Enter') handleCreateRollout();
                         if (e.key === 'Escape') setIsCreating(false);
                       }}
-                      className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white text-sm focus:outline-none focus:border-accent-purple"
+                      className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white text-sm focus:outline-none focus:border-dark-300"
                     />
                     <button
                       type="button"
                       onClick={handleCreateRollout}
-                      className="p-2 bg-green-600 rounded-lg text-white hover:bg-green-500"
+                      className="p-2 bg-dark-100 rounded-lg text-white hover:bg-white"
                     >
                       <Check className="w-4 h-4" />
                     </button>
@@ -670,7 +645,7 @@ function RolloutPlanner() {
                   <button
                     type="button"
                     onClick={() => setIsCreating(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 border border-dashed border-dark-600 rounded-lg text-dark-400 hover:border-accent-purple hover:text-accent-purple transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-dark-500 hover:text-white transition-colors text-sm"
                   >
                     <Plus className="w-4 h-4" />
                     <span>New Rollout</span>
@@ -695,12 +670,12 @@ function RolloutPlanner() {
                     if (e.key === 'Escape') setEditingName(false);
                   }}
                   autoFocus
-                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 rounded-lg text-white text-sm focus:outline-none focus:border-accent-purple"
+                  className="px-3 py-1.5 bg-dark-700 border border-dark-600 rounded-lg text-white text-sm focus:outline-none focus:border-dark-300"
                 />
                 <button
                   type="button"
                   onClick={handleSaveName}
-                  className="p-1.5 text-green-400 hover:bg-dark-700 rounded"
+                  className="p-1.5 text-dark-100 hover:bg-dark-700 rounded"
                 >
                   <Check className="w-4 h-4" />
                 </button>
@@ -725,7 +700,7 @@ function RolloutPlanner() {
                 <button
                   type="button"
                   onClick={handleDeleteRollout}
-                  className="p-2 text-dark-400 hover:text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
+                  className="p-2 text-dark-400 hover:text-dark-200 hover:bg-dark-700 rounded-lg transition-colors"
                   title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -737,7 +712,7 @@ function RolloutPlanner() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4 border-b border-dark-800">
         {[
           { id: 'schedule', label: 'Schedule' },
           { id: 'templates', label: 'Templates' },
@@ -745,8 +720,10 @@ function RolloutPlanner() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
-              activeTab === tab.id ? 'bg-accent-purple text-white' : 'text-dark-400 hover:text-white bg-dark-800 border border-dark-700'
+            className={`pb-2 text-xs tracking-wide transition-colors border-b ${
+              activeTab === tab.id
+                ? 'text-white border-white'
+                : 'text-dark-500 border-transparent hover:text-dark-300'
             }`}
           >
             {tab.label}
@@ -756,42 +733,36 @@ function RolloutPlanner() {
 
       {/* Templates Tab */}
       {activeTab === 'templates' && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-accent-purple" />
-            <h2 className="text-lg font-semibold text-white">Rollout Templates</h2>
-            <span className="text-xs text-dark-500">Core blueprints + inspired overlays</span>
-          </div>
+        <div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {ROLLOUT_TEMPLATES.map((tpl) => (
-              <div key={tpl.id} className="border border-dark-700 bg-dark-900 rounded-lg p-4 flex flex-col gap-2">
+              <div key={tpl.id} className={`bg-dark-800/60 rounded-lg p-4 flex flex-col gap-2 hover:bg-dark-800 transition-colors border-l-2 ${
+                tpl.tag === 'Inspired' ? 'border-l-pink-500/40' : 'border-l-dark-400/40'
+              }`}>
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-white">{tpl.name}</p>
-                    <p className="text-xs text-dark-400">{tpl.description}</p>
-                  </div>
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full border ${tpl.tag === 'Inspired' ? 'border-pink-500/50 text-pink-300' : 'border-accent-purple/50 text-accent-purple'}`}>
+                  <p className="text-sm font-medium text-white">{tpl.name}</p>
+                  <span className={`text-[10px] uppercase tracking-wider ${
+                    tpl.tag === 'Inspired' ? 'text-pink-400/60' : 'text-dark-500'
+                  }`}>
                     {tpl.tag}
                   </span>
                 </div>
-                <div className="text-xs text-dark-400">
-                  {tpl.phases.map(p => p.name).join(' · ')}
+                <p className="text-xs text-dark-400 leading-relaxed">{tpl.description}</p>
+                <div className="text-[11px] text-dark-500 tracking-wide">
+                  {tpl.phases.map(p => p.name).join('  /  ')}
                 </div>
                 <button
                   onClick={() => handleApplyTemplate(tpl)}
                   disabled={!!templateApplying}
-                  className="mt-2 inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-dark-600 text-sm text-white hover:border-accent-purple disabled:opacity-50"
+                  className="mt-2 self-start text-xs text-dark-400 hover:text-white transition-colors disabled:opacity-50"
                 >
                   {templateApplying === tpl.id ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin inline mr-1.5" />
                       Applying...
                     </>
                   ) : (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Apply Template
-                    </>
+                    'Apply'
                   )}
                 </button>
               </div>
@@ -803,28 +774,6 @@ function RolloutPlanner() {
       {/* Schedule Tab */}
       {activeTab === 'schedule' && (
         <>
-          <div className="flex flex-col gap-1 text-sm text-dark-200">
-            {currentRollout?.templateName && (
-              <div className="flex items-center gap-2 text-xs text-dark-300">
-                <Sparkles className="w-4 h-4 text-accent-purple" />
-                <span>Applied template: {currentRollout.templateName}</span>
-              </div>
-            )}
-            {recommendedTemplate && (
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-accent-purple" />
-                <div className="flex flex-col">
-                  <span className="font-semibold text-white">
-                    Recommended template: {recommendedTemplate.name}
-                  </span>
-                  <span className="text-xs text-dark-400">
-                    {recommendedTemplate.description}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Rollout Scheduling Panel */}
           {currentRollout && (
             <RolloutSchedulingPanel
@@ -859,27 +808,21 @@ function RolloutPlanner() {
 
           {/* Content */}
           {!currentRollout ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="text-center max-w-md">
-                <h2 className="text-xl font-display text-white mb-2">No Rollout Selected</h2>
-                <p className="text-dark-400 mb-6">
-                  Select an existing rollout or create a new one to get started.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDropdownOpen(true);
-                    setIsCreating(true);
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/90 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Rollout
-                </button>
-              </div>
+            <div className="flex flex-col items-center justify-center py-12">
+              <p className="text-xs text-dark-500 mb-4 tracking-wide">No rollout selected</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setDropdownOpen(true);
+                  setIsCreating(true);
+                }}
+                className="text-xs text-dark-400 hover:text-white transition-colors"
+              >
+                + Create Rollout
+              </button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Sections */}
               {currentRollout.sections
                 .sort((a, b) => a.order - b.order)
@@ -918,10 +861,9 @@ function RolloutPlanner() {
               <button
                 type="button"
                 onClick={handleAddSection}
-                className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-dark-700 rounded-xl text-dark-400 hover:border-accent-purple hover:text-accent-purple transition-colors"
+                className="w-full py-3 text-xs text-dark-500 hover:text-white transition-colors tracking-wide"
               >
-                <Plus className="w-5 h-5" />
-                <span>Add Section</span>
+                + Add Section
               </button>
             </div>
           )}
@@ -988,46 +930,36 @@ function RolloutSection({
 
   return (
     <div
-      className={`bg-dark-800 border border-dark-700 rounded-xl overflow-hidden transition-all ${
-        isDragging ? 'opacity-50 border-accent-purple' : ''
+      className={`bg-dark-800/60 rounded-lg overflow-hidden transition-all border-l-2 border-l-accent-purple/60 ${
+        isDragging ? 'opacity-50 ring-1 ring-dark-500' : ''
       }`}
-      style={{ borderLeftWidth: '4px', borderLeftColor: '#4b5563' }}
       draggable
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
     >
       {/* Section Header */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-dark-750 border-b border-dark-700">
-        <div className="cursor-grab text-dark-500 hover:text-dark-300">
-          <GripVertical className="w-5 h-5" />
+      <div className="flex items-center gap-2 px-4 py-2.5">
+        <div className="cursor-grab text-dark-600 hover:text-dark-400">
+          <GripVertical className="w-3.5 h-3.5" />
         </div>
 
-        <span className="text-xs font-medium px-2 py-1 rounded bg-dark-700 text-dark-300">
-          Phase {index + 1}
+        <span className="text-[10px] text-dark-500 uppercase tracking-widest">
+          {index + 1}
         </span>
 
         {/* Section dates display */}
         {(section.startDate || section.deadline) && (
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 text-[11px] text-dark-500">
             {section.startDate && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded">
-                <Flag className="w-3 h-3" />
-                {new Date(section.startDate).toLocaleDateString()}
-              </span>
+              <span>{new Date(section.startDate).toLocaleDateString()}</span>
             )}
+            {section.startDate && section.deadline && <span>&mdash;</span>}
             {section.deadline && (
-              <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${
-                daysUntilDeadline !== null && daysUntilDeadline < 0
-                  ? 'bg-red-500/20 text-red-400'
-                  : daysUntilDeadline !== null && daysUntilDeadline <= 3
-                  ? 'bg-orange-500/20 text-orange-400'
-                  : 'bg-blue-500/20 text-blue-400'
-              }`}>
-                <Target className="w-3 h-3" />
+              <span className={daysUntilDeadline !== null && daysUntilDeadline < 0 ? 'text-dark-300' : ''}>
                 {new Date(section.deadline).toLocaleDateString()}
                 {daysUntilDeadline !== null && (
-                  <span className="opacity-75">
+                  <span className="ml-1 opacity-60">
                     ({daysUntilDeadline < 0 ? 'overdue' : `${daysUntilDeadline}d`})
                   </span>
                 )}
@@ -1047,9 +979,9 @@ function RolloutSection({
                 if (e.key === 'Escape') setIsEditing(false);
               }}
               autoFocus
-              className="flex-1 px-2 py-1 bg-dark-700 border border-dark-600 rounded text-white text-sm focus:outline-none focus:border-accent-purple"
+              className="flex-1 px-2 py-1 bg-dark-700 border border-dark-600 rounded text-white text-sm focus:outline-none focus:border-dark-300"
             />
-            <button type="button" onClick={handleSaveName} className="p-1 text-green-400">
+            <button type="button" onClick={handleSaveName} className="p-1 text-dark-100">
               <Check className="w-4 h-4" />
             </button>
             <button type="button" onClick={() => setIsEditing(false)} className="p-1 text-dark-400">
@@ -1057,7 +989,7 @@ function RolloutSection({
             </button>
           </div>
         ) : (
-          <h3 className="flex-1 font-medium text-white">{section.name}</h3>
+          <h3 className="flex-1 text-sm font-medium text-white">{section.name}</h3>
         )}
 
         <div className="flex items-center gap-1">
@@ -1067,11 +999,11 @@ function RolloutSection({
               type="button"
               onClick={() => setShowDatePicker(!showDatePicker)}
               className={`p-1.5 hover:bg-dark-700 rounded transition-colors ${
-                section.startDate || section.deadline ? 'text-accent-purple' : 'text-dark-400 hover:text-white'
+                section.startDate || section.deadline ? 'text-dark-100' : 'text-dark-400 hover:text-white'
               }`}
               title="Set dates"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-4 h-4 text-white" />
             </button>
             {showDatePicker && (
               <div className="absolute top-full right-0 mt-1 w-64 bg-dark-900 border border-dark-600 rounded-lg shadow-xl z-50 p-3">
@@ -1079,19 +1011,17 @@ function RolloutSection({
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs text-dark-400 mb-1">
-                      <Flag className="w-3 h-3 inline mr-1" />
                       Start Date
                     </label>
                     <input
                       type="date"
                       value={sectionStartDate}
                       onChange={(e) => setSectionStartDate(e.target.value)}
-                      className="w-full px-2 py-1.5 bg-dark-700 border border-dark-600 rounded text-sm text-white focus:outline-none focus:border-accent-purple"
+                      className="w-full px-2 py-1.5 bg-dark-700 border border-dark-600 rounded text-sm text-white focus:outline-none focus:border-dark-300"
                     />
                   </div>
                   <div>
                     <label className="block text-xs text-dark-400 mb-1">
-                      <Target className="w-3 h-3 inline mr-1" />
                       Deadline
                     </label>
                     <input
@@ -1099,7 +1029,7 @@ function RolloutSection({
                       value={sectionDeadline}
                       onChange={(e) => setSectionDeadline(e.target.value)}
                       min={sectionStartDate || undefined}
-                      className="w-full px-2 py-1.5 bg-dark-700 border border-dark-600 rounded text-sm text-white focus:outline-none focus:border-accent-purple"
+                      className="w-full px-2 py-1.5 bg-dark-700 border border-dark-600 rounded text-sm text-white focus:outline-none focus:border-dark-300"
                     />
                   </div>
                   <div className="flex gap-2 pt-2">
@@ -1113,7 +1043,7 @@ function RolloutSection({
                     <button
                       type="button"
                       onClick={handleSaveDates}
-                      className="flex-1 px-3 py-1.5 text-xs bg-accent-purple text-white rounded hover:bg-accent-purple/90"
+                      className="flex-1 px-3 py-1.5 text-xs bg-dark-100 text-dark-900 rounded hover:bg-white"
                     >
                       Save
                     </button>
@@ -1138,7 +1068,7 @@ function RolloutSection({
           <button
             type="button"
             onClick={() => onDeleteSection(section.id)}
-            className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-dark-700 rounded transition-colors"
+            className="p-1.5 text-dark-400 hover:text-dark-200 hover:bg-dark-700 rounded transition-colors"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -1146,11 +1076,11 @@ function RolloutSection({
       </div>
 
       {/* Section Content */}
-      <div className="p-4">
+      <div className="px-4 pb-3">
         {collections.length === 0 ? (
-          <p className="text-center text-dark-500 py-4">No collections in this section</p>
+          <p className="text-center text-dark-600 text-xs py-3">No collections</p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
             {collections.map((collection) => (
               <CollectionCard
                 key={collection.id}
@@ -1164,10 +1094,9 @@ function RolloutSection({
         <button
           type="button"
           onClick={onOpenPicker}
-          className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-dark-600 rounded-lg text-dark-400 hover:border-accent-purple hover:text-accent-purple transition-colors text-sm"
+          className="w-full py-2 text-xs text-dark-500 hover:text-white transition-colors tracking-wide"
         >
-          <Plus className="w-4 h-4" />
-          <span>Add Collection</span>
+          + Add Collection
         </button>
       </div>
     </div>
@@ -1235,44 +1164,23 @@ function CollectionCard({ collection, onRemove }) {
 
   return (
     <div
-      className="group relative flex items-center gap-3 p-3 bg-dark-750 border border-dark-600 rounded-lg hover:border-dark-500 transition-colors"
-      style={{ borderLeftWidth: '3px', borderLeftColor: collectionColor }}
+      className="group relative flex items-center gap-2.5 p-2.5 bg-dark-800 rounded hover:bg-dark-700 transition-colors border-l-2"
+      style={{ borderLeftColor: platformColor }}
     >
-      <div
-        className="w-9 h-9 rounded-lg flex items-center justify-center"
-        style={{ backgroundColor: `${platformColor}20`, color: platformColor }}
-      >
-        {getPlatformIcon(collection.platform)}
-      </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm font-medium text-white truncate">{collection.name}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-white truncate">{collection.name}</span>
           {collection.platform && (
-            <span
-              className="text-[10px] px-1 py-0.5 rounded capitalize flex-shrink-0"
-              style={{ backgroundColor: `${platformColor}20`, color: platformColor }}
-            >
+            <span className="text-[10px] flex-shrink-0" style={{ color: platformColor }}>
               {getPlatformBadge(collection.platform)}
             </span>
           )}
         </div>
-        {collection.tags && collection.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {collection.tags.slice(0, 2).map((tag) => (
-              <span key={tag} className="text-xs px-1.5 py-0.5 bg-dark-600 rounded text-dark-300">
-                {tag}
-              </span>
-            ))}
-            {collection.tags.length > 2 && (
-              <span className="text-xs text-dark-400">+{collection.tags.length - 2}</span>
-            )}
-          </div>
-        )}
       </div>
       <button
         type="button"
         onClick={onRemove}
-        className="absolute top-1 right-1 p-1 text-dark-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-1 right-1 p-1 text-dark-500 hover:text-dark-200 opacity-0 group-hover:opacity-100 transition-opacity"
       >
         <X className="w-3.5 h-3.5" />
       </button>
@@ -1406,7 +1314,7 @@ function CollectionPicker({ collections, selectedIds, onSelect, onClose }) {
             onClick={() => setSelectedPlatform(null)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
               selectedPlatform === null
-                ? 'bg-accent-purple text-white'
+                ? 'bg-dark-100 text-dark-900'
                 : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
             }`}
           >
@@ -1419,7 +1327,7 @@ function CollectionPicker({ collections, selectedIds, onSelect, onClose }) {
               onClick={() => setSelectedPlatform('youtube')}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 selectedPlatform === 'youtube'
-                  ? 'bg-red-500 text-white'
+                  ? 'bg-dark-100 text-dark-900'
                   : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
               }`}
             >
@@ -1504,7 +1412,7 @@ function CollectionPicker({ collections, selectedIds, onSelect, onClose }) {
                   }
                   className={`px-2 py-1 text-xs rounded-md transition-colors ${
                     selectedTags.includes(tag)
-                      ? 'bg-accent-purple text-white'
+                      ? 'bg-dark-100 text-dark-900'
                       : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
                   }`}
                 >
@@ -1578,14 +1486,14 @@ function CollectionPicker({ collections, selectedIds, onSelect, onClose }) {
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Collection name..."
                 autoFocus
-                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white text-sm focus:outline-none focus:border-accent-purple"
+                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white text-sm focus:outline-none focus:border-dark-300"
               />
               <input
                 type="text"
                 value={newTags}
                 onChange={(e) => setNewTags(e.target.value)}
                 placeholder="Tags (comma-separated)..."
-                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white text-sm focus:outline-none focus:border-accent-purple"
+                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white text-sm focus:outline-none focus:border-dark-300"
               />
               <div className="flex gap-2 justify-end">
                 <button
@@ -1598,7 +1506,7 @@ function CollectionPicker({ collections, selectedIds, onSelect, onClose }) {
                 <button
                   type="button"
                   onClick={handleCreate}
-                  className="px-3 py-1.5 text-sm bg-accent-purple text-white rounded-lg hover:bg-accent-purple/90"
+                  className="px-3 py-1.5 text-sm bg-dark-100 text-dark-900 rounded-lg hover:bg-white"
                 >
                   Create & Add
                 </button>
@@ -1608,7 +1516,7 @@ function CollectionPicker({ collections, selectedIds, onSelect, onClose }) {
             <button
               type="button"
               onClick={() => setIsCreating(true)}
-              className="w-full flex items-center justify-center gap-2 py-2 border border-dashed border-dark-600 rounded-lg text-dark-400 hover:border-accent-purple hover:text-accent-purple transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2 border border-dashed border-dark-600 rounded-lg text-dark-400 hover:border-dark-100 hover:text-white transition-colors"
             >
               <Plus className="w-4 h-4" />
               <span>Create New Collection</span>

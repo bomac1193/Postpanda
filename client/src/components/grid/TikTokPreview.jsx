@@ -99,7 +99,7 @@ function RolloutPickerModal({ collectionId, collectionName, platform, rollouts, 
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full ${
                       rollout.status === 'active'
-                        ? 'bg-green-500/20 text-green-400'
+                        ? 'bg-dark-600/30 text-dark-100'
                         : rollout.status === 'completed'
                         ? 'bg-blue-500/20 text-blue-400'
                         : 'bg-dark-600 text-dark-300'
@@ -1196,7 +1196,7 @@ function TikTokPreview({ showRowHandles = true }) {
                             />
                             <button
                               onClick={(e) => handleSaveRenameReelCollection(e, collection._id || collection.id)}
-                              className="p-1 text-green-400 hover:bg-dark-500 rounded"
+                              className="p-1 text-dark-100 hover:bg-dark-500 rounded"
                             >
                               <Check className="w-4 h-4" />
                             </button>
@@ -1213,7 +1213,7 @@ function TikTokPreview({ showRowHandles = true }) {
                             <div className="flex gap-2">
                               <button
                                 onClick={(e) => handleDeleteReelCollection(e, collection._id || collection.id)}
-                                className="flex-1 px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                                className="flex-1 px-2 py-1 text-xs bg-dark-600/30 text-dark-300 rounded hover:bg-dark-600/40"
                               >
                                 Delete
                               </button>
@@ -1247,7 +1247,7 @@ function TikTokPreview({ showRowHandles = true }) {
                                   setShowRolloutPicker(true);
                                   setShowReelCollectionSelector(false);
                                 }}
-                                className="p-1 text-dark-400 hover:text-green-400 hover:bg-dark-500 rounded"
+                                className="p-1 text-dark-400 hover:text-dark-100 hover:bg-dark-500 rounded"
                                 title="Add to Rollout"
                               >
                                 <CalendarPlus className="w-3.5 h-3.5" />
@@ -1260,7 +1260,7 @@ function TikTokPreview({ showRowHandles = true }) {
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setShowDeleteReelCollectionConfirm(collection._id || collection.id); }}
-                                className="p-1 text-dark-400 hover:text-red-400 hover:bg-dark-500 rounded"
+                                className="p-1 text-dark-400 hover:text-dark-200 hover:bg-dark-500 rounded"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>

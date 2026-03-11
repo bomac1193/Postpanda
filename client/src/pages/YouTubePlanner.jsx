@@ -1,11 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '../stores/useAppStore';
-import { youtubeApi } from '../lib/api';
+import { youtubeApi, cruciblaApi } from '../lib/api';
+import { compressImage } from '../lib/imageUtils';
 import YouTubeGridView from '../components/youtube/YouTubeGridView';
 import YouTubeSidebarView from '../components/youtube/YouTubeSidebarView';
 import YouTubeVideoDetails from '../components/youtube/YouTubeVideoDetails';
 import YouTubeThumbnailEditor from '../components/youtube/YouTubeThumbnailEditor';
 import YouTubeCollectionsManager from '../components/youtube/YouTubeCollectionsManager';
+import YouTubeBulkReplace from '../components/youtube/YouTubeBulkReplace';
 import {
   Lock,
   Unlock,
@@ -29,6 +31,9 @@ import {
   Unlink,
   RefreshCw,
   AlertCircle,
+  History,
+  Images,
+  Package,
 } from 'lucide-react';
 
 // Preset colors for collections
@@ -80,11 +85,21 @@ function YouTubePlanner() {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [editingThumbnail, setEditingThumbnail] = useState(null);
   const [editingVideoId, setEditingVideoId] = useState(null);
+  const [showBulkReplace, setShowBulkReplace] = useState(false);
+  const [bulkReplaceScope, setBulkReplaceScope] = useState('collection');
+  const [collectionsCollapsed, setCollectionsCollapsed] = useState(false);
 
   // Loading and error states for cloud sync
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [syncing, setSyncing] = useState(false);
+
+  // Versions state
+  const [showVersionsDropdown, setShowVersionsDropdown] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [versionName, setVersionName] = useState('');
+  const versionsDropdownRef = useRef(null);
 
   // Collections dropdown state
   const [showCollectionsDropdown, setShowCollectionsDropdown] = useState(false);
@@ -92,7 +107,13 @@ function YouTubePlanner() {
   const [editingCollectionName, setEditingCollectionName] = useState('');
   const [showColorPickerFor, setShowColorPickerFor] = useState(null);
   const [showRolloutPickerFor, setShowRolloutPickerFor] = useState(null);
+  const [showCruciblaPickerFor, setShowCruciblaPickerFor] = useState(null);
   const collectionsDropdownRef = useRef(null);
+
+  // Crucibla project linking state
+  const [cruciblaProjects, setCruciblaProjects] = useState([]);
+  const [loadingCrucibla, setLoadingCrucibla] = useState(false);
+  const [cruciblaLoaded, setCruciblaLoaded] = useState(false);
 
   // Get videos by collection for showing counts
   const youtubeVideosByCollection = useAppStore((state) => state.youtubeVideosByCollection);
@@ -181,12 +202,15 @@ function YouTubePlanner() {
     }
   }, [currentYoutubeCollectionId]);
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (collectionsDropdownRef.current && !collectionsDropdownRef.current.contains(e.target)) {
         setShowCollectionsDropdown(false);
         setEditingCollectionId(null);
+      }
+      if (versionsDropdownRef.current && !versionsDropdownRef.current.contains(e.target)) {
+        setShowVersionsDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -378,42 +402,134 @@ function YouTubePlanner() {
     return { rollout, section };
   }, [rollouts]);
 
+  // Crucibla project handlers
+  const fetchCruciblaProjects = useCallback(async () => {
+    if (cruciblaLoaded) return;
+    setLoadingCrucibla(true);
+    try {
+      const projects = await cruciblaApi.getProjects();
+      setCruciblaProjects(projects);
+      setCruciblaLoaded(true);
+    } catch (err) {
+      console.error('Failed to fetch Crucibla projects:', err);
+    } finally {
+      setLoadingCrucibla(false);
+    }
+  }, [cruciblaLoaded]);
+
+  const handleAssignCruciblaProject = useCallback(async (e, collectionId, project, album) => {
+    e.stopPropagation();
+    try {
+      const updates = {
+        cruciblaProjectId: project.id,
+        cruciblaProjectName: project.name,
+        cruciblaProjectType: project.type,
+        cruciblaEra: project.era || '',
+        cruciblaAlbum: album?.name || null,
+        cruciblaAlbumColor: album?.group_color || null,
+      };
+      await youtubeApi.updateCollection(collectionId, updates);
+      setYoutubeCollections(youtubeCollections.map(c =>
+        (c._id || c.id) === collectionId ? { ...c, ...updates } : c
+      ));
+    } catch (err) {
+      console.error('Failed to assign Crucibla project:', err);
+      setError('Failed to link project.');
+    }
+    setShowCruciblaPickerFor(null);
+  }, [youtubeCollections, setYoutubeCollections]);
+
+  const handleUnassignCruciblaProject = useCallback(async (e, collectionId) => {
+    e.stopPropagation();
+    try {
+      const updates = {
+        cruciblaProjectId: null,
+        cruciblaProjectName: null,
+        cruciblaProjectType: null,
+        cruciblaEra: null,
+        cruciblaAlbum: null,
+        cruciblaAlbumColor: null,
+      };
+      await youtubeApi.updateCollection(collectionId, updates);
+      setYoutubeCollections(youtubeCollections.map(c =>
+        (c._id || c.id) === collectionId ? { ...c, ...updates } : c
+      ));
+    } catch (err) {
+      console.error('Failed to unlink Crucibla project:', err);
+      setError('Failed to unlink project.');
+    }
+    setShowCruciblaPickerFor(null);
+  }, [youtubeCollections, setYoutubeCollections]);
+
+  // Version handlers
+  const fetchVersions = useCallback(async () => {
+    if (!currentYoutubeCollectionId) return;
+    setLoadingVersions(true);
+    try {
+      const data = await youtubeApi.getVersions(currentYoutubeCollectionId);
+      setVersions(data.versions || []);
+    } catch (err) {
+      console.error('Failed to fetch versions:', err);
+    } finally {
+      setLoadingVersions(false);
+    }
+  }, [currentYoutubeCollectionId]);
+
+  const handleSaveVersion = useCallback(async () => {
+    if (!currentYoutubeCollectionId) return;
+    setSyncing(true);
+    try {
+      await youtubeApi.saveVersion(currentYoutubeCollectionId, versionName.trim() || undefined);
+      setVersionName('');
+      await fetchVersions();
+    } catch (err) {
+      console.error('Failed to save version:', err);
+      setError(err.response?.data?.error || 'Failed to save version.');
+    } finally {
+      setSyncing(false);
+    }
+  }, [currentYoutubeCollectionId, versionName, fetchVersions]);
+
+  const handleRestoreVersion = useCallback(async (index) => {
+    if (!currentYoutubeCollectionId) return;
+    if (!window.confirm('Restore this version? Current video titles, descriptions, order, and statuses will be overwritten for videos that existed at snapshot time.')) return;
+    setSyncing(true);
+    try {
+      const data = await youtubeApi.restoreVersion(currentYoutubeCollectionId, index);
+      const videos = (data.videos || []).map(v => ({ ...v, id: v._id }));
+      setYoutubeVideos(videos);
+      setShowVersionsDropdown(false);
+    } catch (err) {
+      console.error('Failed to restore version:', err);
+      setError('Failed to restore version.');
+    } finally {
+      setSyncing(false);
+    }
+  }, [currentYoutubeCollectionId, setYoutubeVideos]);
+
+  const handleDeleteVersion = useCallback(async (index) => {
+    if (!currentYoutubeCollectionId) return;
+    setSyncing(true);
+    try {
+      await youtubeApi.deleteVersion(currentYoutubeCollectionId, index);
+      await fetchVersions();
+    } catch (err) {
+      console.error('Failed to delete version:', err);
+      setError('Failed to delete version.');
+    } finally {
+      setSyncing(false);
+    }
+  }, [currentYoutubeCollectionId, fetchVersions]);
+
+  const handleToggleVersions = useCallback(() => {
+    const next = !showVersionsDropdown;
+    setShowVersionsDropdown(next);
+    if (next) fetchVersions();
+  }, [showVersionsDropdown, fetchVersions]);
+
   const selectedVideo = selectedYoutubeVideoId
     ? youtubeVideos.find((v) => v.id === selectedYoutubeVideoId)
     : null;
-
-  // Compress image to reduce localStorage size
-  // YouTube thumbnails are 1280x720, we'll store at 640x360 for preview
-  const compressImage = useCallback((dataUrl, maxWidth = 640, maxHeight = 360, quality = 0.7) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let { width, height } = img;
-
-        // Calculate new dimensions maintaining aspect ratio
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
-        }
-        if (height > maxHeight) {
-          width = (width * maxHeight) / height;
-          height = maxHeight;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Convert to JPEG with compression
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = () => resolve(dataUrl); // Fallback to original on error
-      img.src = dataUrl;
-    });
-  }, []);
 
   // Process uploaded file and create compressed thumbnail
   const processImageFile = useCallback(async (file) => {
@@ -431,7 +547,7 @@ function YouTubePlanner() {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
-  }, [compressImage]);
+  }, []);
 
   // Handle file upload from input or drop - saves to cloud
   const handleFileUpload = useCallback(async (e) => {
@@ -469,6 +585,7 @@ function YouTubePlanner() {
           thumbnail,
           collectionId: currentYoutubeCollectionId,
           status: 'draft',
+          originalFilename: file.name,
         });
 
         const newVideo = {
@@ -521,6 +638,19 @@ function YouTubePlanner() {
     setEditingVideoId(null);
   }, [editingVideoId, youtubeVideos, setYoutubeVideos]);
 
+  // Bulk replace: update a single video's thumbnail
+  const handleBulkReplaceSingle = useCallback(async (videoId, base64, extraUpdates = {}) => {
+    try {
+      await youtubeApi.updateVideo(videoId, { thumbnail: base64, ...extraUpdates });
+      setYoutubeVideos(prev => prev.map(v =>
+        (v._id || v.id) === videoId ? { ...v, thumbnail: base64, ...extraUpdates } : v
+      ));
+    } catch (err) {
+      console.error('Failed to replace thumbnail:', err);
+      throw err;
+    }
+  }, [setYoutubeVideos]);
+
   // Drag & drop handlers
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
@@ -571,12 +701,12 @@ function YouTubePlanner() {
     >
       {/* Drop Overlay */}
       {isDraggingFiles && (
-        <div className="absolute inset-0 z-50 bg-dark-900/90 backdrop-blur-sm flex items-center justify-center rounded-2xl border-2 border-dashed border-red-500">
+        <div className="absolute inset-0 z-50 bg-dark-900/90 backdrop-blur-sm flex items-center justify-center rounded-2xl border-2 border-dashed border-dark-100">
           <div className="text-center">
-            <ImagePlus className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <ImagePlus className="w-16 h-16 text-dark-100 mx-auto mb-4" />
             <p className="text-xl font-semibold text-dark-100 mb-2">Drop thumbnails here</p>
             <p className="text-dark-400">
-              Adding to <span className="text-red-400 font-medium">{currentCollection.name}</span>
+              Adding to <span className="text-dark-300 font-medium">{currentCollection.name}</span>
             </p>
           </div>
         </div>
@@ -586,16 +716,16 @@ function YouTubePlanner() {
       {uploading && (
         <div className="absolute inset-0 z-50 bg-dark-900/90 backdrop-blur-sm flex items-center justify-center rounded-2xl">
           <div className="text-center">
-            <Loader2 className="w-12 h-12 text-red-500 mx-auto mb-4 animate-spin" />
+            <Loader2 className="w-12 h-12 text-dark-300 mx-auto mb-4 animate-spin" />
             <p className="text-lg font-semibold text-dark-100 mb-2">
               Uploading {uploadProgress.current} of {uploadProgress.total}
             </p>
             <p className="text-sm text-dark-400 mb-3">
-              to <span className="text-red-400">{currentCollection.name}</span>
+              to <span className="text-dark-300">{currentCollection.name}</span>
             </p>
             <div className="w-64 h-2 bg-dark-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-red-500 transition-all duration-300"
+                className="h-full bg-dark-100 transition-all duration-300"
                 style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
               />
             </div>
@@ -607,7 +737,7 @@ function YouTubePlanner() {
       {loading && (
         <div className="absolute inset-0 z-40 bg-dark-900/80 backdrop-blur-sm flex items-center justify-center rounded-2xl">
           <div className="text-center">
-            <Loader2 className="w-10 h-10 text-red-500 mx-auto mb-3 animate-spin" />
+            <Loader2 className="w-10 h-10 text-dark-300 mx-auto mb-3 animate-spin" />
             <p className="text-dark-200">Loading collections from cloud...</p>
           </div>
         </div>
@@ -615,10 +745,10 @@ function YouTubePlanner() {
 
       {/* Error Banner */}
       {error && (
-        <div className="absolute top-4 left-4 right-4 z-40 bg-red-900/90 border border-red-700 rounded-lg px-4 py-3 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+        <div className="absolute top-4 left-4 right-4 z-40 bg-dark-800/90 border border-dark-600 rounded-lg px-4 py-3 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-dark-300 flex-shrink-0" />
           <span className="text-red-200 flex-1">{error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-200">
+          <button onClick={() => setError(null)} className="text-dark-300 hover:text-dark-100">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -627,16 +757,18 @@ function YouTubePlanner() {
       {/* Syncing Indicator */}
       {syncing && (
         <div className="absolute top-4 right-4 z-40 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 flex items-center gap-2">
-          <Loader2 className="w-4 h-4 text-red-500 animate-spin" />
+          <Loader2 className="w-4 h-4 text-dark-300 animate-spin" />
           <span className="text-sm text-dark-300">Syncing...</span>
         </div>
       )}
 
       {/* Collections Sidebar */}
-      <div className="w-80 flex-shrink-0 h-full">
+      <div className={`${collectionsCollapsed ? 'w-10' : 'w-72'} flex-shrink-0 h-full transition-all duration-200`}>
         <YouTubeCollectionsManager
           onSelectCollection={setCurrentYoutubeCollection}
           selectedCollectionId={currentYoutubeCollectionId}
+          collapsed={collectionsCollapsed}
+          onToggleCollapsed={() => setCollectionsCollapsed(c => !c)}
         />
       </div>
 
@@ -649,9 +781,9 @@ function YouTubePlanner() {
             <div className="relative" ref={collectionsDropdownRef}>
               <button
                 onClick={() => setShowCollectionsDropdown(!showCollectionsDropdown)}
-                className="flex items-center gap-2 px-3 py-2 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
+                className="flex items-center gap-2 h-9 px-3 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
               >
-                <FolderOpen className="w-4 h-4 text-red-500" />
+                <FolderOpen className="w-4 h-4 text-dark-100" />
                 <span className="text-sm font-medium text-dark-200 max-w-[150px] truncate">
                   {currentCollection.name}
                 </span>
@@ -669,7 +801,7 @@ function YouTubePlanner() {
                           key={collection._id || collection.id}
                           className={`relative ${
                             (collection._id || collection.id) === currentYoutubeCollectionId
-                              ? 'bg-red-500/20'
+                              ? 'bg-dark-600/30'
                               : 'hover:bg-dark-700'
                           }`}
                         >
@@ -677,7 +809,7 @@ function YouTubePlanner() {
                             onClick={() => handleSwitchCollection(collection._id || collection.id)}
                             className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${
                               (collection._id || collection.id) === currentYoutubeCollectionId
-                                ? 'text-red-400'
+                                ? 'text-dark-300'
                                 : 'text-dark-200'
                             }`}
                           >
@@ -691,10 +823,10 @@ function YouTubePlanner() {
                                     if (e.key === 'Enter') handleSaveRename(e);
                                     if (e.key === 'Escape') handleCancelRename(e);
                                   }}
-                                  className="flex-1 bg-dark-900 border border-dark-600 rounded px-2 py-1 text-sm text-dark-100 focus:outline-none focus:border-red-500"
+                                  className="flex-1 bg-dark-900 border border-dark-600 rounded px-2 py-1 text-sm text-dark-100 focus:outline-none focus:border-dark-300"
                                   autoFocus
                                 />
-                                <button onClick={handleSaveRename} className="p-1 text-green-400 hover:bg-dark-600 rounded">
+                                <button onClick={handleSaveRename} className="p-1 text-dark-100 hover:bg-dark-600 rounded">
                                   <Check className="w-3.5 h-3.5" />
                                 </button>
                                 <button onClick={handleCancelRename} className="p-1 text-dark-400 hover:bg-dark-600 rounded">
@@ -731,13 +863,31 @@ function YouTubePlanner() {
                                     e.stopPropagation();
                                     setShowRolloutPickerFor(showRolloutPickerFor === (collection._id || collection.id) ? null : collection.id);
                                     setShowColorPickerFor(null);
+                                    setShowCruciblaPickerFor(null);
                                   }}
                                   className={`p-1 hover:bg-dark-600 rounded ${
-                                    collection.rolloutId ? 'text-green-400' : 'text-dark-500 hover:text-dark-200'
+                                    collection.rolloutId ? 'text-dark-100' : 'text-dark-500 hover:text-dark-200'
                                   }`}
                                   title={collection.rolloutId ? 'Change Rollout' : 'Assign to Rollout'}
                                 >
                                   {collection.rolloutId ? <Link2 className="w-3.5 h-3.5" /> : <Unlink className="w-3.5 h-3.5" />}
+                                </button>
+                                {/* Crucibla project button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const pickerTarget = showCruciblaPickerFor === (collection._id || collection.id) ? null : (collection._id || collection.id);
+                                    setShowCruciblaPickerFor(pickerTarget);
+                                    setShowColorPickerFor(null);
+                                    setShowRolloutPickerFor(null);
+                                    if (pickerTarget) fetchCruciblaProjects();
+                                  }}
+                                  className={`p-1 hover:bg-dark-600 rounded ${
+                                    collection.cruciblaProjectId ? 'text-dark-100' : 'text-dark-500 hover:text-dark-200'
+                                  }`}
+                                  title={collection.cruciblaProjectId ? `Linked: ${collection.cruciblaProjectName}` : 'Link to Crucibla Project'}
+                                >
+                                  <Package className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={(e) => handleStartRename(e, collection)}
@@ -756,7 +906,7 @@ function YouTubePlanner() {
                                 {youtubeCollections.length > 1 && (
                                   <button
                                     onClick={(e) => handleDeleteCollection(e, collection.id)}
-                                    className="p-1 text-dark-500 hover:text-red-400 hover:bg-dark-600 rounded"
+                                    className="p-1 text-dark-500 hover:text-dark-200 hover:bg-dark-600 rounded"
                                     title="Delete"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -768,13 +918,31 @@ function YouTubePlanner() {
 
                           {/* Rollout info badge */}
                           {rolloutInfo && (
-                            <div className="px-3 pb-2 -mt-1">
+                            <div className="px-3 pb-1 -mt-1">
                               <div
                                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs"
                                 style={{ backgroundColor: `${rolloutInfo.section.color}20`, color: rolloutInfo.section.color }}
                               >
                                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: rolloutInfo.section.color }} />
                                 {rolloutInfo.rollout.name} → {rolloutInfo.section.name}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Crucibla project badge */}
+                          {collection.cruciblaProjectId && (
+                            <div className="px-3 pb-2 -mt-1">
+                              <div
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs"
+                                style={{
+                                  backgroundColor: collection.cruciblaProjectId ? `${collection.group_color || '#6366f1'}20` : undefined,
+                                  color: collection.group_color || '#6366f1',
+                                }}
+                              >
+                                <Package className="w-3 h-3" />
+                                <span>{collection.cruciblaProjectName}</span>
+                                <span className="opacity-60">({collection.cruciblaProjectType})</span>
+                                {collection.cruciblaEra && <span className="opacity-60">· {collection.cruciblaEra}</span>}
                               </div>
                             </div>
                           )}
@@ -832,7 +1000,7 @@ function YouTubePlanner() {
                                           />
                                           <span className="text-xs text-dark-200 truncate">{section.name}</span>
                                           {collection.sectionId === section.id && (
-                                            <Check className="w-3 h-3 text-green-400 ml-auto" />
+                                            <Check className="w-3 h-3 text-dark-100 ml-auto" />
                                           )}
                                         </button>
                                       ))
@@ -843,10 +1011,60 @@ function YouTubePlanner() {
                               {collection.rolloutId && (
                                 <button
                                   onClick={(e) => handleUnassignFromRollout(e, collection._id || collection.id)}
-                                  className="w-full mt-2 px-2 py-1.5 text-xs text-red-400 hover:bg-red-500/20 rounded flex items-center gap-2"
+                                  className="w-full mt-2 px-2 py-1.5 text-xs text-dark-300 hover:bg-dark-600/30 rounded flex items-center gap-2"
                                 >
                                   <Unlink className="w-3 h-3" />
                                   Remove from Rollout
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Crucibla Project Picker Dropdown */}
+                          {showCruciblaPickerFor === (collection._id || collection.id) && (
+                            <div className="absolute left-full top-0 ml-1 w-60 bg-dark-900 border border-dark-600 rounded-lg shadow-xl z-50 p-2 max-h-72 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                              <p className="text-xs text-dark-400 mb-2 px-1">Link to Crucibla Project</p>
+                              {loadingCrucibla ? (
+                                <div className="flex items-center justify-center py-4">
+                                  <Loader2 className="w-4 h-4 text-dark-400 animate-spin" />
+                                  <span className="ml-2 text-xs text-dark-400">Loading projects...</span>
+                                </div>
+                              ) : cruciblaProjects.length === 0 ? (
+                                <p className="text-xs text-dark-500 px-1 py-2">No projects found. Is Crucibla running?</p>
+                              ) : (
+                                cruciblaProjects.map((project) => (
+                                  <button
+                                    key={project.id}
+                                    onClick={(e) => handleAssignCruciblaProject(e, collection._id || collection.id, project)}
+                                    className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
+                                      collection.cruciblaProjectId === project.id ? 'bg-dark-700' : ''
+                                    }`}
+                                  >
+                                    {project.group_color && (
+                                      <span
+                                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                        style={{ backgroundColor: project.group_color }}
+                                      />
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <span className="text-xs text-dark-200 truncate block">{project.name}</span>
+                                      <span className="text-xs text-dark-500">
+                                        {project.type}{project.era ? ` · ${project.era}` : ''}
+                                      </span>
+                                    </div>
+                                    {collection.cruciblaProjectId === project.id && (
+                                      <Check className="w-3 h-3 text-dark-100 flex-shrink-0" />
+                                    )}
+                                  </button>
+                                ))
+                              )}
+                              {collection.cruciblaProjectId && (
+                                <button
+                                  onClick={(e) => handleUnassignCruciblaProject(e, collection._id || collection.id)}
+                                  className="w-full mt-2 px-2 py-1.5 text-xs text-dark-300 hover:bg-dark-600/30 rounded flex items-center gap-2 border-t border-dark-700 pt-2"
+                                >
+                                  <Unlink className="w-3 h-3" />
+                                  Unlink Project
                                 </button>
                               )}
                             </div>
@@ -859,7 +1077,7 @@ function YouTubePlanner() {
                   <div className="border-t border-dark-700">
                     <button
                       onClick={handleCreateCollection}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-dark-400 hover:text-red-400 hover:bg-dark-700 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-2 text-dark-400 hover:text-dark-200 hover:bg-dark-700 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
                       <span className="text-sm">New Collection</span>
@@ -869,31 +1087,122 @@ function YouTubePlanner() {
               )}
             </div>
 
+            {/* Crucibla Project Badge (toolbar) */}
+            {currentCollection.cruciblaProjectId && (
+              <div
+                className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs"
+                style={{
+                  backgroundColor: `${currentCollection.group_color || '#6366f1'}15`,
+                  color: currentCollection.group_color || '#6366f1',
+                }}
+              >
+                <Package className="w-3.5 h-3.5" />
+                <span className="font-medium">{currentCollection.cruciblaProjectName}</span>
+                <span className="opacity-60">{currentCollection.cruciblaProjectType}</span>
+              </div>
+            )}
+
             {/* Video Count */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-dark-800 rounded-lg">
-              <Youtube className="w-5 h-5 text-red-500" />
+            <div className="flex items-center gap-2 h-9 px-3 bg-dark-800 rounded-lg">
+              <Youtube className="w-4 h-4 text-dark-100" />
               <span className="text-sm font-medium text-dark-200">
                 {youtubeVideos.length} Videos
               </span>
+            </div>
+
+            {/* Versions Button */}
+            <div className="relative" ref={versionsDropdownRef}>
+              <button
+                onClick={handleToggleVersions}
+                className="h-9 w-9 flex items-center justify-center bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
+                title="Versions"
+              >
+                <History className="w-4 h-4 text-dark-400" />
+              </button>
+
+              {showVersionsDropdown && (
+                <div className="absolute top-full left-0 mt-1 w-72 bg-dark-800 border border-dark-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                  <div className="p-3 border-b border-dark-700">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={versionName}
+                        onChange={(e) => setVersionName(e.target.value)}
+                        placeholder="Version name (optional)"
+                        className="flex-1 bg-dark-900 border border-dark-600 rounded px-2 py-1.5 text-sm text-dark-100 focus:outline-none focus:border-dark-300"
+                        onKeyDown={(e) => e.key === 'Enter' && handleSaveVersion()}
+                      />
+                      <button
+                        onClick={handleSaveVersion}
+                        disabled={syncing}
+                        className="px-3 py-1.5 bg-dark-100 hover:bg-white text-dark-900 text-sm rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {loadingVersions ? (
+                      <div className="p-4 text-center text-dark-400 text-sm">Loading...</div>
+                    ) : versions.length === 0 ? (
+                      <div className="p-4 text-center text-dark-500 text-sm">No versions saved yet</div>
+                    ) : (
+                      versions.map((v) => (
+                        <div key={v.index} className="flex items-center justify-between px-3 py-2 hover:bg-dark-700 transition-colors">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-dark-200 truncate">{v.name}</p>
+                            <p className="text-xs text-dark-500">
+                              {new Date(v.savedAt).toLocaleDateString()} &middot; {v.videoCount} videos
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                            <button
+                              onClick={() => handleRestoreVersion(v.index)}
+                              className="px-2 py-1 text-xs text-dark-300 hover:text-dark-100 hover:bg-dark-600 rounded transition-colors"
+                            >
+                              Restore
+                            </button>
+                            <button
+                              onClick={() => handleDeleteVersion(v.index)}
+                              className="p-1 text-dark-500 hover:text-dark-200 hover:bg-dark-600 rounded transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Refresh Button */}
             <button
               onClick={fetchCollections}
               disabled={loading || syncing}
-              className="p-2 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors disabled:opacity-50"
+              className="h-9 w-9 flex items-center justify-center bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors disabled:opacity-50"
               title="Refresh from cloud"
             >
               <RefreshCw className={`w-4 h-4 text-dark-400 ${loading ? 'animate-spin' : ''}`} />
             </button>
 
+            {/* Bulk Replace Button */}
+            <button
+              onClick={() => { setBulkReplaceScope('collection'); setShowBulkReplace(true); }}
+              className="h-9 w-9 flex items-center justify-center bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
+              title="Bulk replace thumbnails"
+            >
+              <Images className="w-4 h-4 text-dark-400" />
+            </button>
+
             {/* View Mode Toggle */}
-            <div className="flex items-center gap-1 p-1 bg-dark-800 rounded-lg">
+            <div className="flex items-center h-9 bg-dark-800 rounded-lg p-1 gap-0.5">
               <button
                 onClick={() => setYoutubeViewMode('grid')}
-                className={`p-2 rounded-md transition-colors ${
+                className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors ${
                   youtubeViewMode === 'grid'
-                    ? 'bg-red-500 text-white'
+                    ? 'bg-dark-100 text-dark-900'
                     : 'text-dark-400 hover:text-dark-200'
                 }`}
                 title="Grid View"
@@ -902,9 +1211,9 @@ function YouTubePlanner() {
               </button>
               <button
                 onClick={() => setYoutubeViewMode('sidebar')}
-                className={`p-2 rounded-md transition-colors ${
+                className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors ${
                   youtubeViewMode === 'sidebar'
-                    ? 'bg-red-500 text-white'
+                    ? 'bg-dark-100 text-dark-900'
                     : 'text-dark-400 hover:text-dark-200'
                 }`}
                 title="List View"
@@ -913,27 +1222,18 @@ function YouTubePlanner() {
               </button>
             </div>
 
-            {/* Lock Toggle - Control grid reordering */}
+            {/* Lock Toggle */}
             <button
               onClick={() => setIsLocked(!isLocked)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-2 h-9 px-3 rounded-lg transition-colors ${
                 isLocked
-                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                  : 'bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30'
+                  ? 'bg-amber-500/15 text-amber-400'
+                  : 'bg-dark-800 text-dark-300 hover:bg-dark-700'
               }`}
               title={isLocked ? 'Click to enable drag & drop reordering' : 'Click to lock grid (prevent reordering)'}
             >
-              {isLocked ? (
-                <>
-                  <Lock className="w-4 h-4" />
-                  <span className="text-sm font-medium">Grid Locked</span>
-                </>
-              ) : (
-                <>
-                  <Unlock className="w-4 h-4" />
-                  <span className="text-sm font-medium">Drag Enabled</span>
-                </>
-              )}
+              {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+              <span className="text-sm font-medium">{isLocked ? 'Locked' : 'Unlocked'}</span>
             </button>
           </div>
 
@@ -941,7 +1241,7 @@ function YouTubePlanner() {
             {/* Export */}
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-3 py-2 bg-dark-700 text-dark-300 hover:text-dark-100 rounded-lg transition-colors"
+              className="flex items-center gap-2 h-9 px-3 bg-dark-800 text-dark-300 hover:text-dark-100 hover:bg-dark-700 rounded-lg transition-colors"
               disabled
               title="Coming in Phase 3"
             >
@@ -950,9 +1250,9 @@ function YouTubePlanner() {
             </button>
 
             {/* Upload Button */}
-            <label className="btn-primary bg-red-600 hover:bg-red-700 cursor-pointer">
+            <label className="flex items-center gap-2 h-9 px-3 bg-dark-100 hover:bg-white text-dark-900 rounded-lg text-sm font-medium cursor-pointer transition-colors">
               <Upload className="w-4 h-4" />
-              <span>Upload Thumbnails</span>
+              <span>Upload</span>
               <input
                 type="file"
                 multiple
@@ -984,11 +1284,11 @@ function YouTubePlanner() {
           <span>{youtubeVideos.length} videos</span>
           <span>{youtubeVideos.filter((v) => v.status === 'draft').length} drafts</span>
           <span>{youtubeVideos.filter((v) => v.status === 'scheduled').length} scheduled</span>
-          <span className="text-red-400">
+          <span className="text-dark-300">
             {isLocked ? 'Grid locked' : 'Drag to reorder'}
           </span>
-          <span className="ml-auto text-green-500 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+          <span className="ml-auto text-dark-100 flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-dark-100"></span>
             Cloud synced
           </span>
         </div>
@@ -1013,6 +1313,16 @@ function YouTubePlanner() {
           }}
         />
       )}
+
+      {/* Bulk Replace Modal */}
+      <YouTubeBulkReplace
+        isOpen={showBulkReplace}
+        onClose={() => setShowBulkReplace(false)}
+        videos={youtubeVideos}
+        onReplace={handleBulkReplaceSingle}
+        scope={bulkReplaceScope}
+        onScopeChange={setBulkReplaceScope}
+      />
     </div>
   );
 }

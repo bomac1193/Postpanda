@@ -46,7 +46,7 @@ const TikTokPreviewCard = React.memo(function TikTokPreviewCard({
               <img src={userAvatar} alt="" className="w-full h-full object-cover" />
             ) : null}
           </div>
-          <div className="w-5 h-5 rounded-full bg-red-500 -mt-2 flex items-center justify-center">
+          <div className="w-5 h-5 rounded-full bg-dark-100 -mt-2 flex items-center justify-center">
             <span className="text-white text-xs">+</span>
           </div>
         </div>

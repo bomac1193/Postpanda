@@ -142,13 +142,13 @@ function Login() {
           </h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-dark-700/50 border border-dark-600 rounded-lg text-dark-300 text-sm">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="mb-4 p-3 bg-green-900/20 border border-green-900/50 rounded-lg text-green-400 text-sm">
+            <div className="mb-4 p-3 bg-dark-700/50 border border-dark-600 rounded-lg text-dark-100 text-sm">
               {success}
             </div>
           )}
@@ -253,7 +253,7 @@ function Login() {
                 setIsLogin(!isLogin);
                 setError(null);
               }}
-              className="text-sm text-dark-400 hover:text-accent-purple transition-colors"
+              className="text-sm text-dark-400 hover:text-dark-100 transition-colors"
             >
               {isLogin
                 ? "Don't have an account? Sign up"

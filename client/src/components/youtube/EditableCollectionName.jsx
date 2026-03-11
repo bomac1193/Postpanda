@@ -76,13 +76,13 @@ function EditableCollectionName({
           onBlur={handleSave}
           onKeyDown={handleKeyDown}
           disabled={isSaving}
-          className="flex-1 min-w-0 px-2 py-0.5 bg-dark-600 border border-accent-purple rounded text-sm text-white focus:outline-none"
+          className="flex-1 min-w-0 px-2 py-0.5 bg-dark-600 border border-dark-300 rounded text-sm text-white focus:outline-none"
           placeholder="Collection name..."
         />
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="p-0.5 text-green-400 hover:text-green-300 disabled:opacity-50"
+          className="p-0.5 text-dark-100 hover:text-white disabled:opacity-50"
           title="Save (Enter)"
         >
           <Check className="w-3.5 h-3.5" />
@@ -90,7 +90,7 @@ function EditableCollectionName({
         <button
           onClick={handleCancel}
           disabled={isSaving}
-          className="p-0.5 text-red-400 hover:text-red-300 disabled:opacity-50"
+          className="p-0.5 text-dark-300 hover:text-dark-100 disabled:opacity-50"
           title="Cancel (Esc)"
         >
           <X className="w-3.5 h-3.5" />
@@ -103,7 +103,7 @@ function EditableCollectionName({
     <div className={`flex items-center gap-1.5 group/name ${className}`}>
       <span
         onClick={() => !disabled && setIsEditing(true)}
-        className={disabled ? '' : 'cursor-pointer hover:text-accent-purple transition-colors'}
+        className={disabled ? '' : 'cursor-pointer hover:text-dark-100 transition-colors'}
         title={disabled ? '' : 'Click to edit'}
       >
         {safeName}
@@ -114,7 +114,7 @@ function EditableCollectionName({
             e.stopPropagation();
             setIsEditing(true);
           }}
-          className="p-0.5 text-dark-500 hover:text-accent-purple transition-colors"
+          className="p-0.5 text-dark-500 hover:text-dark-100 transition-colors"
           title="Edit name"
         >
           <Edit2 className="w-3 h-3" />
@@ -126,7 +126,7 @@ function EditableCollectionName({
             e.stopPropagation();
             setIsEditing(true);
           }}
-          className="p-0.5 text-dark-500 hover:text-accent-purple transition-colors opacity-0 group-hover/name:opacity-100"
+          className="p-0.5 text-dark-500 hover:text-dark-100 transition-colors opacity-0 group-hover/name:opacity-100"
           title="Edit name"
         >
           <Edit2 className="w-3 h-3" />

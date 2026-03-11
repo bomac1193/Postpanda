@@ -166,7 +166,7 @@ function YouTubeThumbnailEditor({ image, onSave, onCancel }) {
                 step="0.1"
                 value={zoom}
                 onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
-                className="w-24 accent-red-500"
+                className="w-24 accent-white"
               />
               <button
                 onClick={() => handleZoomChange(zoom + 0.1)}
@@ -203,7 +203,7 @@ function YouTubeThumbnailEditor({ image, onSave, onCancel }) {
           <button onClick={onCancel} className="btn-secondary">
             Cancel
           </button>
-          <button onClick={handleSave} className="btn-primary bg-red-600 hover:bg-red-700">
+          <button onClick={handleSave} className="btn-primary bg-dark-100 hover:bg-white text-dark-900">
             <Check className="w-4 h-4" />
             Save Thumbnail
           </button>

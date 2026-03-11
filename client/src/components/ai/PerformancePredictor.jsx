@@ -116,7 +116,7 @@ function PerformancePredictor({ contentId, onAnalyze, disabled }) {
         <div className="ai-overall-score">
           <div className="ai-overall-label">Conviction Estimate</div>
           <div className="ai-overall-value" style={{
-            color: overallScore >= 70 ? '#4CAF50' : overallScore >= 50 ? '#FF9800' : '#f44336'
+            color: '#d4d4d8'
           }}>
             {overallScore}/100
           </div>

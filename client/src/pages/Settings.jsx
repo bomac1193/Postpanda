@@ -267,7 +267,7 @@ function Settings() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-accent-purple/20 text-accent-purple'
+                    ? 'bg-dark-700 text-dark-100'
                     : 'text-dark-300 hover:bg-dark-700 hover:text-dark-100'
                 }`}
               >
@@ -286,7 +286,7 @@ function Settings() {
               <h2 className="text-lg font-medium text-dark-100">Profile Settings</h2>
 
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-accent-purple to-accent-pink overflow-hidden relative">
+                <div className="w-20 h-20 rounded-full bg-dark-600 overflow-hidden relative">
                   {avatarPreview ? (
                     <img
                       src={avatarPreview}
@@ -386,7 +386,7 @@ function Settings() {
                     onClick={() => theme !== 'dark' && toggleTheme()}
                     className={`flex-1 p-4 rounded-xl border-2 transition-colors ${
                       theme === 'dark'
-                        ? 'border-accent-purple bg-dark-700'
+                        ? 'border-dark-100 bg-dark-700'
                         : 'border-dark-600 hover:border-dark-500'
                     }`}
                   >
@@ -397,7 +397,7 @@ function Settings() {
                     onClick={() => theme !== 'light' && toggleTheme()}
                     className={`flex-1 p-4 rounded-xl border-2 transition-colors ${
                       theme === 'light'
-                        ? 'border-accent-purple bg-dark-700'
+                        ? 'border-dark-100 bg-dark-700'
                         : 'border-dark-600 hover:border-dark-500'
                     }`}
                   >
@@ -451,7 +451,7 @@ function Settings() {
                         })
                       }
                       className={`w-12 h-6 rounded-full transition-colors ${
-                        formData.notifications[item.key] ? 'bg-accent-purple' : 'bg-dark-600'
+                        formData.notifications[item.key] ? 'bg-dark-100' : 'bg-dark-600'
                       }`}
                     >
                       <div
@@ -506,7 +506,7 @@ function Settings() {
                     setFormData({ ...formData, autoSaveDrafts: !formData.autoSaveDrafts })
                   }
                   className={`w-12 h-6 rounded-full transition-colors ${
-                    formData.autoSaveDrafts ? 'bg-accent-purple' : 'bg-dark-600'
+                    formData.autoSaveDrafts ? 'bg-dark-100' : 'bg-dark-600'
                   }`}
                 >
                   <div
@@ -589,13 +589,13 @@ function Settings() {
 
                 <button
                   onClick={() => setShowDeleteModal(true)}
-                  className="w-full flex items-center justify-between p-4 bg-red-900/20 rounded-lg hover:bg-red-900/30 transition-colors border border-red-900/50"
+                  className="w-full flex items-center justify-between p-4 bg-dark-700/50 rounded-lg hover:bg-dark-700/30 transition-colors border border-dark-600"
                 >
                   <div className="flex items-center gap-3">
-                    <Trash2 className="w-5 h-5 text-red-400" />
+                    <Trash2 className="w-5 h-5 text-dark-300" />
                     <div className="text-left">
-                      <p className="text-red-400">Delete Account</p>
-                      <p className="text-sm text-red-400/70">Permanently delete your account and data</p>
+                      <p className="text-dark-300">Delete Account</p>
+                      <p className="text-sm text-dark-300/70">Permanently delete your account and data</p>
                     </div>
                   </div>
                 </button>
@@ -606,12 +606,12 @@ function Settings() {
           {/* Save Button */}
           <div className="mt-8 pt-6 border-t border-dark-700 flex justify-end items-center gap-3">
             {saveStatus === 'saved' && (
-              <span className="text-green-400 text-sm flex items-center gap-1">
+              <span className="text-dark-100 text-sm flex items-center gap-1">
                 <Check className="w-4 h-4" /> Saved!
               </span>
             )}
             {saveStatus === 'error' && (
-              <span className="text-red-400 text-sm">Failed to save</span>
+              <span className="text-dark-300 text-sm">Failed to save</span>
             )}
             <button
               onClick={handleSave}
@@ -731,8 +731,8 @@ function Settings() {
             </div>
 
             <div className="text-center py-6">
-              <div className="w-16 h-16 rounded-full bg-accent-purple/20 flex items-center justify-center mx-auto mb-4">
-                <Smartphone className="w-8 h-8 text-accent-purple" />
+              <div className="w-16 h-16 rounded-full bg-dark-700 flex items-center justify-center mx-auto mb-4">
+                <Smartphone className="w-8 h-8 text-dark-100" />
               </div>
               <h4 className="text-dark-100 font-medium mb-2">Secure Your Account</h4>
               <p className="text-dark-400 text-sm mb-4">
@@ -772,7 +772,7 @@ function Settings() {
                     <div>
                       <p className="text-dark-200 text-sm">
                         {session.device}
-                        {session.current && <span className="ml-2 text-xs text-green-400">(Current)</span>}
+                        {session.current && <span className="ml-2 text-xs text-dark-100">(Current)</span>}
                       </p>
                       <p className="text-dark-500 text-xs">{session.location} • {session.lastActive}</p>
                     </div>
@@ -780,7 +780,7 @@ function Settings() {
                   {!session.current && (
                     <button
                       onClick={() => handleLogoutSession(session.id)}
-                      className="text-xs text-red-400 hover:text-red-300"
+                      className="text-xs text-dark-300 hover:text-dark-100"
                     >
                       Logout
                     </button>
@@ -792,7 +792,7 @@ function Settings() {
             <div className="mt-4 pt-4 border-t border-dark-700">
               <button
                 onClick={() => { alert('All other sessions logged out'); setShowSessionsModal(false); }}
-                className="w-full btn-secondary text-red-400 hover:text-red-300"
+                className="w-full btn-secondary text-dark-300 hover:text-dark-100"
               >
                 Logout All Other Sessions
               </button>
@@ -806,8 +806,8 @@ function Settings() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowDeleteModal(false)}>
           <div className="bg-dark-800 rounded-2xl p-6 w-full max-w-md border border-dark-700" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-400" />
+              <div className="w-10 h-10 rounded-full bg-dark-600/30 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-dark-300" />
               </div>
               <h3 className="text-lg font-medium text-dark-100">Delete Account</h3>
             </div>
@@ -822,7 +822,7 @@ function Settings() {
               </button>
               <button
                 onClick={handleDeleteAccount}
-                className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
+                className="flex-1 px-4 py-2 bg-dark-600/30 text-dark-300 rounded-lg hover:bg-dark-600/40 transition-colors"
               >
                 Delete Account
               </button>

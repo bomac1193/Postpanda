@@ -48,7 +48,7 @@ function StarRating({ rating, onRate }) {
           <Star
             className={`w-4 h-4 transition-colors ${
               star <= (hover || rating)
-                ? 'fill-yellow-400 text-yellow-400'
+                ? 'fill-dark-100 text-dark-100'
                 : 'text-dark-500'
             }`}
           />
@@ -212,7 +212,7 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-dark-700">
           <div className="flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-accent-purple" />
+            <Sparkles className="w-5 h-5 text-dark-100" />
             <h2 className="text-lg font-semibold text-white">Generate Caption</h2>
           </div>
           <button
@@ -266,7 +266,7 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
                     </>
                   ) : (
                     <>
-                      <Dna className="w-5 h-5 text-accent-purple" />
+                      <Dna className="w-5 h-5 text-dark-100" />
                       <span className="flex-1 text-left">My Taste Profile</span>
                     </>
                   )}
@@ -286,7 +286,7 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
                         !selectedCharacter ? 'bg-dark-600' : ''
                       }`}
                     >
-                      <Dna className="w-5 h-5 text-accent-purple" />
+                      <Dna className="w-5 h-5 text-dark-100" />
                       <span className="text-white">My Taste Profile</span>
                     </button>
 
@@ -340,7 +340,7 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
                     onClick={() => setPlatform(p.id)}
                     className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border transition-colors ${
                       platform === p.id
-                        ? 'bg-accent-purple/20 border-accent-purple text-accent-purple'
+                        ? 'bg-dark-700 border-dark-100 text-dark-100'
                         : 'bg-dark-700 border-dark-600 text-dark-300 hover:border-dark-500'
                     }`}
                   >
@@ -361,13 +361,13 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 placeholder="What is this post about?"
-                className="flex-1 px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-500 focus:border-accent-purple focus:ring-1 focus:ring-accent-purple outline-none"
+                className="flex-1 px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-500 focus:border-dark-100 focus:ring-1 focus:ring-dark-100 outline-none"
                 onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
               />
               <button
                 onClick={handleGenerate}
                 disabled={generating || !topic.trim()}
-                className="px-4 py-2.5 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2.5 bg-dark-100 text-white rounded-lg hover:bg-white transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {generating ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -418,7 +418,7 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
                   <p className="text-white leading-relaxed mb-3">{variant.variant}</p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-accent-purple/20 text-accent-purple rounded text-xs">
+                      <span className="px-2 py-0.5 bg-dark-700 text-dark-100 rounded text-xs">
                         {variant.hookType}
                       </span>
                       <span className="px-2 py-0.5 bg-dark-600 text-dark-300 rounded text-xs">
@@ -435,14 +435,14 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
                         title="Copy to clipboard"
                       >
                         {copied === i ? (
-                          <Check className="w-4 h-4 text-green-400" />
+                          <Check className="w-4 h-4 text-dark-100" />
                         ) : (
                           <Copy className="w-4 h-4" />
                         )}
                       </button>
                       <button
                         onClick={() => handleApply(variant)}
-                        className="px-3 py-1 bg-accent-purple text-white text-sm rounded hover:bg-accent-purple/80 transition-colors"
+                        className="px-3 py-1 bg-dark-100 text-white text-sm rounded hover:bg-white transition-colors"
                       >
                         Apply
                       </button>
@@ -456,7 +456,7 @@ function PostAIGenerator({ post, onClose, onApplyCaption }) {
                       onRate={(rating) => handleRate(variant, rating, i)}
                     />
                     {savedRatings[i] && (
-                      <span className="text-xs text-green-400 flex items-center gap-1">
+                      <span className="text-xs text-dark-100 flex items-center gap-1">
                         <Check className="w-3 h-3" /> Saved
                       </span>
                     )}

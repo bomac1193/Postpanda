@@ -17,7 +17,7 @@ import {
   Layers,
   Youtube,
   Film,
-  Sparkles,
+  BarChart3,
   TrendingUp,
   Eye,
   EyeOff,
@@ -47,7 +47,7 @@ function Calendar() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState('month'); // 'month' | 'week' | 'day'
+  const [view, setView] = useState('month'); // 'day' | 'week' | 'month' | 'year'
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [availableContent, setAvailableContent] = useState([]);
   const [selectedContent, setSelectedContent] = useState(null);
@@ -418,6 +418,37 @@ function Calendar() {
     }
   }, [selectedRollout, scheduleDate, rolloutEndDate, activateRollout, fetchRolloutEvents]);
 
+  // Week view: get days for current week
+  const weekDays = useMemo(() => {
+    const dayOfWeek = currentDate.getDay();
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - dayOfWeek);
+    const result = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      result.push({ day: d.getDate(), isCurrentMonth: d.getMonth() === month, date: d });
+    }
+    return result;
+  }, [currentDate, month]);
+
+  // Day view hours
+  const dayHours = useMemo(() => {
+    return Array.from({ length: 24 }, (_, i) => i);
+  }, []);
+
+  // Year view: all 12 months mini grids
+  const yearMonths = useMemo(() => {
+    return Array.from({ length: 12 }, (_, m) => {
+      const daysInM = new Date(year, m + 1, 0).getDate();
+      const firstDay = new Date(year, m, 1).getDay();
+      const monthDays = [];
+      for (let i = 0; i < firstDay; i++) monthDays.push(null);
+      for (let i = 1; i <= daysInM; i++) monthDays.push(new Date(year, m, i));
+      return { month: m, name: MONTHS[m], days: monthDays };
+    });
+  }, [year]);
+
   const isToday = (date) => {
     return (
       date.getFullYear() === today.getFullYear() &&
@@ -426,54 +457,81 @@ function Calendar() {
     );
   };
 
-  const navigateMonth = (direction) => {
+  // Navigate based on current view
+  const navigate = (direction) => {
     setCurrentDate((prev) => {
       const newDate = new Date(prev);
-      newDate.setMonth(prev.getMonth() + direction);
+      if (view === 'day') {
+        newDate.setDate(prev.getDate() + direction);
+      } else if (view === 'week') {
+        newDate.setDate(prev.getDate() + direction * 7);
+      } else if (view === 'year') {
+        newDate.setFullYear(prev.getFullYear() + direction);
+      } else {
+        newDate.setMonth(prev.getMonth() + direction);
+      }
       return newDate;
     });
   };
 
+  // Header label based on view
+  const headerLabel = useMemo(() => {
+    if (view === 'day') {
+      return currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    }
+    if (view === 'week') {
+      const start = weekDays[0].date;
+      const end = weekDays[6].date;
+      const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return `${startStr} — ${endStr}`;
+    }
+    if (view === 'year') {
+      return `${year}`;
+    }
+    return `${MONTHS[month]} ${year}`;
+  }, [view, currentDate, month, year, weekDays]);
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-display font-semibold text-dark-100 uppercase tracking-widest">
-            {MONTHS[month]} {year}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-sans font-medium text-dark-100 tracking-tight">
+            {headerLabel}
           </h2>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <button
-              onClick={() => navigateMonth(-1)}
-              className="btn-icon"
+              onClick={() => navigate(-1)}
+              className="btn-icon h-7 w-7"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => setCurrentDate(new Date())}
-              className="btn-ghost text-sm"
+              className="btn-ghost text-xs px-2 py-1"
             >
               Today
             </button>
             <button
-              onClick={() => navigateMonth(1)}
-              className="btn-icon"
+              onClick={() => navigate(1)}
+              className="btn-icon h-7 w-7"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* View Toggle */}
-          <div className="flex items-center gap-1 p-1 bg-dark-800 rounded-lg">
-            {['month', 'week', 'day'].map((v) => (
+          <div className="flex items-center gap-0.5 p-0.5 bg-dark-800 rounded-lg">
+            {['day', 'week', 'month', 'year'].map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors capitalize ${
+                className={`px-2.5 py-1 text-xs rounded-md transition-colors capitalize ${
                   view === v
-                    ? 'bg-accent-purple text-white'
+                    ? 'bg-dark-100 text-dark-900'
                     : 'text-dark-400 hover:text-dark-200'
                 }`}
               >
@@ -482,29 +540,29 @@ function Calendar() {
             ))}
           </div>
 
-          <button onClick={fetchScheduledPosts} className="btn-icon" title="Refresh">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <button onClick={fetchScheduledPosts} className="btn-icon h-7 w-7" title="Refresh">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
           {/* Conviction controls */}
           <button
             onClick={() => updateCalendarConvictionView({ showScores: !calendarConvictionView.showScores })}
-            className={`btn-ghost ${calendarConvictionView.showScores ? 'text-green-400' : 'text-dark-400'}`}
+            className={`btn-ghost h-7 w-7 p-0 flex items-center justify-center ${calendarConvictionView.showScores ? 'text-dark-100' : 'text-dark-400'}`}
             title={calendarConvictionView.showScores ? 'Hide Conviction Scores' : 'Show Conviction Scores'}
           >
-            {calendarConvictionView.showScores ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            {calendarConvictionView.showScores ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
           </button>
 
           <button
             onClick={() => setShowConvictionInsights(!showConvictionInsights)}
-            className={`btn-ghost ${showConvictionInsights ? 'text-green-400' : 'text-dark-400'}`}
+            className={`btn-ghost h-7 w-7 p-0 flex items-center justify-center ${showConvictionInsights ? 'text-dark-100' : 'text-dark-400'}`}
             title={showConvictionInsights ? 'Hide Insights' : 'Show Insights'}
           >
-            <Sparkles className="w-4 h-4" />
+            <BarChart3 className="w-3.5 h-3.5" />
           </button>
 
-          <button onClick={handleOpenScheduleModal} className="btn-primary">
-            <Plus className="w-4 h-4" />
+          <button onClick={handleOpenScheduleModal} className="btn-primary text-xs h-7 px-2.5">
+            <Plus className="w-3.5 h-3.5" />
             Schedule
           </button>
         </div>
@@ -512,150 +570,223 @@ function Calendar() {
 
       {/* Error State */}
       {error && (
-        <div className="mb-4 p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400">
+        <div className="mb-2 px-3 py-2 bg-dark-700/50 border border-dark-600 rounded-lg text-dark-300 text-xs">
           {error}
-          <button onClick={fetchScheduledPosts} className="ml-4 underline">
+          <button onClick={fetchScheduledPosts} className="ml-3 underline">
             Retry
           </button>
         </div>
       )}
 
-      {/* Calendar Grid */}
-      <div className="flex-1 bg-dark-800 rounded-2xl border border-dark-700 overflow-hidden">
-        {/* Day Headers */}
-        <div className="grid grid-cols-7 border-b border-dark-700">
-          {DAYS.map((day) => (
-            <div
-              key={day}
-              className="py-3 text-center text-sm font-medium text-dark-400"
-            >
-              {day}
+      {/* Calendar Views */}
+      <div className="flex-1 bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+
+        {/* ── MONTH VIEW ── */}
+        {view === 'month' && (
+          <>
+            <div className="grid grid-cols-7 border-b border-dark-700">
+              {DAYS.map((day) => (
+                <div key={day} className="py-1.5 text-center text-[11px] font-medium text-dark-500 uppercase tracking-wider">
+                  {day}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-
-        {/* Days Grid */}
-        <div className="grid grid-cols-7 grid-rows-6 flex-1">
-          {days.map((day, index) => {
-            const posts = getPostsForDay(day.date);
-            const dayRolloutEvents = getRolloutEventsForDay(day.date);
-            const isTodayCell = isToday(day.date);
-            const totalItems = posts.length + dayRolloutEvents.length;
-
-            return (
-              <div
-                key={index}
-                onClick={() => handleDayClick(day.date)}
-                className={`min-h-[120px] border-b border-r border-dark-700 p-2 transition-colors hover:bg-dark-700/50 cursor-pointer ${
-                  !day.isCurrentMonth ? 'bg-dark-900/50' : ''
-                } ${isTodayCell ? 'bg-accent-purple/10' : ''}`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span
-                    className={`text-sm ${
-                      !day.isCurrentMonth
-                        ? 'text-dark-500'
-                        : isTodayCell
-                        ? 'text-accent-purple font-semibold'
-                        : 'text-dark-300'
-                    }`}
+            <div className="grid grid-cols-7 grid-rows-6 flex-1">
+              {days.map((day, index) => {
+                const posts = getPostsForDay(day.date);
+                const dayRolloutEvents = getRolloutEventsForDay(day.date);
+                const isTodayCell = isToday(day.date);
+                const totalItems = posts.length + dayRolloutEvents.length;
+                return (
+                  <div
+                    key={index}
+                    onClick={() => handleDayClick(day.date)}
+                    className={`min-h-[88px] border-b border-r border-dark-700/60 px-1.5 py-1 transition-colors hover:bg-dark-700/40 cursor-pointer ${
+                      !day.isCurrentMonth ? 'bg-dark-900/40' : ''
+                    } ${isTodayCell ? 'bg-accent-purple/8' : ''}`}
                   >
-                    {day.day}
-                  </span>
-                  {isTodayCell && (
-                    <span className="text-xs bg-accent-purple text-white px-1.5 py-0.5 rounded">
-                      Today
-                    </span>
-                  )}
-                </div>
-
-                {/* Events */}
-                <div className="space-y-1">
-                  {/* Rollout Events */}
-                  {dayRolloutEvents.slice(0, 2).map((event) => (
-                    <div
-                      key={event.id}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-1.5 p-1.5 rounded text-xs truncate"
-                      style={{
-                        backgroundColor: `${event.color}20`,
-                        borderLeft: `2px solid ${event.color}`,
-                      }}
-                    >
-                      {event.type.includes('start') ? (
-                        <Flag className="w-3 h-3 flex-shrink-0" style={{ color: event.color }} />
-                      ) : (
-                        <Target className="w-3 h-3 flex-shrink-0" style={{ color: event.color }} />
-                      )}
-                      <span className="truncate flex-1" style={{ color: event.color }}>
-                        {event.type.includes('section') ? event.sectionName : event.rolloutName}
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className={`text-xs leading-none ${!day.isCurrentMonth ? 'text-dark-600' : isTodayCell ? 'text-accent-purple font-semibold' : 'text-dark-400'}`}>
+                        {day.day}
                       </span>
+                      {isTodayCell && <span className="text-[9px] bg-accent-purple text-white px-1 py-px rounded font-medium">Today</span>}
                     </div>
-                  ))}
+                    <div className="space-y-0.5">
+                      {dayRolloutEvents.slice(0, 2).map((event) => (
+                        <div key={event.id} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] truncate" style={{ backgroundColor: `${event.color}15`, borderLeft: `2px solid ${event.color}` }}>
+                          {event.type.includes('start') ? <Flag className="w-2.5 h-2.5 flex-shrink-0" style={{ color: event.color }} /> : <Target className="w-2.5 h-2.5 flex-shrink-0" style={{ color: event.color }} />}
+                          <span className="truncate flex-1" style={{ color: event.color }}>{event.type.includes('section') ? event.sectionName : event.rolloutName}</span>
+                        </div>
+                      ))}
+                      {posts.slice(0, dayRolloutEvents.length > 1 ? 1 : 2).map((post) => (
+                        <div key={post.id} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] truncate cursor-pointer hover:bg-dark-600 bg-dark-700/60">
+                          {post.image ? <img src={post.image} alt="" className="w-4 h-4 rounded-sm object-cover flex-shrink-0" /> : <div className="w-4 h-4 rounded-sm flex-shrink-0" style={{ backgroundColor: post.color }} />}
+                          <span className="text-dark-300 truncate flex-1">{post.caption?.slice(0, 16) || 'Untitled'}</span>
+                          <Clock className="w-2.5 h-2.5 text-dark-500" />
+                        </div>
+                      ))}
+                      {totalItems > 3 && <span className="text-[10px] text-dark-500 pl-1">+{totalItems - 3} more</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
-                  {/* Posts */}
-                  {posts.slice(0, dayRolloutEvents.length > 1 ? 1 : 2).map((post) => {
-                    // Get conviction tier for background color
-                    const getConvictionBgColor = (conviction) => {
-                      if (!conviction?.score && conviction?.score !== 0) return 'bg-dark-600';
-                      const score = conviction.score;
-                      if (score >= 80) return 'bg-green-900/20 border-l-2 border-green-500';
-                      if (score >= 60) return 'bg-green-900/10 border-l-2 border-green-600';
-                      if (score >= 40) return 'bg-orange-900/10 border-l-2 border-orange-500';
-                      return 'bg-red-900/10 border-l-2 border-red-600';
-                    };
-
-                    return (
-                      <div
-                        key={post.id}
-                        onClick={(e) => e.stopPropagation()}
-                        className={`flex items-center gap-1.5 p-1.5 rounded text-xs truncate cursor-pointer hover:bg-dark-500 ${
-                          calendarConvictionView.showScores && post.conviction
-                            ? getConvictionBgColor(post.conviction)
-                            : 'bg-dark-600'
-                        }`}
-                      >
-                        {post.image ? (
-                          <img
-                            src={post.image}
-                            alt=""
-                            className="w-5 h-5 rounded object-cover"
-                          />
-                        ) : (
-                          <div
-                            className="w-5 h-5 rounded"
-                            style={{ backgroundColor: post.color }}
-                          />
-                        )}
-                        <span className="text-dark-200 truncate flex-1">
-                          {post.caption?.slice(0, 20) || 'Untitled'}
-                        </span>
-                        {calendarConvictionView.showScores && post.conviction?.score !== null && post.conviction?.score !== undefined && (
-                          <ConvictionBadge score={post.conviction.score} size="xs" />
-                        )}
-                        {(!calendarConvictionView.showScores || !post.conviction) && (
-                          <Clock className="w-3 h-3 text-dark-400" />
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {/* Overflow indicator */}
-                  {totalItems > 3 && (
-                    <span className="text-xs text-dark-400">
-                      +{totalItems - 3} more
-                    </span>
-                  )}
+        {/* ── WEEK VIEW ── */}
+        {view === 'week' && (
+          <>
+            <div className="grid grid-cols-7 border-b border-dark-700">
+              {weekDays.map((wd, i) => (
+                <div key={i} className={`py-1.5 text-center border-r border-dark-700/60 last:border-r-0 ${isToday(wd.date) ? 'bg-accent-purple/8' : ''}`}>
+                  <div className="text-[10px] font-medium text-dark-500 uppercase tracking-wider">{DAYS[i]}</div>
+                  <div className={`text-sm font-medium mt-0.5 ${isToday(wd.date) ? 'text-accent-purple' : 'text-dark-300'}`}>{wd.day}</div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
+              {weekDays.map((wd, i) => {
+                const posts = getPostsForDay(wd.date);
+                const dayRolloutEvents = getRolloutEventsForDay(wd.date);
+                return (
+                  <div key={i} onClick={() => handleDayClick(wd.date)} className={`border-r border-dark-700/60 last:border-r-0 p-1.5 min-h-[200px] cursor-pointer hover:bg-dark-700/30 transition-colors ${isToday(wd.date) ? 'bg-accent-purple/5' : ''}`}>
+                    <div className="space-y-1">
+                      {dayRolloutEvents.map((event) => (
+                        <div key={event.id} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 px-1.5 py-1 rounded text-[11px]" style={{ backgroundColor: `${event.color}15`, borderLeft: `2px solid ${event.color}` }}>
+                          {event.type.includes('start') ? <Flag className="w-3 h-3 flex-shrink-0" style={{ color: event.color }} /> : <Target className="w-3 h-3 flex-shrink-0" style={{ color: event.color }} />}
+                          <span className="truncate" style={{ color: event.color }}>{event.type.includes('section') ? event.sectionName : event.rolloutName}</span>
+                        </div>
+                      ))}
+                      {posts.map((post) => (
+                        <div key={post.id} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-1.5 py-1 rounded text-[11px] bg-dark-700/60 hover:bg-dark-600 cursor-pointer">
+                          {post.image ? <img src={post.image} alt="" className="w-5 h-5 rounded-sm object-cover flex-shrink-0" /> : <div className="w-5 h-5 rounded-sm flex-shrink-0" style={{ backgroundColor: post.color }} />}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-dark-300 truncate">{post.caption?.slice(0, 24) || 'Untitled'}</div>
+                            <div className="text-[9px] text-dark-500">{new Date(post.scheduledAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+                          </div>
+                        </div>
+                      ))}
+                      {posts.length === 0 && dayRolloutEvents.length === 0 && (
+                        <div className="text-[10px] text-dark-600 text-center pt-4">No events</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* ── DAY VIEW ── */}
+        {view === 'day' && (
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 240px)' }}>
+            {dayHours.map((hour) => {
+              const hourStart = new Date(currentDate);
+              hourStart.setHours(hour, 0, 0, 0);
+              const hourEnd = new Date(currentDate);
+              hourEnd.setHours(hour, 59, 59, 999);
+
+              const hourPosts = scheduledPosts.filter((post) => {
+                const postDate = new Date(post.scheduledAt);
+                return postDate >= hourStart && postDate <= hourEnd &&
+                  postDate.getFullYear() === currentDate.getFullYear() &&
+                  postDate.getMonth() === currentDate.getMonth() &&
+                  postDate.getDate() === currentDate.getDate();
+              });
+
+              const hourRollouts = rolloutEvents.filter((event) => {
+                const eventDate = new Date(event.date);
+                return eventDate >= hourStart && eventDate <= hourEnd &&
+                  eventDate.getFullYear() === currentDate.getFullYear() &&
+                  eventDate.getMonth() === currentDate.getMonth() &&
+                  eventDate.getDate() === currentDate.getDate();
+              });
+
+              const timeLabel = hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`;
+
+              return (
+                <div key={hour} className="flex border-b border-dark-700/40 min-h-[48px] hover:bg-dark-700/20 transition-colors">
+                  <div className="w-16 flex-shrink-0 py-1.5 px-2 text-right">
+                    <span className="text-[10px] text-dark-500 font-medium">{timeLabel}</span>
+                  </div>
+                  <div className="flex-1 border-l border-dark-700/60 px-2 py-1 cursor-pointer" onClick={() => handleDayClick(currentDate)}>
+                    <div className="space-y-0.5">
+                      {hourRollouts.map((event) => (
+                        <div key={event.id} className="flex items-center gap-1.5 px-2 py-1 rounded text-xs" style={{ backgroundColor: `${event.color}15`, borderLeft: `2px solid ${event.color}` }}>
+                          {event.type.includes('start') ? <Flag className="w-3 h-3" style={{ color: event.color }} /> : <Target className="w-3 h-3" style={{ color: event.color }} />}
+                          <span style={{ color: event.color }}>{event.type.includes('section') ? event.sectionName : event.rolloutName}</span>
+                        </div>
+                      ))}
+                      {hourPosts.map((post) => (
+                        <div key={post.id} className="flex items-center gap-2 px-2 py-1.5 rounded bg-dark-700/60 hover:bg-dark-600 cursor-pointer">
+                          {post.image ? <img src={post.image} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" /> : <div className="w-8 h-8 rounded flex-shrink-0" style={{ backgroundColor: post.color }} />}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs text-dark-200 truncate">{post.caption?.slice(0, 40) || 'Untitled'}</div>
+                            <div className="text-[10px] text-dark-500">{new Date(post.scheduledAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── YEAR VIEW ── */}
+        {view === 'year' && (
+          <div className="grid grid-cols-4 gap-px bg-dark-700/40 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 240px)' }}>
+            {yearMonths.map((m) => {
+              const monthPostCount = scheduledPosts.filter(p => {
+                const d = new Date(p.scheduledAt);
+                return d.getFullYear() === year && d.getMonth() === m.month;
+              }).length;
+
+              return (
+                <div
+                  key={m.month}
+                  className={`bg-dark-800 p-2.5 cursor-pointer hover:bg-dark-700/50 transition-colors ${m.month === month ? 'ring-1 ring-dark-300' : ''}`}
+                  onClick={() => { setCurrentDate(new Date(year, m.month, 1)); setView('month'); }}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-medium text-dark-300">{m.name.slice(0, 3)}</span>
+                    {monthPostCount > 0 && <span className="text-[9px] text-dark-500">{monthPostCount}</span>}
+                  </div>
+                  <div className="grid grid-cols-7 gap-px">
+                    {['S','M','T','W','T','F','S'].map((d, i) => (
+                      <div key={i} className="text-[7px] text-dark-600 text-center leading-none pb-0.5">{d}</div>
+                    ))}
+                    {m.days.map((d, i) => {
+                      if (!d) return <div key={`e-${i}`} className="h-3.5" />;
+                      const isTd = isToday(d);
+                      const hasPost = scheduledPosts.some(p => {
+                        const pd = new Date(p.scheduledAt);
+                        return pd.getFullYear() === d.getFullYear() && pd.getMonth() === d.getMonth() && pd.getDate() === d.getDate();
+                      });
+                      return (
+                        <div
+                          key={i}
+                          className={`h-3.5 flex items-center justify-center text-[8px] rounded-sm ${
+                            isTd ? 'bg-accent-purple text-white font-semibold' : hasPost ? 'bg-dark-600 text-dark-200' : 'text-dark-500'
+                          }`}
+                        >
+                          {d.getDate()}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Conviction Insights Panel */}
       {showConvictionInsights && scheduledPosts.length > 0 && (
-        <div className="mt-4 grid grid-cols-2 gap-4">
+        <div className="mt-2 grid grid-cols-2 gap-3">
           <ConvictionTrend posts={scheduledPosts} metric="conviction" />
           <CalendarConvictionPanel
             dateRange={{ start: days[0]?.date, end: days[days.length - 1]?.date }}
@@ -665,26 +796,26 @@ function Calendar() {
       )}
 
       {/* Quick Stats & Legend */}
-      <div className="mt-4 flex items-center justify-between">
-        <div className="flex items-center gap-6 text-sm">
-          <div className="flex items-center gap-2 text-dark-400">
-            <CalendarIcon className="w-4 h-4" />
-            <span>{scheduledPosts.length} scheduled posts</span>
+      <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-1.5 text-dark-500">
+            <CalendarIcon className="w-3 h-3" />
+            <span>{scheduledPosts.length} scheduled</span>
           </div>
-          <div className="flex items-center gap-2 text-dark-400">
-            <Layers className="w-4 h-4" />
+          <div className="flex items-center gap-1.5 text-dark-500">
+            <Layers className="w-3 h-3" />
             <span>{rolloutEvents.length} rollout events</span>
           </div>
           {calendarConvictionView.showScores && scheduledPosts.some(p => p.conviction) && (
             <>
-              <div className="flex items-center gap-2 text-green-400">
-                <Sparkles className="w-4 h-4" />
+              <div className="flex items-center gap-1.5 text-dark-300">
+                <BarChart3 className="w-3 h-3" />
                 <span>
                   {scheduledPosts.filter(p => p.conviction?.score >= 60).length} high-conviction
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-dark-400">
-                <TrendingUp className="w-4 h-4" />
+              <div className="flex items-center gap-1.5 text-dark-500">
+                <TrendingUp className="w-3 h-3" />
                 <span>
                   Avg: {Math.round(
                     scheduledPosts
@@ -700,27 +831,26 @@ function Calendar() {
 
         {/* Legend */}
         {showLegend && (
-          <div className="flex items-center gap-4 text-xs text-dark-400">
-            <span className="font-medium">Legend:</span>
+          <div className="flex items-center gap-3 text-[10px] text-dark-500">
             <div className="flex items-center gap-1">
-              <div className="w-4 h-4 bg-dark-600 rounded flex items-center justify-center">
-                <Image className="w-2.5 h-2.5" />
+              <div className="w-3 h-3 bg-dark-700 rounded-sm flex items-center justify-center">
+                <Image className="w-2 h-2" />
               </div>
               <span>Post</span>
             </div>
             <div className="flex items-center gap-1">
-              <Flag className="w-4 h-4 text-green-400" />
+              <Flag className="w-3 h-3 text-dark-300" />
               <span>Start</span>
             </div>
             <div className="flex items-center gap-1">
-              <Target className="w-4 h-4 text-orange-400" />
+              <Target className="w-3 h-3 text-dark-400" />
               <span>Deadline</span>
             </div>
             <button
               onClick={() => setShowLegend(false)}
-              className="text-dark-500 hover:text-dark-300"
+              className="text-dark-600 hover:text-dark-400"
             >
-              <X className="w-3 h-3" />
+              <X className="w-2.5 h-2.5" />
             </button>
           </div>
         )}
@@ -756,7 +886,7 @@ function Calendar() {
                 onClick={() => setModalTab('post')}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
                   modalTab === 'post'
-                    ? 'text-accent-purple border-b-2 border-accent-purple bg-accent-purple/5'
+                    ? 'text-dark-100 border-b-2 border-dark-100 bg-dark-700'
                     : 'text-dark-400 hover:text-dark-200 hover:bg-dark-700/50'
                 }`}
               >
@@ -767,7 +897,7 @@ function Calendar() {
                 onClick={() => setModalTab('collection')}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
                   modalTab === 'collection'
-                    ? 'text-accent-purple border-b-2 border-accent-purple bg-accent-purple/5'
+                    ? 'text-dark-100 border-b-2 border-dark-100 bg-dark-700'
                     : 'text-dark-400 hover:text-dark-200 hover:bg-dark-700/50'
                 }`}
               >
@@ -778,7 +908,7 @@ function Calendar() {
                 onClick={() => setModalTab('rollout')}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
                   modalTab === 'rollout'
-                    ? 'text-accent-purple border-b-2 border-accent-purple bg-accent-purple/5'
+                    ? 'text-dark-100 border-b-2 border-dark-100 bg-dark-700'
                     : 'text-dark-400 hover:text-dark-200 hover:bg-dark-700/50'
                 }`}
               >
@@ -809,7 +939,7 @@ function Calendar() {
                             onClick={() => setSelectedContent(content)}
                             className={`aspect-square rounded-lg overflow-hidden border-2 transition-colors ${
                               selectedContent?._id === content._id || selectedContent?.id === content.id
-                                ? 'border-accent-purple'
+                                ? 'border-dark-100'
                                 : 'border-transparent hover:border-dark-500'
                             }`}
                           >
@@ -855,7 +985,7 @@ function Calendar() {
                           onClick={() => togglePlatform(platform)}
                           className={`px-3 py-1.5 rounded-lg text-sm capitalize transition-colors ${
                             selectedPlatforms.includes(platform)
-                              ? 'bg-accent-purple text-white'
+                              ? 'bg-dark-100 text-dark-900'
                               : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
                           }`}
                         >
@@ -887,12 +1017,12 @@ function Calendar() {
                             onClick={() => setSelectedCollection(collection)}
                             className={`flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors ${
                               selectedCollection?.id === collection.id
-                                ? 'border-accent-purple bg-accent-purple/10'
+                                ? 'border-dark-100 bg-dark-600/50'
                                 : 'border-dark-600 hover:border-dark-500'
                             }`}
                           >
                             <div className="w-8 h-8 rounded bg-dark-600 flex items-center justify-center">
-                              {collection.platform === 'youtube' && <Youtube className="w-4 h-4 text-red-400" />}
+                              {collection.platform === 'youtube' && <Youtube className="w-4 h-4 text-dark-300" />}
                               {collection.platform === 'instagram' && <Instagram className="w-4 h-4 text-pink-400" />}
                               {collection.platform === 'tiktok' && <TikTokIcon className="w-4 h-4 text-cyan-400" />}
                               {collection.type === 'reel' && <Film className="w-4 h-4 text-purple-400" />}
@@ -955,7 +1085,7 @@ function Calendar() {
                           onClick={() => setPostingInterval(interval.id)}
                           className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                             postingInterval === interval.id
-                              ? 'bg-accent-purple text-white'
+                              ? 'bg-dark-100 text-dark-900'
                               : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
                           }`}
                         >
@@ -998,7 +1128,7 @@ function Calendar() {
                           onClick={() => togglePlatform(platform)}
                           className={`px-3 py-1.5 rounded-lg text-sm capitalize transition-colors ${
                             selectedPlatforms.includes(platform)
-                              ? 'bg-accent-purple text-white'
+                              ? 'bg-dark-100 text-dark-900'
                               : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
                           }`}
                         >
@@ -1030,12 +1160,12 @@ function Calendar() {
                             onClick={() => setSelectedRollout(rollout)}
                             className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-colors ${
                               selectedRollout?._id === rollout._id || selectedRollout?.id === rollout.id
-                                ? 'border-accent-purple bg-accent-purple/10'
+                                ? 'border-dark-100 bg-dark-600/50'
                                 : 'border-dark-600 hover:border-dark-500'
                             }`}
                           >
                             <div className="w-10 h-10 rounded-lg bg-dark-600 flex items-center justify-center">
-                              <Layers className="w-5 h-5 text-accent-purple" />
+                              <Layers className="w-5 h-5 text-dark-100" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-white">{rollout.name}</div>
@@ -1043,7 +1173,7 @@ function Calendar() {
                                 {rollout.sections?.length || 0} sections
                                 <span className={`ml-2 px-1.5 py-0.5 rounded ${
                                   rollout.status === 'active'
-                                    ? 'bg-green-500/20 text-green-400'
+                                    ? 'bg-dark-600/30 text-dark-100'
                                     : rollout.status === 'completed'
                                     ? 'bg-blue-500/20 text-blue-400'
                                     : 'bg-dark-600 text-dark-400'
@@ -1133,14 +1263,14 @@ function Calendar() {
 
             {/* Conviction Gating Warning */}
             {convictionGatingWarning && (
-              <div className="mx-4 mb-4 p-4 bg-orange-900/20 border border-orange-500/30 rounded-lg">
+              <div className="mx-4 mb-4 p-4 bg-dark-700/50 border border-dark-600 rounded-lg">
                 <div className="flex items-start gap-3">
                   <div className="flex-shrink-0 mt-0.5">
                     <ConvictionBadge score={convictionGatingWarning.score} size="md" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-orange-400 font-semibold text-sm mb-1">Low Conviction Score</h4>
-                    <p className="text-orange-300 text-sm mb-3">{convictionGatingWarning.message}</p>
+                    <h4 className="text-dark-300 font-semibold text-sm mb-1">Low Conviction Score</h4>
+                    <p className="text-dark-300 text-sm mb-3">{convictionGatingWarning.message}</p>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setConvictionGatingWarning(null)}
@@ -1157,7 +1287,7 @@ function Calendar() {
                           setShowScheduleModal(false);
                           fetchScheduledPosts();
                         }}
-                        className="px-3 py-1.5 text-sm bg-orange-600 hover:bg-orange-700 text-white rounded"
+                        className="px-3 py-1.5 text-sm bg-dark-100 hover:bg-white text-dark-900 text-white rounded"
                       >
                         Schedule Anyway
                       </button>

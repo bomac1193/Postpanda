@@ -305,10 +305,19 @@ export const useAppStore = create(
           v.id === id ? { ...v, ...updates, updatedAt: new Date().toISOString() } : v
         )
       })),
-      deleteYoutubeVideo: (id) => set((state) => ({
-        youtubeVideos: state.youtubeVideos.filter(v => v.id !== id),
-        selectedYoutubeVideoId: state.selectedYoutubeVideoId === id ? null : state.selectedYoutubeVideoId
-      })),
+      deleteYoutubeVideo: (id) => {
+        // Optimistic local removal
+        set((state) => ({
+          youtubeVideos: state.youtubeVideos.filter(v => v.id !== id),
+          selectedYoutubeVideoId: state.selectedYoutubeVideoId === id ? null : state.selectedYoutubeVideoId
+        }));
+        // Persist to backend
+        import('../lib/api').then(({ youtubeApi }) => {
+          youtubeApi.deleteVideo(id).catch(err =>
+            console.error('Failed to delete video from backend:', err)
+          );
+        });
+      },
       reorderYoutubeVideos: (videos) => set({
         youtubeVideos: videos.map((v, i) => ({ ...v, position: i }))
       }),

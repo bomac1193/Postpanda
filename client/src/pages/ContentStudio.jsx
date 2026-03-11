@@ -85,7 +85,7 @@ function StarRating({ rating, onRate, size = 'md' }) {
           <Star
             className={`${sizes[size]} transition-colors ${
               star <= (hover || rating)
-                ? 'fill-yellow-400 text-yellow-400'
+                ? 'fill-dark-100 text-dark-300'
                 : 'text-dark-500'
             }`}
           />
@@ -146,7 +146,7 @@ function VariantCard({ variant, index, onCopy, copied, onRate, platform }) {
           onClick={() => onCopy(variant.variant || variant.title, index)}
           className="p-2 text-dark-400 hover:text-white rounded-lg flex-shrink-0 transition-colors"
         >
-          {copied === index ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+          {copied === index ? <Check className="w-4 h-4 text-dark-100" /> : <Copy className="w-4 h-4" />}
         </button>
       </div>
 
@@ -165,7 +165,7 @@ function VariantCard({ variant, index, onCopy, copied, onRate, platform }) {
       )}
 
       <div className="flex items-center gap-3 mt-3">
-        <span className="px-2 py-1 bg-accent-purple/20 text-accent-purple rounded text-xs font-medium">
+        <span className="px-2 py-1 bg-dark-700 text-dark-100 rounded text-xs font-medium">
           {variant.hookType}
         </span>
         <span className="px-2 py-1 bg-dark-600 text-dark-300 rounded text-xs">
@@ -194,7 +194,7 @@ function VariantCard({ variant, index, onCopy, copied, onRate, platform }) {
             <span className="text-xs text-dark-400">Rate this:</span>
             <StarRating rating={rating} onRate={handleRate} size="sm" />
             {saved && (
-              <span className="text-xs text-green-400 flex items-center gap-1">
+              <span className="text-xs text-dark-100 flex items-center gap-1">
                 <Check className="w-3 h-3" /> Saved
               </span>
             )}
@@ -208,7 +208,7 @@ function VariantCard({ variant, index, onCopy, copied, onRate, platform }) {
             <div className="flex gap-4 mb-3">
               <div className="flex-1">
                 <p className="text-xs text-dark-400 mb-1 flex items-center gap-1">
-                  <ThumbsUp className="w-3 h-3 text-green-400" /> Liked
+                  <ThumbsUp className="w-3 h-3 text-dark-100" /> Liked
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {feedbackOptions.map(opt => (
@@ -217,7 +217,7 @@ function VariantCard({ variant, index, onCopy, copied, onRate, platform }) {
                       onClick={() => toggleFeedback('liked', opt.id)}
                       className={`px-2 py-1 rounded text-xs transition-colors ${
                         feedback.liked.includes(opt.id)
-                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                          ? 'bg-dark-600/30 text-dark-100 border border-dark-500/30'
                           : 'bg-dark-700 text-dark-400 hover:text-dark-200'
                       }`}
                     >
@@ -228,7 +228,7 @@ function VariantCard({ variant, index, onCopy, copied, onRate, platform }) {
               </div>
               <div className="flex-1">
                 <p className="text-xs text-dark-400 mb-1 flex items-center gap-1">
-                  <ThumbsDown className="w-3 h-3 text-red-400" /> Disliked
+                  <ThumbsDown className="w-3 h-3 text-dark-300" /> Disliked
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {feedbackOptions.map(opt => (
@@ -237,7 +237,7 @@ function VariantCard({ variant, index, onCopy, copied, onRate, platform }) {
                       onClick={() => toggleFeedback('disliked', opt.id)}
                       className={`px-2 py-1 rounded text-xs transition-colors ${
                         feedback.disliked.includes(opt.id)
-                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                          ? 'bg-dark-600/30 text-dark-300 border border-dark-500/30'
                           : 'bg-dark-700 text-dark-400 hover:text-dark-200'
                       }`}
                     >
@@ -250,7 +250,7 @@ function VariantCard({ variant, index, onCopy, copied, onRate, platform }) {
             <button
               onClick={submitRating}
               disabled={saving}
-              className="w-full py-2 bg-accent-purple text-white text-sm rounded-lg hover:bg-accent-purple/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-2 bg-dark-100 text-dark-900 text-sm rounded-lg hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Star className="w-4 h-4" />}
               Save Rating
@@ -568,7 +568,7 @@ function ContentStudio() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
               activeTab === tab.id
-                ? 'bg-accent-purple text-white'
+                ? 'bg-dark-100 text-dark-900'
                 : 'text-dark-400 hover:text-white'
             }`}
           >
@@ -583,9 +583,9 @@ function ContentStudio() {
         <div className="space-y-6">
           {/* Folio Mode Indicator */}
           {useFolioForGeneration && folioConnected && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-accent-purple/10 border border-accent-purple/30 rounded-lg">
-              <Link2 className="w-4 h-4 text-accent-purple" />
-              <span className="text-sm text-accent-purple">Using Folio's AI for generation</span>
+            <div className="flex items-center gap-2 px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg">
+              <Link2 className="w-4 h-4 text-dark-100" />
+              <span className="text-sm text-dark-100">Using Folio's AI for generation</span>
               <button
                 onClick={() => setUseFolioForGeneration(false)}
                 className="ml-auto text-xs text-dark-400 hover:text-white"
@@ -620,7 +620,7 @@ function ContentStudio() {
               <button
                 onClick={handleGenerate}
                 disabled={generating || !topic.trim()}
-                className="px-6 py-3 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors disabled:opacity-50 flex items-center gap-2 font-medium"
+                className="px-6 py-3 bg-dark-100 text-dark-900 rounded-lg hover:bg-white transition-colors disabled:opacity-50 flex items-center gap-2 font-medium"
               >
                 {generating ? (
                   <RefreshCw className="w-5 h-5 animate-spin" />
@@ -654,7 +654,7 @@ function ContentStudio() {
           {tasteProfile && (
             <div className="bg-dark-800 rounded-xl p-4 border border-dark-700">
               <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
-                <Target className="w-4 h-4 text-accent-purple" />
+                <Target className="w-4 h-4 text-dark-100" />
                 Your Taste Profile
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -693,7 +693,7 @@ function ContentStudio() {
         <div className="space-y-4">
           <div className="bg-dark-800 rounded-xl border border-dark-700 p-4 flex items-start gap-3">
             <div className="w-10 h-10 rounded-lg bg-dark-700 flex items-center justify-center">
-              <Folder className="w-5 h-5 text-accent-purple" />
+              <Folder className="w-5 h-5 text-dark-100" />
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-white">Folio Collections</h3>
@@ -738,7 +738,7 @@ function ContentStudio() {
               ) : (
                 <button
                   onClick={() => setActiveTab('folio')}
-                  className="px-3 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors"
+                  className="px-3 py-2 bg-dark-100 text-dark-900 rounded-lg hover:bg-white transition-colors"
                 >
                   Connect Folio
                 </button>
@@ -805,7 +805,7 @@ function ContentStudio() {
                           href={c.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-accent-purple hover:underline flex items-center gap-1 mt-1"
+                          className="text-xs text-dark-100 hover:underline flex items-center gap-1 mt-1"
                         >
                           Open source <ExternalLink className="w-3 h-3" />
                         </a>
@@ -841,7 +841,7 @@ function ContentStudio() {
             <button
               onClick={handleScore}
               disabled={scoring || !scoreCaption.trim()}
-              className="mt-3 px-6 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="mt-3 px-6 py-2 bg-dark-100 text-dark-900 rounded-lg hover:bg-white transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {scoring ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
@@ -875,7 +875,7 @@ function ContentStudio() {
                   <ul className="space-y-2">
                     {scoreResult.feedback.map((fb, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-dark-300">
-                        <Lightbulb className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                        <Lightbulb className="w-4 h-4 text-dark-300 flex-shrink-0 mt-0.5" />
                         {fb}
                       </li>
                     ))}
@@ -915,7 +915,7 @@ function ContentStudio() {
               <button
                 onClick={loadTrending}
                 disabled={loadingTrending}
-                className="px-4 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-4 py-2 bg-dark-100 text-dark-900 rounded-lg hover:bg-white transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {loadingTrending ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -942,7 +942,7 @@ function ContentStudio() {
                     }}
                     className="p-3 bg-dark-700 hover:bg-dark-600 rounded-lg text-left transition-colors group"
                   >
-                    <p className="text-white group-hover:text-accent-purple transition-colors">{topic}</p>
+                    <p className="text-white group-hover:text-dark-100 transition-colors">{topic}</p>
                     <p className="text-xs text-dark-400 mt-1">Click to generate</p>
                   </button>
                 ))}
@@ -959,9 +959,9 @@ function ContentStudio() {
           <div className="bg-dark-800 rounded-xl p-6 border border-dark-700">
             <div className="flex items-center gap-3 mb-4">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                folioConnected ? 'bg-green-500/20' : 'bg-dark-700'
+                folioConnected ? 'bg-dark-600/30' : 'bg-dark-700'
               }`}>
-                <Link2 className={`w-5 h-5 ${folioConnected ? 'text-green-400' : 'text-dark-400'}`} />
+                <Link2 className={`w-5 h-5 ${folioConnected ? 'text-dark-100' : 'text-dark-400'}`} />
               </div>
               <div>
                 <h3 className="text-lg font-medium text-white">Folio Connection</h3>
@@ -1003,7 +1003,7 @@ function ContentStudio() {
                   Connect your Folio account to use your collections, taste profile, and enhanced AI generation.
                 </p>
                 {folioError && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                  <div className="p-3 bg-dark-600/20 border border-dark-500/30 rounded-lg text-dark-300 text-sm">
                     {folioError}
                   </div>
                 )}
@@ -1035,7 +1035,7 @@ function ContentStudio() {
                   <button
                     type="submit"
                     disabled={folioLoggingIn}
-                    className="px-6 py-2.5 bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="px-6 py-2.5 bg-dark-100 text-dark-900 rounded-lg hover:bg-white transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {folioLoggingIn ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1057,7 +1057,7 @@ function ContentStudio() {
                     href="https://folio.subtaste.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-dark-400 hover:text-accent-purple flex items-center gap-1"
+                    className="text-sm text-dark-400 hover:text-dark-100 flex items-center gap-1"
                   >
                     Don't have an account? <ExternalLink className="w-3 h-3" />
                   </a>
@@ -1069,7 +1069,7 @@ function ContentStudio() {
                 {folioTasteProfile && (
                   <div className="p-4 bg-dark-700 rounded-lg">
                     <div className="flex items-center gap-2 mb-3">
-                      <Dna className="w-4 h-4 text-accent-purple" />
+                      <Dna className="w-4 h-4 text-dark-100" />
                       <h4 className="text-sm font-medium text-white">Folio Taste Profile</h4>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -1116,7 +1116,7 @@ function ContentStudio() {
                   <button
                     onClick={() => setUseFolioForGeneration(!useFolioForGeneration)}
                     className={`relative w-12 h-6 rounded-full transition-colors ${
-                      useFolioForGeneration ? 'bg-accent-purple' : 'bg-dark-600'
+                      useFolioForGeneration ? 'bg-dark-100' : 'bg-dark-600'
                     }`}
                   >
                     <div
@@ -1139,15 +1139,15 @@ function ContentStudio() {
             </p>
             <ul className="space-y-2 text-sm text-dark-300">
               <li className="flex items-start gap-2">
-                <Dna className="w-4 h-4 text-accent-purple flex-shrink-0 mt-0.5" />
+                <Dna className="w-4 h-4 text-dark-100 flex-shrink-0 mt-0.5" />
                 <span>Personal taste profile built from your saved content</span>
               </li>
               <li className="flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-accent-purple flex-shrink-0 mt-0.5" />
+                <Sparkles className="w-4 h-4 text-dark-100 flex-shrink-0 mt-0.5" />
                 <span>AI-powered content generation matching your style</span>
               </li>
               <li className="flex items-start gap-2">
-                <Target className="w-4 h-4 text-accent-purple flex-shrink-0 mt-0.5" />
+                <Target className="w-4 h-4 text-dark-100 flex-shrink-0 mt-0.5" />
                 <span>Content DNA analysis for hooks, tones, and formats</span>
               </li>
             </ul>

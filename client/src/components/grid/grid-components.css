@@ -33,7 +33,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  background: #27272a;
 }
 
 .carousel-preview-username {
@@ -259,7 +259,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+  background: #27272a;
   background-size: cover;
   background-position: center;
 }

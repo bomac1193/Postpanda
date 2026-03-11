@@ -88,10 +88,10 @@ function NavItem({ item, collapsed }) {
         <NavLink
           to={item.path}
           className={({ isActive }) =>
-            `h-9 flex items-center ${Icon ? 'gap-2' : ''} px-2.5 border-l-2 transition-colors ${
+            `h-8 flex items-center ${Icon ? 'gap-2' : ''} px-2.5 transition-colors ${
               isActive
-                ? 'border-accent-purple text-dark-100 bg-dark-700/40'
-                : 'border-transparent text-dark-400 hover:text-dark-200 hover:bg-dark-700/20'
+                ? 'text-dark-100 font-medium'
+                : 'text-dark-400 hover:text-dark-200'
             } ${collapsed ? 'justify-center' : ''} ${!Icon && !collapsed ? 'pl-3.5' : ''}`
           }
           title={collapsed ? item.label : undefined}
@@ -114,10 +114,10 @@ function NavItem({ item, collapsed }) {
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className={`w-full h-9 flex items-center gap-2 px-2.5 border-l-2 transition-colors ${
+        className={`w-full h-8 flex items-center gap-2 px-2.5 transition-colors ${
           isActive
-            ? 'border-accent-purple text-dark-100 bg-dark-700/40'
-            : 'border-transparent text-dark-400 hover:text-dark-200 hover:bg-dark-700/20'
+            ? 'text-dark-100 font-medium'
+            : 'text-dark-400 hover:text-dark-200'
         } ${collapsed ? 'justify-center' : ''} ${!Icon && !collapsed ? 'pl-3.5' : ''}`}
         title={collapsed ? item.label : undefined}
         type="button"
@@ -141,10 +141,10 @@ function NavItem({ item, collapsed }) {
               <NavLink
                 to={child.path}
                 className={({ isActive }) =>
-                  `h-8 flex items-center ${child.icon ? 'gap-2' : ''} px-2.5 border-l-2 transition-colors text-sm ${
+                  `h-8 flex items-center ${child.icon ? 'gap-2' : ''} px-2.5 transition-colors text-sm ${
                     isActive
-                      ? 'border-accent-purple text-dark-100 bg-dark-700/30'
-                      : 'border-transparent text-dark-500 hover:text-dark-200 hover:bg-dark-700/20'
+                      ? 'text-dark-100 font-medium'
+                      : 'text-dark-500 hover:text-dark-200'
                   } ${!child.icon ? 'pl-3.5' : ''}`
                 }
               >
@@ -192,12 +192,12 @@ function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto">
-        <div className="px-2 space-y-4">
+        <div className="px-2 space-y-3">
           {navSections.map((section) => (
             <div key={section.id}>
               {!sidebarCollapsed && (
                 <div className="px-2 pb-1">
-                  <span className="micro-label text-dark-500">{section.label}</span>
+                  <span className="micro-label text-dark-600">{section.label}</span>
                 </div>
               )}
               <ul className="space-y-0.5">

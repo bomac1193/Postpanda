@@ -76,15 +76,15 @@ function ValidationHistoryTable({ validations, onRefresh }) {
   };
 
   const getAccuracyColor = (accuracy) => {
-    if (accuracy >= 80) return 'text-green-400';
-    if (accuracy >= 60) return 'text-yellow-400';
-    return 'text-orange-400';
+    if (accuracy >= 80) return 'text-dark-100';
+    if (accuracy >= 60) return 'text-dark-300';
+    return 'text-dark-300';
   };
 
   const getAccuracyBadge = (accuracy) => {
-    if (accuracy >= 80) return { icon: CheckCircle, color: 'bg-green-500/20 text-green-400 border-green-500/30' };
-    if (accuracy >= 60) return { icon: TrendingUp, color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
-    return { icon: AlertCircle, color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' };
+    if (accuracy >= 80) return { icon: CheckCircle, color: 'bg-dark-600/30 text-dark-100 border-dark-500/30' };
+    if (accuracy >= 60) return { icon: TrendingUp, color: 'bg-dark-600/30 text-dark-300 border-dark-500/30' };
+    return { icon: AlertCircle, color: 'bg-dark-600/30 text-dark-300 border-dark-500/30' };
   };
 
   const getArchetypeGlyph = (archetype) => {
@@ -107,7 +107,7 @@ function ValidationHistoryTable({ validations, onRefresh }) {
     return (
       <div className="text-center py-12">
         <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-        <p className="text-gray-400 mb-2">No validations yet</p>
+        <p className="text-dark-400 mb-2">No validations yet</p>
         <p className="text-gray-500 text-sm">
           Validations will appear here once your scheduled posts have been published and performance data is collected.
         </p>
@@ -125,7 +125,7 @@ function ValidationHistoryTable({ validations, onRefresh }) {
             setFilterArchetype(e.target.value);
             setCurrentPage(1);
           }}
-          className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent-purple"
+          className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-dark-100"
         >
           {archetypes.map(archetype => (
             <option key={archetype} value={archetype}>
@@ -134,7 +134,7 @@ function ValidationHistoryTable({ validations, onRefresh }) {
           ))}
         </select>
 
-        <div className="text-sm text-gray-400">
+        <div className="text-sm text-dark-400">
           Showing {paginatedValidations.length} of {filteredValidations.length} validations
         </div>
       </div>
@@ -144,7 +144,7 @@ function ValidationHistoryTable({ validations, onRefresh }) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-dark-700">
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
                 <button
                   onClick={() => handleSort('date')}
                   className="flex items-center gap-1 hover:text-white transition-colors"
@@ -155,13 +155,13 @@ function ValidationHistoryTable({ validations, onRefresh }) {
                   )}
                 </button>
               </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
                 Content
               </th>
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-left py-3 px-4 text-sm font-medium text-dark-400">
                 Archetype
               </th>
-              <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-right py-3 px-4 text-sm font-medium text-dark-400">
                 <button
                   onClick={() => handleSort('predicted')}
                   className="flex items-center gap-1 hover:text-white transition-colors ml-auto"
@@ -172,7 +172,7 @@ function ValidationHistoryTable({ validations, onRefresh }) {
                   )}
                 </button>
               </th>
-              <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-right py-3 px-4 text-sm font-medium text-dark-400">
                 <button
                   onClick={() => handleSort('actual')}
                   className="flex items-center gap-1 hover:text-white transition-colors ml-auto"
@@ -183,10 +183,10 @@ function ValidationHistoryTable({ validations, onRefresh }) {
                   )}
                 </button>
               </th>
-              <th className="text-center py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-center py-3 px-4 text-sm font-medium text-dark-400">
                 Delta
               </th>
-              <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
+              <th className="text-right py-3 px-4 text-sm font-medium text-dark-400">
                 <button
                   onClick={() => handleSort('accuracy')}
                   className="flex items-center gap-1 hover:text-white transition-colors ml-auto"
@@ -246,7 +246,7 @@ function ValidationHistoryTable({ validations, onRefresh }) {
                   </td>
                   <td className="py-3 px-4 text-center">
                     <div className={`flex items-center justify-center gap-1 text-sm font-semibold ${
-                      delta > 0 ? 'text-green-400' : delta < 0 ? 'text-red-400' : 'text-gray-400'
+                      delta > 0 ? 'text-dark-100' : delta < 0 ? 'text-dark-300' : 'text-dark-400'
                     }`}>
                       {delta > 0 ? (
                         <TrendingUp className="w-4 h-4" />
@@ -274,7 +274,7 @@ function ValidationHistoryTable({ validations, onRefresh }) {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6">
-          <div className="text-sm text-gray-400">
+          <div className="text-sm text-dark-400">
             Page {currentPage} of {totalPages}
           </div>
           <div className="flex items-center gap-2">

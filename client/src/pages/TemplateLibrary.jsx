@@ -127,7 +127,7 @@ function TemplateLibrary() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold">Designer Vault</h1>
-            <p className="text-gray-400 mt-2">
+            <p className="text-dark-400 mt-2">
               High-conviction grid templates from top creators
             </p>
           </div>
@@ -138,8 +138,8 @@ function TemplateLibrary() {
               onClick={() => setActiveTab('library')}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 activeTab === 'library'
-                  ? 'bg-accent-purple text-white'
-                  : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                  ? 'bg-dark-100 text-dark-900'
+                  : 'bg-dark-700 text-dark-400 hover:bg-dark-600'
               }`}
             >
               Public Library
@@ -148,8 +148,8 @@ function TemplateLibrary() {
               onClick={() => setActiveTab('my-templates')}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 activeTab === 'my-templates'
-                  ? 'bg-accent-purple text-white'
-                  : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                  ? 'bg-dark-100 text-dark-900'
+                  : 'bg-dark-700 text-dark-400 hover:bg-dark-600'
               }`}
             >
               My Templates
@@ -161,13 +161,13 @@ function TemplateLibrary() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           {/* Search */}
           <div className="md:col-span-2 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-400" />
             <input
               type="text"
               placeholder="Search templates..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-dark-700 border border-dark-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-accent-purple"
+              className="w-full bg-dark-700 border border-dark-600 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-dark-300"
             />
           </div>
 
@@ -175,7 +175,7 @@ function TemplateLibrary() {
           <select
             value={filters.sortBy}
             onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
-            className="bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent-purple"
+            className="bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-dark-300"
           >
             <option value="popular">Most Popular</option>
             <option value="recent">Most Recent</option>
@@ -187,7 +187,7 @@ function TemplateLibrary() {
           <select
             value={filters.priceRange}
             onChange={(e) => setFilters({ ...filters, priceRange: e.target.value })}
-            className="bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent-purple"
+            className="bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-dark-300"
           >
             <option value="all">All Templates</option>
             <option value="free">Free Only</option>
@@ -198,13 +198,13 @@ function TemplateLibrary() {
         {/* Stats Bar */}
         <div className="grid grid-cols-4 gap-4 mb-8">
           <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-            <div className="text-gray-400 text-sm mb-1">Total Templates</div>
+            <div className="text-dark-400 text-sm mb-1">Total Templates</div>
             <div className="text-2xl font-bold">{filteredTemplates.length}</div>
           </div>
 
           <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-            <div className="text-gray-400 text-sm mb-1">Avg Conviction</div>
-            <div className="text-2xl font-bold text-green-400">
+            <div className="text-dark-400 text-sm mb-1">Avg Conviction</div>
+            <div className="text-2xl font-bold text-dark-100">
               {filteredTemplates.length > 0
                 ? Math.round(
                     filteredTemplates.reduce((sum, t) => sum + (t.metrics?.avgConvictionScore || 0), 0) /
@@ -215,8 +215,8 @@ function TemplateLibrary() {
           </div>
 
           <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-            <div className="text-gray-400 text-sm mb-1">Avg Rating</div>
-            <div className="text-2xl font-bold text-yellow-400">
+            <div className="text-dark-400 text-sm mb-1">Avg Rating</div>
+            <div className="text-2xl font-bold text-dark-300">
               {filteredTemplates.length > 0
                 ? (
                     filteredTemplates.reduce((sum, t) => sum + (t.metrics?.avgRating || 0), 0) /
@@ -227,8 +227,8 @@ function TemplateLibrary() {
           </div>
 
           <div className="bg-dark-800 rounded-lg p-4 border border-dark-700">
-            <div className="text-gray-400 text-sm mb-1">Total Uses</div>
-            <div className="text-2xl font-bold text-accent-purple">
+            <div className="text-dark-400 text-sm mb-1">Total Uses</div>
+            <div className="text-2xl font-bold text-dark-100">
               {filteredTemplates.reduce((sum, t) => sum + (t.metrics?.timesUsed || 0), 0)}
             </div>
           </div>
@@ -239,14 +239,14 @@ function TemplateLibrary() {
       <div className="max-w-7xl mx-auto">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-accent-purple" />
+            <Loader2 className="w-8 h-8 animate-spin text-dark-100" />
           </div>
         ) : filteredTemplates.length === 0 ? (
           <div className="text-center py-20">
-            <h3 className="text-xl font-semibold text-gray-400 mb-2">
+            <h3 className="text-xl font-semibold text-dark-400 mb-2">
               No templates found
             </h3>
-            <p className="text-gray-500">
+            <p className="text-dark-500">
               {activeTab === 'my-templates'
                 ? 'Create your first template from a high-conviction grid'
                 : 'Try adjusting your filters'}
@@ -294,7 +294,7 @@ function TemplateCard({ template, onApply, onRate, onDelete, isOwner }) {
 
   return (
     <div
-      className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden hover:border-accent-purple transition-all group cursor-pointer"
+      className="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden hover:border-dark-300 transition-all group cursor-pointer"
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
@@ -327,7 +327,7 @@ function TemplateCard({ template, onApply, onRate, onDelete, isOwner }) {
           <div className="absolute inset-0 bg-dark-900/90 flex items-center justify-center gap-2 transition-opacity">
             <button
               onClick={() => onApply(template._id)}
-              className="px-4 py-2 bg-accent-purple hover:bg-accent-purple-dark rounded-lg flex items-center gap-2 transition-colors"
+              className="px-4 py-2 bg-dark-100 hover:bg-white text-dark-900 rounded-lg flex items-center gap-2 transition-colors"
             >
               <Download className="w-4 h-4" />
               Apply
@@ -335,7 +335,7 @@ function TemplateCard({ template, onApply, onRate, onDelete, isOwner }) {
             {isOwner && onDelete && (
               <button
                 onClick={() => onDelete(template._id)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2 transition-colors"
+                className="px-4 py-2 bg-dark-100 hover:bg-white text-dark-900 rounded-lg flex items-center gap-2 transition-colors"
               >
                 <X className="w-4 h-4" />
                 Delete
@@ -350,13 +350,13 @@ function TemplateCard({ template, onApply, onRate, onDelete, isOwner }) {
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-lg">{template.name}</h3>
           {template.marketplace?.forSale && (
-            <div className="text-green-400 text-sm">
+            <div className="text-dark-100 text-sm">
               ${template.marketplace.price || 0}
             </div>
           )}
         </div>
 
-        <p className="text-gray-400 text-sm mb-3 line-clamp-2">
+        <p className="text-dark-400 text-sm mb-3 line-clamp-2">
           {template.description || 'No description'}
         </p>
 
@@ -375,13 +375,13 @@ function TemplateCard({ template, onApply, onRate, onDelete, isOwner }) {
         )}
 
         {/* Metrics */}
-        <div className="flex items-center justify-between text-sm text-gray-400">
+        <div className="flex items-center justify-between text-sm text-dark-400">
           <div className="flex items-center gap-3">
             <span>Rating {template.metrics?.avgRating?.toFixed(1) || '0.0'}</span>
             <span>Uses {template.metrics?.timesUsed || 0}</span>
           </div>
 
-          <div className="text-accent-purple">
+          <div className="text-dark-100">
             Score {Math.round(template.metrics?.aestheticScore || 0)}/100
           </div>
         </div>
@@ -400,7 +400,7 @@ function TemplateDetailModal({ template, onClose, onApply, onRate }) {
           <h2 className="text-2xl font-bold mb-4">{template.name}</h2>
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            className="absolute top-4 right-4 text-dark-400 hover:text-white"
           >
             <X className="w-6 h-6" />
           </button>

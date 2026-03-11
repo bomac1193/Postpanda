@@ -1,20 +1,6 @@
 import PropTypes from 'prop-types';
 import './ai-components.css';
 
-const SCORE_COLORS = {
-  excellent: '#4CAF50',
-  good: '#8BC34A',
-  average: '#FF9800',
-  poor: '#f44336',
-};
-
-function getScoreColor(score) {
-  if (score >= 80) return SCORE_COLORS.excellent;
-  if (score >= 60) return SCORE_COLORS.good;
-  if (score >= 40) return SCORE_COLORS.average;
-  return SCORE_COLORS.poor;
-}
-
 function getScoreLabel(score) {
   if (score >= 80) return 'Excellent';
   if (score >= 60) return 'Good';
@@ -27,7 +13,6 @@ function ScoreCard({ label, score, description, loading }) {
   const circumference = 2 * Math.PI * radius;
   const progress = ((score || 0) / 100) * circumference;
   const dashOffset = circumference - progress;
-  const color = getScoreColor(score);
 
   return (
     <div className="ai-score-card" title={description}>
@@ -45,19 +30,19 @@ function ScoreCard({ label, score, description, loading }) {
               cx="40"
               cy="40"
               r={radius}
-              stroke={color}
+              stroke="#d4d4d8"
               strokeDasharray={circumference}
               strokeDashoffset={dashOffset}
             />
           )}
         </svg>
-        <div className="ai-score-value" style={{ color: loading ? '#ccc' : color }}>
+        <div className="ai-score-value" style={{ color: loading ? '#3f3f46' : '#66023C' }}>
           {loading ? '...' : score !== null ? score : '--'}
         </div>
       </div>
       <div className="ai-score-label">{label}</div>
       {score !== null && !loading && (
-        <div className="ai-score-status" style={{ color, fontSize: '0.7rem', marginTop: '0.25rem' }}>
+        <div className="ai-score-status" style={{ color: '#71717a', fontSize: '0.7rem', marginTop: '0.25rem' }}>
           {getScoreLabel(score)}
         </div>
       )}

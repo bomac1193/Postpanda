@@ -42,7 +42,7 @@ function BestTimeModal({ onClose }) {
         <div className="p-4">
           {loadingBestTimes ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-accent-purple" />
+              <Loader2 className="w-8 h-8 animate-spin text-dark-100" />
             </div>
           ) : bestTimes ? (
             <div className="space-y-4">
@@ -50,7 +50,7 @@ function BestTimeModal({ onClose }) {
                 <h4 className="text-sm font-medium text-dark-200 mb-2">Best Days</h4>
                 <div className="flex flex-wrap gap-2">
                   {bestTimes.bestDays?.map((day) => (
-                    <span key={day} className="px-3 py-1 bg-accent-purple/20 text-accent-purple rounded-lg text-sm">
+                    <span key={day} className="px-3 py-1 bg-dark-700 text-dark-100 rounded-lg text-sm">
                       {day}
                     </span>
                   ))}
@@ -61,7 +61,7 @@ function BestTimeModal({ onClose }) {
                 <h4 className="text-sm font-medium text-dark-200 mb-2">Best Times</h4>
                 <div className="flex flex-wrap gap-2">
                   {bestTimes.bestHours?.map((time) => (
-                    <span key={time} className="px-3 py-1 bg-accent-blue/20 text-accent-blue rounded-lg text-sm">
+                    <span key={time} className="px-3 py-1 bg-dark-700 text-dark-100 rounded-lg text-sm">
                       {time}
                     </span>
                   ))}

@@ -9,6 +9,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
+  timeout: 60000, // 60s default — prevents infinite hangs on slow uploads
 });
 
 // Request interceptor for auth token
@@ -140,6 +141,8 @@ export const youtubeApi = {
     return data;
   },
   async updateVideo(id, updates) {
+    // Server saves base64 immediately and uploads to Cloudinary in background,
+    // so no extra timeout needed for thumbnail updates
     const { data } = await api.put(`/api/youtube/videos/${id}`, updates);
     return data;
   },
@@ -150,6 +153,32 @@ export const youtubeApi = {
   async reorderVideos(collectionId, videoIds) {
     const { data } = await api.post('/api/youtube/videos/reorder', { collectionId, videoIds });
     return data;
+  },
+
+  // Versions
+  async saveVersion(collectionId, name) {
+    const { data } = await api.post(`/api/youtube/collections/${collectionId}/versions`, { name });
+    return data;
+  },
+  async getVersions(collectionId) {
+    const { data } = await api.get(`/api/youtube/collections/${collectionId}/versions`);
+    return data;
+  },
+  async restoreVersion(collectionId, index) {
+    const { data } = await api.post(`/api/youtube/collections/${collectionId}/versions/${index}/restore`);
+    return data;
+  },
+  async deleteVersion(collectionId, index) {
+    const { data } = await api.delete(`/api/youtube/collections/${collectionId}/versions/${index}`);
+    return data;
+  },
+};
+
+// Crucibla API (ecosystem proxy)
+export const cruciblaApi = {
+  async getProjects() {
+    const { data } = await api.get('/api/crucibla/projects');
+    return data.projects || [];
   },
 };
 

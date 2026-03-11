@@ -78,7 +78,7 @@ function ScheduleModal({ postId, caption, hashtags, onClose }) {
                   onClick={() => togglePlatform(platform)}
                   className={`px-3 py-1.5 rounded-lg text-sm capitalize transition-colors ${
                     selectedPlatforms.includes(platform)
-                      ? 'bg-accent-purple text-white'
+                      ? 'bg-dark-100 text-white'
                       : 'bg-dark-700 text-dark-300 hover:bg-dark-600'
                   }`}
                 >

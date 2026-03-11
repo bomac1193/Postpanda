@@ -25,7 +25,7 @@ const PLATFORMS = [
     id: 'instagram',
     name: 'Instagram',
     icon: Instagram,
-    color: 'bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400',
+    color: 'bg-dark-600',
     features: ['Feed Posts', 'Reels', 'Stories', 'Carousels', 'First Comment'],
     authUrl: '/api/auth/instagram',
   },
@@ -251,7 +251,7 @@ function Connections() {
           <p className="text-sm text-dark-400">Available</p>
         </div>
         <div className="bg-dark-800 rounded-xl border border-dark-700 p-4">
-          <p className="text-3xl font-bold text-accent-purple">
+          <p className="text-3xl font-bold text-dark-100">
             {PLATFORMS.filter((p) => p.comingSoon).length}
           </p>
           <p className="text-sm text-dark-400">Coming Soon</p>
@@ -301,7 +301,7 @@ function Connections() {
               {/* Instagram for Profile */}
               <div className="bg-dark-800 rounded-xl border border-dark-700 p-5">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-dark-600 flex items-center justify-center flex-shrink-0">
                     <Instagram className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -327,7 +327,7 @@ function Connections() {
                           {profileSocialStatus.instagram.useParent ? (
                             <button
                               onClick={() => handleConnectOwnAccount('instagram')}
-                              className="text-xs text-accent-purple hover:underline"
+                              className="text-xs text-dark-100 hover:underline"
                               disabled={connecting === 'instagram'}
                             >
                               {connecting === 'instagram' ? 'Connecting...' : 'Connect own account'}
@@ -400,7 +400,7 @@ function Connections() {
                           {profileSocialStatus.tiktok.useParent ? (
                             <button
                               onClick={() => handleConnectOwnAccount('tiktok')}
-                              className="text-xs text-accent-purple hover:underline"
+                              className="text-xs text-dark-100 hover:underline"
                               disabled={connecting === 'tiktok'}
                             >
                               {connecting === 'tiktok' ? 'Connecting...' : 'Connect own account'}
@@ -520,7 +520,7 @@ function Connections() {
                             </>
                           ) : refreshSuccess === platform.id ? (
                             <>
-                              <Check className="w-3 h-3 text-green-400" />
+                              <Check className="w-3 h-3 text-dark-100" />
                               Refreshed!
                             </>
                           ) : (
@@ -532,7 +532,7 @@ function Connections() {
                         </button>
                         <button
                           onClick={() => handleDisconnect(platform.id)}
-                          className="btn-ghost text-sm py-1.5 text-red-400 hover:text-red-300"
+                          className="btn-ghost text-sm py-1.5 text-dark-300 hover:text-dark-100"
                         >
                           <Trash2 className="w-3 h-3" />
                           Disconnect
@@ -568,7 +568,7 @@ function Connections() {
       {/* Help Section */}
       <div className="mt-8 p-4 bg-dark-800 rounded-xl border border-dark-700">
         <div className="flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-accent-blue flex-shrink-0 mt-0.5" />
+          <AlertCircle className="w-5 h-5 text-dark-100 flex-shrink-0 mt-0.5" />
           <div>
             <h4 className="font-medium text-dark-200 mb-1">
               Need help connecting?

@@ -500,9 +500,9 @@
 }
 
 .logo-delete-btn:hover {
-  background: rgba(244, 67, 54, 0.1);
-  color: #f44336;
-  border-color: #f44336;
+  background: rgba(113, 113, 122, 0.1);
+  color: #71717a;
+  border-color: #71717a;
 }
 
 .no-logos {

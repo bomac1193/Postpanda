@@ -306,7 +306,7 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
       onDrop={handleDrop}
       className={`aspect-square bg-dark-700 overflow-hidden cursor-grab active:cursor-grabbing relative select-none ${
         isDragging ? 'opacity-40' : ''
-      } ${isSelected ? 'ring-4 ring-accent-purple' : ''} ${isOver ? 'ring-4 ring-accent-purple scale-105 transition-all duration-150' : ''} ${isFileOver ? 'ring-4 ring-green-500 scale-105 transition-all duration-150' : ''}`}
+      } ${isSelected ? 'ring-4 ring-dark-300' : ''} ${isOver ? 'ring-4 ring-dark-300 scale-105 transition-all duration-150' : ''} ${isFileOver ? 'ring-4 ring-dark-300 scale-105 transition-all duration-150' : ''}`}
     >
       {images.length > 0 ? (
         <>
@@ -382,7 +382,7 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
           <button
             onClick={handleDeleteClick}
-            className="p-3 bg-red-500 hover:bg-red-600 rounded-full transition-colors pointer-events-auto shadow-lg shadow-red-900/40"
+            className="p-3 bg-dark-600 hover:bg-dark-500 rounded-full transition-colors pointer-events-auto shadow-lg shadow-dark-900/40"
             title="Delete image"
           >
             <Trash2 className="w-5 h-5 text-white" />
@@ -392,7 +392,7 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
 
       {/* File drop indicator overlay */}
       {isFileOver && (
-        <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-dark-600/50 flex items-center justify-center pointer-events-none">
           <div className="bg-dark-900/90 rounded-lg px-3 py-2">
             <span className="text-sm text-white font-medium">Drop to add</span>
           </div>
@@ -401,7 +401,7 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
 
       {/* Internal drag indicator overlay */}
       {isOver && (
-        <div className="absolute inset-0 bg-accent-purple/30 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-dark-600/50 flex items-center justify-center pointer-events-none">
           <div className="bg-dark-900/90 rounded-lg px-3 py-2">
             <span className="text-sm text-white font-medium">Drop here</span>
           </div>
@@ -546,7 +546,7 @@ function DraggableReelItem({ reel, reelId, onEdit, onPlay, onReorder }) {
       onClick={handleClick}
       className={`aspect-[9/16] bg-dark-700 relative overflow-hidden cursor-grab active:cursor-grabbing group select-none ${
         isDragging ? 'opacity-40' : ''
-      } ${isOver ? 'ring-4 ring-accent-purple scale-105 transition-all duration-150' : ''}`}
+      } ${isOver ? 'ring-4 ring-dark-300 scale-105 transition-all duration-150' : ''}`}
     >
       <img
         src={reel.thumbnailUrl || reel.mediaUrl}
@@ -584,7 +584,7 @@ function DraggableReelItem({ reel, reelId, onEdit, onPlay, onReorder }) {
 
       {/* Drop indicator overlay */}
       {isOver && (
-        <div className="absolute inset-0 bg-accent-purple/30 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-dark-600/50 flex items-center justify-center pointer-events-none">
           <div className="bg-dark-900/90 rounded-lg px-3 py-2">
             <span className="text-sm text-white font-medium">Drop here</span>
           </div>
@@ -660,7 +660,7 @@ function RolloutPickerModal({ collectionId, collectionName, platform, rollouts, 
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full ${
                       rollout.status === 'active'
-                        ? 'bg-green-500/20 text-green-400'
+                        ? 'bg-dark-600/30 text-dark-100'
                         : rollout.status === 'completed'
                         ? 'bg-blue-500/20 text-blue-400'
                         : 'bg-dark-600 text-dark-300'
@@ -704,7 +704,7 @@ function RolloutPickerModal({ collectionId, collectionName, platform, rollouts, 
                               {isAlreadyAdded ? (
                                 <span className="text-xs text-dark-500">Already added</span>
                               ) : (
-                                <span className="text-xs text-accent-purple opacity-0 group-hover:opacity-100">
+                                <span className="text-xs text-dark-100 opacity-0 group-hover:opacity-100">
                                   Add here
                                 </span>
                               )}
@@ -933,7 +933,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
               onClick={() => goToIndex(idx)}
               className={`w-2 h-2 rounded-full transition-all ${
                 idx === currentIndex
-                  ? 'bg-accent-purple w-4'
+                  ? 'bg-dark-100 w-4'
                   : 'bg-dark-500 hover:bg-dark-400'
               }`}
             />
@@ -963,7 +963,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
               onClick={() => setActiveTab('edit')}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === 'edit'
-                  ? 'bg-accent-purple text-white'
+                  ? 'bg-dark-100 text-dark-900'
                   : 'text-dark-300 hover:text-white hover:bg-dark-700'
               }`}
             >
@@ -1067,9 +1067,9 @@ function PostPreviewModal({ post, onClose, onSave }) {
                           onClick={() => goToIndex(idx)}
                           className={`w-20 h-20 flex-shrink-0 rounded-lg border-3 cursor-grab active:cursor-grabbing transition-all relative select-none ${
                             dragOverIndex === idx
-                              ? 'border-accent-blue scale-110 ring-4 ring-accent-blue/50 z-10'
+                              ? 'border-dark-100 scale-110 ring-4 ring-dark-300/50 z-10'
                               : idx === currentIndex
-                              ? 'border-accent-purple ring-2 ring-accent-purple/50'
+                              ? 'border-dark-100 ring-2 ring-dark-300/50'
                               : 'border-dark-500 hover:border-dark-300'
                           } ${draggedIndex === idx ? 'opacity-40 scale-90' : ''}`}
                           style={{ touchAction: 'none' }}
@@ -1092,8 +1092,8 @@ function PostPreviewModal({ post, onClose, onSave }) {
                           </div>
                           {/* Drop indicator overlay */}
                           {dragOverIndex === idx && draggedIndex !== idx && (
-                            <div className="absolute inset-0 bg-accent-blue/30 rounded-md flex items-center justify-center pointer-events-none">
-                              <span className="text-white text-xs font-bold bg-accent-blue px-2 py-1 rounded">SWAP</span>
+                            <div className="absolute inset-0 bg-dark-600/50 rounded-md flex items-center justify-center pointer-events-none">
+                              <span className="text-white text-xs font-bold bg-dark-100 text-dark-900 px-2 py-1 rounded">SWAP</span>
                             </div>
                           )}
                         </div>
@@ -1115,7 +1115,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
                     placeholder="Write a caption..."
                     rows={6}
                     maxLength={2200}
-                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-500 focus:border-accent-purple focus:ring-1 focus:ring-accent-purple outline-none resize-none"
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-500 focus:border-dark-300 focus:ring-1 focus:ring-dark-300 outline-none resize-none"
                   />
                   <p className="text-xs text-dark-500 mt-1 text-right">{caption.length}/2200</p>
                 </div>
@@ -1129,7 +1129,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
                     onChange={(e) => setHashtags(e.target.value)}
                     placeholder="#photography #nature #travel"
                     rows={3}
-                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-500 focus:border-accent-purple focus:ring-1 focus:ring-accent-purple outline-none resize-none"
+                    className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-dark-500 focus:border-dark-300 focus:ring-1 focus:ring-dark-300 outline-none resize-none"
                   />
                   <p className="text-xs text-dark-500 mt-1">
                     {hashtags.split(/[\s,]+/).filter(h => h.length > 0).length} hashtags
@@ -1145,7 +1145,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
               <div className="w-full max-w-[470px] bg-black rounded-lg overflow-hidden border border-dark-700">
                 {/* Header */}
                 <div className="flex items-center gap-3 p-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 p-0.5">
+                  <div className="w-8 h-8 rounded-full bg-dark-600 p-0.5">
                     <div className="w-full h-full rounded-full bg-dark-800 flex items-center justify-center overflow-hidden">
                       {userAvatar ? (
                         <img src={userAvatar} alt="Avatar" className="w-full h-full object-cover" />
@@ -1299,7 +1299,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
                         <User className="w-5 h-5 text-white" />
                       )}
                     </div>
-                    <div className="w-5 h-5 -mt-2 rounded-full bg-red-500 flex items-center justify-center">
+                    <div className="w-5 h-5 -mt-2 rounded-full bg-dark-100 flex items-center justify-center">
                       <Plus className="w-3 h-3 text-white" />
                     </div>
                   </div>
@@ -1348,7 +1348,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
             onClick={() => setShowAIGenerator(true)}
             className="px-4 py-2 text-sm bg-dark-700 text-white rounded-lg hover:bg-dark-600 transition-colors flex items-center gap-2"
           >
-            <Plus className="w-4 h-4 text-accent-purple" />
+            <Plus className="w-4 h-4 text-dark-100" />
             AI Generate
           </button>
           <div className="flex items-center gap-3">
@@ -1361,7 +1361,7 @@ function PostPreviewModal({ post, onClose, onSave }) {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-4 py-2 text-sm bg-accent-purple text-white rounded-lg hover:bg-accent-purple/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 text-sm bg-dark-100 text-dark-900 rounded-lg hover:bg-white transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {isSaving ? (
                 <>
@@ -3390,7 +3390,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                   onClick={() => setShowConvictionOverlays(!showConvictionOverlays)}
                   className={`w-full h-8 px-2 text-xs rounded-lg transition-colors flex items-center gap-1.5 ${
                     showConvictionOverlays
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      ? 'bg-dark-600/30 text-dark-100 border border-dark-500/30'
                       : 'bg-dark-700 text-dark-400 border border-dark-600 hover:border-dark-500'
                   }`}
                   title={showConvictionOverlays ? 'Hide Conviction Scores' : 'Show Conviction Scores'}
@@ -3438,7 +3438,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
 
                 <button
                   onClick={() => setShowTemplateModal(true)}
-                  className="w-full h-8 px-2 text-xs rounded-lg transition-colors flex items-center gap-1.5 bg-gradient-to-r from-accent-purple to-pink-600 text-white border border-accent-purple/30 hover:from-accent-purple-dark hover:to-pink-700 disabled:opacity-50"
+                  className="w-full h-8 px-2 text-xs rounded-lg transition-colors flex items-center gap-1.5 bg-dark-100 text-dark-900 border border-dark-300/30 hover:bg-white disabled:opacity-50"
                   title="Save current grid as a reusable template"
                   disabled={!gridId || postsWithConviction.length === 0}
                 >
@@ -3450,7 +3450,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                   onClick={() => setShowDebugInfo(!showDebugInfo)}
                   className={`w-full h-8 px-2 text-xs rounded-lg transition-colors flex items-center gap-1.5 ${
                     showDebugInfo
-                      ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                      ? 'bg-dark-600/30 text-dark-300 border border-dark-500/30'
                       : 'bg-dark-700 text-dark-400 border border-dark-600 hover:border-dark-500'
                   }`}
                   title={showDebugInfo ? 'Hide Debug Info' : 'Show Debug Info'}
@@ -3512,7 +3512,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
           {/* Clickable Avatar */}
           <button
             onClick={handleAvatarClick}
-            className="relative w-[86px] h-[86px] rounded-full bg-gradient-to-br from-accent-purple via-accent-pink to-accent-orange p-[3px] group cursor-pointer flex-shrink-0"
+            className="relative w-[86px] h-[86px] rounded-full bg-dark-600 p-[3px] group cursor-pointer flex-shrink-0"
           >
             <div className="w-full h-full rounded-full bg-dark-800 overflow-hidden relative">
               {displayData.avatar ? (
@@ -3611,9 +3611,9 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
               >
                 <div className={`w-[66px] h-[66px] rounded-full p-[3px] transition-all ${
                   highlight.cover
-                    ? 'bg-gradient-to-br from-accent-purple via-accent-pink to-accent-orange'
+                    ? 'bg-dark-600'
                     : 'border-[2px] border-dark-600'
-                } ${highlightDragOverId === highlight.id ? 'ring-2 ring-accent-purple ring-offset-2 ring-offset-dark-800' : ''}`}>
+                } ${highlightDragOverId === highlight.id ? 'ring-2 ring-dark-300 ring-offset-2 ring-offset-dark-800' : ''}`}>
                   <div className="w-full h-full rounded-full bg-dark-800 overflow-hidden border-[2px] border-dark-800 relative">
                     {highlight.cover ? (
                       <img
@@ -3664,16 +3664,16 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
         <>
           {/* Success Banner */}
           {postsWithConviction.length > 0 && postsWithConviction.every(p => p.conviction) && (
-            <div className="px-4 py-3 bg-green-900/20 border-b border-green-700/30 flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span className="text-sm font-medium text-green-400">
+            <div className="px-4 py-3 bg-dark-700/50 border-b border-dark-600 flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-accent-purple animate-pulse"></div>
+              <span className="text-sm font-medium text-dark-100">
                 ✓ Conviction Scores Active - {postsWithConviction.length} posts scored
               </span>
             </div>
           )}
 
           {/* Debug Bar */}
-          <div className="px-4 py-2 bg-yellow-900/20 border-b border-yellow-700/30 text-xs text-yellow-400">
+          <div className="px-4 py-2 bg-dark-700/50 border-b border-dark-600 text-xs text-dark-300">
             Debug: {postsWithConviction.length} posts | {postsWithConviction.filter(p => p.conviction).length} with conviction |
             Overlays: {showConvictionOverlays ? 'ON' : 'OFF'} |
             Grid Score: {showAestheticScore ? 'ON' : 'OFF'} |
@@ -3712,15 +3712,15 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
             <div className="flex items-center justify-center">
               {whatIfScore.overallScore > originalScore.overallScore ? (
                 <div className="flex flex-col items-center">
-                  <TrendingUp className="w-6 h-6 text-green-400 mb-1" />
-                  <span className="text-lg font-bold text-green-400">
+                  <TrendingUp className="w-6 h-6 text-dark-100 mb-1" />
+                  <span className="text-lg font-bold text-dark-100">
                     +{whatIfScore.overallScore - originalScore.overallScore}
                   </span>
                 </div>
               ) : whatIfScore.overallScore < originalScore.overallScore ? (
                 <div className="flex flex-col items-center">
-                  <ChevronDown className="w-6 h-6 text-red-400 mb-1" />
-                  <span className="text-lg font-bold text-red-400">
+                  <ChevronDown className="w-6 h-6 text-dark-300 mb-1" />
+                  <span className="text-lg font-bold text-dark-300">
                     {whatIfScore.overallScore - originalScore.overallScore}
                   </span>
                 </div>
@@ -3735,8 +3735,8 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
             <div className="text-center">
               <p className="text-xs text-dark-400 mb-1">New</p>
               <p className={`text-2xl font-bold ${
-                whatIfScore.overallScore > originalScore.overallScore ? 'text-green-400' :
-                whatIfScore.overallScore < originalScore.overallScore ? 'text-red-400' :
+                whatIfScore.overallScore > originalScore.overallScore ? 'text-dark-100' :
+                whatIfScore.overallScore < originalScore.overallScore ? 'text-dark-300' :
                 'text-dark-200'
               }`}>
                 {whatIfScore.overallScore}
@@ -3752,7 +3752,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                 setWhatIfScore(null);
                 setWhatIfMode(false);
               }}
-              className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              className="flex-1 py-2 bg-dark-100 hover:bg-white text-dark-900 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               <Check className="w-4 h-4" />
               Keep Changes
@@ -3954,7 +3954,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
         <div
           className={`min-h-[300px] transition-colors relative ${
             isVideoDragOver
-              ? 'bg-accent-purple/20 border-2 border-dashed border-accent-purple'
+              ? 'bg-dark-700 border-2 border-dashed border-dark-100'
               : ''
           }`}
           onDragEnter={handleVideoDragEnter}
@@ -3966,7 +3966,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
           {isVideoDragOver && (
             <div className="absolute inset-0 flex items-center justify-center bg-dark-900/80 z-10">
               <div className="text-center">
-                <svg className="w-16 h-16 text-accent-purple mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-16 h-16 text-dark-100 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -3979,7 +3979,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
           {/* Upload Progress */}
           {uploadingReel && (
             <div className="py-8 text-center">
-              <div className="w-12 h-12 border-4 border-accent-purple/30 border-t-accent-purple rounded-full animate-spin mx-auto mb-4" />
+              <div className="w-12 h-12 border-4 border-dark-600 border-t-dark-100 rounded-full animate-spin mx-auto mb-4" />
               <p className="text-dark-200">Uploading reel...</p>
             </div>
           )}
@@ -3991,7 +3991,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                 onClick={() => setShowReelCollectionSelector(!showReelCollectionSelector)}
                 className="flex items-center gap-2 px-3 py-2 bg-dark-700 rounded-lg text-dark-200 hover:bg-dark-600 transition-colors w-full"
               >
-                <LayoutGrid className="w-4 h-4 text-accent-purple" />
+                <LayoutGrid className="w-4 h-4 text-dark-100" />
                 <span className="text-sm flex-1 text-left truncate">
                   {currentReelCollection?.name || 'Select Collection'}
                 </span>
@@ -4009,7 +4009,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                         key={collection._id || collection.id}
                         className={`group relative ${
                           currentReelCollectionId === (collection._id || collection.id)
-                            ? 'bg-accent-purple/20'
+                            ? 'bg-dark-700'
                             : 'hover:bg-dark-600'
                         }`}
                       >
@@ -4023,13 +4023,13 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                                 if (e.key === 'Enter') handleSaveRenameReelCollection(e, collection._id || collection.id);
                                 if (e.key === 'Escape') handleCancelRenameReelCollection(e);
                               }}
-                              className="flex-1 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-dark-100 focus:outline-none focus:border-accent-purple"
+                              className="flex-1 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-dark-100 focus:outline-none focus:border-dark-300"
                               autoFocus
                               onClick={(e) => e.stopPropagation()}
                             />
                             <button
                               onClick={(e) => handleSaveRenameReelCollection(e, collection._id || collection.id)}
-                              className="p-1 text-green-400 hover:bg-dark-500 rounded"
+                              className="p-1 text-dark-100 hover:bg-dark-500 rounded"
                             >
                               <Check className="w-4 h-4" />
                             </button>
@@ -4046,7 +4046,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                             <div className="flex gap-2">
                               <button
                                 onClick={(e) => handleDeleteReelCollection(e, collection._id || collection.id)}
-                                className="flex-1 px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                                className="flex-1 px-2 py-1 text-xs bg-dark-600/30 text-dark-300 rounded hover:bg-dark-600/40"
                               >
                                 Delete
                               </button>
@@ -4063,7 +4063,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                             onClick={() => handleSelectReelCollection(collection)}
                             className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors ${
                               currentReelCollectionId === (collection._id || collection.id)
-                                ? 'text-accent-purple'
+                                ? 'text-dark-100'
                                 : 'text-dark-200'
                             }`}
                           >
@@ -4080,20 +4080,20 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                                   setShowRolloutPicker(true);
                                   setShowReelCollectionSelector(false);
                                 }}
-                                className="p-1 text-dark-400 hover:text-green-400 hover:bg-dark-500 rounded"
+                                className="p-1 text-dark-400 hover:text-dark-100 hover:bg-dark-500 rounded"
                                 title="Add to Rollout"
                               >
                                 <CalendarPlus className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={(e) => handleStartRenameReelCollection(e, collection)}
-                                className="p-1 text-dark-400 hover:text-accent-purple hover:bg-dark-500 rounded"
+                                className="p-1 text-dark-400 hover:text-dark-100 hover:bg-dark-500 rounded"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setShowDeleteReelCollectionConfirm(collection._id || collection.id); }}
-                                className="p-1 text-dark-400 hover:text-red-400 hover:bg-dark-500 rounded"
+                                className="p-1 text-dark-400 hover:text-dark-200 hover:bg-dark-500 rounded"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -4109,7 +4109,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                   <div className="p-2 border-t border-dark-600">
                     <button
                       onClick={handleCreateReelCollection}
-                      className="w-full px-3 py-2 text-sm text-accent-purple hover:bg-dark-600 rounded-md flex items-center gap-2"
+                      className="w-full px-3 py-2 text-sm text-dark-100 hover:bg-dark-600 rounded-md flex items-center gap-2"
                     >
                       <FolderPlus className="w-4 h-4" />
                       Create New Collection
@@ -4166,9 +4166,9 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
               {/* Row Drag Overlay */}
               <DragOverlay>
                 {reelRowDragActiveId ? (
-                  <div className="flex items-center bg-dark-800/90 rounded-lg ring-2 ring-accent-purple shadow-xl">
+                  <div className="flex items-center bg-dark-800/90 rounded-lg ring-2 ring-dark-300 shadow-xl">
                     <div className="px-2 py-8">
-                      <GripVertical className="w-5 h-5 text-accent-purple" />
+                      <GripVertical className="w-5 h-5 text-dark-100" />
                     </div>
                     <div className="grid grid-cols-3 gap-0.5 flex-1">
                       {(() => {
@@ -4302,7 +4302,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                   step="0.02"
                   value={zoom}
                   onChange={(e) => setZoom(parseFloat(e.target.value))}
-                  className="flex-1 h-2 bg-dark-600 rounded-lg appearance-none cursor-pointer accent-accent-purple"
+                  className="flex-1 h-2 bg-dark-600 rounded-lg appearance-none cursor-pointer accent-white"
                 />
                 <ZoomIn className="w-4 h-4 text-dark-400" />
                 {/* Reset button */}
@@ -4389,7 +4389,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                   value={editBrandName}
                   onChange={(e) => setEditBrandName(e.target.value)}
                   placeholder="Your Name"
-                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-500 focus:border-accent-purple focus:ring-1 focus:ring-accent-purple outline-none transition-colors"
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-500 focus:border-dark-300 focus:ring-1 focus:ring-dark-300 outline-none transition-colors"
                 />
               </div>
 
@@ -4403,7 +4403,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                   value={editPronouns}
                   onChange={(e) => setEditPronouns(e.target.value)}
                   placeholder="e.g. he/him, she/her, they/them"
-                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-500 focus:border-accent-purple focus:ring-1 focus:ring-accent-purple outline-none transition-colors"
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-500 focus:border-dark-300 focus:ring-1 focus:ring-dark-300 outline-none transition-colors"
                 />
               </div>
 
@@ -4417,7 +4417,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                   onChange={(e) => setEditBio(e.target.value)}
                   placeholder="Write your bio..."
                   rows={3}
-                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-500 focus:border-accent-purple focus:ring-1 focus:ring-accent-purple outline-none transition-colors resize-none"
+                  className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-500 focus:border-dark-300 focus:ring-1 focus:ring-dark-300 outline-none transition-colors resize-none"
                 />
                 <p className="text-xs text-dark-500 mt-1">{editBio.length}/150 characters</p>
               </div>
@@ -4484,7 +4484,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
             <div className="flex justify-center mb-4">
               <div
                 ref={highlightPreviewRef}
-                className={`w-32 h-32 rounded-full bg-gradient-to-br from-accent-purple via-accent-pink to-accent-orange p-[3px] ${
+                className={`w-32 h-32 rounded-full bg-dark-600 p-[3px] ${
                   highlightCover ? 'cursor-grab active:cursor-grabbing' : ''
                 }`}
                 onMouseDown={handleHighlightMouseDown}
@@ -4590,7 +4590,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                 onChange={(e) => setHighlightName(e.target.value)}
                 placeholder="Highlight name"
                 maxLength={15}
-                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-500 focus:border-accent-purple focus:ring-1 focus:ring-accent-purple outline-none transition-colors"
+                className="w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 placeholder-dark-500 focus:border-dark-300 focus:ring-1 focus:ring-dark-300 outline-none transition-colors"
               />
               <p className="text-xs text-dark-500 mt-1">{highlightName.length}/15 characters</p>
             </div>
@@ -4600,7 +4600,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
               <button
                 onClick={handleDeleteHighlight}
                 disabled={isHighlightUploading}
-                className="px-4 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors text-sm disabled:opacity-50"
+                className="px-4 py-2 text-dark-300 hover:bg-dark-600/30 rounded-lg transition-colors text-sm disabled:opacity-50"
               >
                 Delete
               </button>
@@ -4614,7 +4614,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
               <button
                 onClick={handleSaveHighlight}
                 disabled={isHighlightUploading}
-                className="px-4 py-2 bg-accent-purple hover:bg-accent-purple/80 text-white rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-dark-100 hover:bg-white text-dark-900 text-white rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isHighlightUploading ? (
                   <>
@@ -4709,7 +4709,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
               </button>
               <button
                 onClick={handleCreateCarouselWithCheck}
-                className="w-full flex items-center justify-center gap-3 py-3 bg-accent-purple hover:bg-accent-purple/80 text-white rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-3 py-3 bg-dark-100 hover:bg-white text-dark-900 text-white rounded-lg transition-colors"
               >
                 <Layers className="w-5 h-5" />
                 <span className="font-medium">Create Carousel</span>
@@ -4774,7 +4774,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-dark-100 hover:bg-white text-dark-900 rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
                 Delete
@@ -4854,7 +4854,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold flex items-center gap-2">
-                  <FolderPlus className="w-6 h-6 text-accent-purple" />
+                  <FolderPlus className="w-6 h-6 text-dark-100" />
                   Save as Template
                 </h2>
                 <button
@@ -4879,7 +4879,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                     value={templateName}
                     onChange={(e) => setTemplateName(e.target.value)}
                     placeholder="e.g., Summer Vibes Grid"
-                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-accent-purple"
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-dark-300"
                   />
                 </div>
 
@@ -4892,7 +4892,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                     onChange={(e) => setTemplateDescription(e.target.value)}
                     placeholder="Describe what makes this grid template special..."
                     rows={3}
-                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-accent-purple resize-none"
+                    className="w-full bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-dark-300 resize-none"
                   />
                 </div>
 
@@ -4910,7 +4910,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                     {postsWithConviction.length > 0 && postsWithConviction.some(p => p.conviction) && (
                       <div className="flex items-center justify-between">
                         <span>Avg Conviction:</span>
-                        <span className="text-green-400 font-medium">
+                        <span className="text-dark-100 font-medium">
                           {Math.round(
                             postsWithConviction.reduce((sum, p) => sum + (p.conviction?.score || 0), 0) /
                             postsWithConviction.filter(p => p.conviction).length
@@ -4935,7 +4935,7 @@ function GridPreview({ posts, layout, showRowHandles = true, onDeletePost, gridI
                   <button
                     onClick={handleSaveAsTemplate}
                     disabled={savingTemplate || !templateName.trim()}
-                    className="flex-1 px-4 py-2 bg-accent-purple text-white rounded-lg hover:bg-accent-purple-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 bg-dark-100 text-dark-900 rounded-lg hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {savingTemplate ? (
                       <>

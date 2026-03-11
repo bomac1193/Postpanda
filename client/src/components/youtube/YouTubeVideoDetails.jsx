@@ -21,12 +21,13 @@ import {
   Dice5,
   ThumbsDown,
   SkipForward,
+  X,
 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft', color: 'bg-gray-500' },
   { value: 'scheduled', label: 'Scheduled', color: 'bg-blue-500' },
-  { value: 'published', label: 'Published', color: 'bg-green-500' },
+  { value: 'published', label: 'Published', color: 'bg-dark-100' },
 ];
 
 // YouTube title character limits
@@ -39,16 +40,27 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
   const currentProfileId = useAppStore((state) => state.currentProfileId);
   const activeFolioId = useAppStore((state) => state.activeFolioId);
   const activeProjectId = useAppStore((state) => state.activeProjectId);
+  const user = useAppStore((state) => state.user);
+  const profiles = useAppStore((state) => state.profiles);
+  const currentProfile = profiles?.find(p => (p._id || p.id) === currentProfileId) || null;
 
   const videoId = video?.id || video?._id;
 
+  const youtubeVideos = useAppStore((state) => state.youtubeVideos);
+
   const [title, setTitle] = useState(video?.title || '');
   const [description, setDescription] = useState(video?.description || '');
+  const [artistName, setArtistName] = useState(video?.artistName || '');
+  const [showArtistSuggestions, setShowArtistSuggestions] = useState(false);
+  const artistInputRef = useRef(null);
   const [status, setStatus] = useState(video?.status || 'draft');
   const [scheduledDate, setScheduledDate] = useState(video?.scheduledDate || '');
   const [scheduledTime, setScheduledTime] = useState(video?.scheduledTime || '12:00');
   const [showTruncatePreview, setShowTruncatePreview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showYoutubePreview, setShowYoutubePreview] = useState(false);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+  const previewVideoRef = useRef(null);
   const [showVideoFile, setShowVideoFile] = useState(true);
   const [showDescription, setShowDescription] = useState(true);
   const [showSchedule, setShowSchedule] = useState(true);
@@ -75,12 +87,14 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
     if (video) {
       setTitle(video.title || '');
       setDescription(video.description || '');
+      setArtistName(video.artistName || '');
       setStatus(video.status || 'draft');
       setScheduledDate(video.scheduledDate || '');
       setScheduledTime(video.scheduledTime || '12:00');
       lastSavedRef.current = {
         title: video.title || '',
         description: video.description || '',
+        artistName: video.artistName || '',
       };
       if (autosaveTimer.current) {
         clearTimeout(autosaveTimer.current);
@@ -97,10 +111,11 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
     autosaveTimer.current = setTimeout(() => {
       const dirtyTitle = title !== lastSavedRef.current.title;
       const dirtyDescription = description !== lastSavedRef.current.description;
+      const dirtyArtist = artistName !== lastSavedRef.current.artistName;
       // Only save if title is not empty (required field) and something changed
-      if ((dirtyTitle || dirtyDescription) && title.trim()) {
-        persistVideoUpdates({ title, description });
-        lastSavedRef.current = { title, description };
+      if ((dirtyTitle || dirtyDescription || dirtyArtist) && title.trim()) {
+        persistVideoUpdates({ title, description, artistName });
+        lastSavedRef.current = { title, description, artistName };
       }
     }, 700);
 
@@ -109,7 +124,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
         clearTimeout(autosaveTimer.current);
       }
     };
-  }, [title, description, video?.id]);
+  }, [title, description, artistName, video?.id]);
 
   // Load taste profile for richer prompts
   useEffect(() => {
@@ -129,19 +144,20 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
     if (videoId) {
       const dirtyTitle = title !== lastSavedRef.current.title;
       const dirtyDescription = description !== lastSavedRef.current.description;
+      const dirtyArtist = artistName !== lastSavedRef.current.artistName;
       // Only save if title is not empty and something changed
-      if ((dirtyTitle || dirtyDescription) && title.trim()) {
-        persistVideoUpdates({ title, description });
-        lastSavedRef.current = { title, description };
+      if ((dirtyTitle || dirtyDescription || dirtyArtist) && title.trim()) {
+        persistVideoUpdates({ title, description, artistName });
+        lastSavedRef.current = { title, description, artistName };
       }
     }
-  }, [videoId, title, description]);
+  }, [videoId, title, description, artistName]);
 
   if (!video) {
     return (
       <div className="h-full bg-dark-800 rounded-2xl border border-dark-700 p-6 flex flex-col items-center justify-center text-center">
-        <div className="w-16 h-16 mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
-          <Youtube className="w-8 h-8 text-red-500" />
+        <div className="w-16 h-16 mb-4 bg-dark-600/30 rounded-full flex items-center justify-center">
+          <Youtube className="w-8 h-8 text-dark-300" />
         </div>
         <p className="text-dark-300 mb-2">No video selected</p>
         <p className="text-sm text-dark-500">
@@ -370,7 +386,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
           </button>
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-dark-700 rounded-lg transition-colors"
+            className="p-1.5 text-dark-400 hover:text-dark-200 hover:bg-dark-700 rounded-lg transition-colors"
             title="Delete video"
           >
             <Trash2 className="w-4 h-4" />
@@ -394,12 +410,19 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
             </div>
           )}
 
-          {/* Upload Overlay */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+          {/* Hover Overlay */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+            <button
+              onClick={() => setShowYoutubePreview(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-lg backdrop-blur-sm hover:bg-white/30 transition-colors"
+            >
+              <Eye className="w-4 h-4 text-white" />
+              <span className="text-white font-medium text-sm">Preview</span>
+            </button>
             <label className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-lg backdrop-blur-sm hover:bg-white/30 transition-colors cursor-pointer">
               <Upload className="w-4 h-4 text-white" />
               <span className="text-white font-medium text-sm">
-                {video.thumbnail ? 'Replace Thumbnail' : 'Upload Thumbnail'}
+                {video.thumbnail ? 'Replace' : 'Upload'}
               </span>
               <input
                 ref={fileInputRef}
@@ -419,7 +442,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
             className="w-full flex items-center justify-between p-3 hover:bg-dark-650 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <Youtube className="w-4 h-4 text-red-400" />
+              <Youtube className="w-4 h-4 text-dark-300" />
               <span className="text-sm font-medium text-dark-200">Video File</span>
               {video.videoFileName && (
                 <span className="text-xs text-dark-400">
@@ -436,7 +459,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
           {video.videoFileName ? (
             <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+                <Check className="w-4 h-4 text-dark-100 flex-shrink-0" />
                 <span className="text-sm text-dark-200 truncate">{video.videoFileName}</span>
               </div>
               <label className="ml-2 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors cursor-pointer flex-shrink-0">
@@ -451,9 +474,9 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
               </label>
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-dark-600 rounded-lg hover:border-red-500/50 hover:bg-dark-600/50 transition-colors cursor-pointer group">
-              <Upload className="w-8 h-8 text-dark-500 group-hover:text-red-400 mb-2" />
-              <span className="text-sm text-dark-300 group-hover:text-red-400 mb-1">
+            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-dark-600 rounded-lg hover:border-dark-500/50 hover:bg-dark-600/50 transition-colors cursor-pointer group">
+              <Upload className="w-8 h-8 text-dark-500 group-hover:text-dark-200 mb-2" />
+              <span className="text-sm text-dark-300 group-hover:text-dark-200 mb-1">
                 Upload Video File
               </span>
               <span className="text-xs text-dark-500">
@@ -472,6 +495,70 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
           )}
         </div>
 
+        {/* Artist Name */}
+        <div className="relative">
+          <label className="flex items-center gap-2 text-xs font-medium text-dark-400 mb-1.5">
+            Artist
+          </label>
+          <input
+            ref={artistInputRef}
+            type="text"
+            value={artistName}
+            onChange={(e) => {
+              setArtistName(e.target.value);
+              setShowArtistSuggestions(true);
+              if (videoId) updateYoutubeVideo(videoId, { artistName: e.target.value });
+            }}
+            onFocus={() => setShowArtistSuggestions(true)}
+            onBlur={() => {
+              // Delay so click on suggestion registers before blur hides it
+              setTimeout(() => setShowArtistSuggestions(false), 150);
+              persistVideoUpdates({ artistName });
+              lastSavedRef.current = { ...lastSavedRef.current, artistName };
+            }}
+            placeholder="Artist name (optional)"
+            className="input w-full text-sm"
+          />
+          {/* Artist suggestions dropdown */}
+          {showArtistSuggestions && (() => {
+            const uniqueNames = [...new Set(
+              youtubeVideos
+                .map(v => v.artistName)
+                .filter(n => n && n.trim() && n !== artistName)
+            )];
+            const filtered = artistName
+              ? uniqueNames.filter(n => n.toLowerCase().includes(artistName.toLowerCase()))
+              : uniqueNames;
+            if (filtered.length === 0) return null;
+            return (
+              <div className="absolute z-20 left-0 right-0 mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-xl overflow-hidden max-h-32 overflow-y-auto">
+                {filtered.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setArtistName(name);
+                      setShowArtistSuggestions(false);
+                      if (videoId) updateYoutubeVideo(videoId, { artistName: name });
+                      persistVideoUpdates({ artistName: name });
+                      lastSavedRef.current = { ...lastSavedRef.current, artistName: name };
+                    }}
+                    className="w-full text-left px-3 py-1.5 text-sm text-dark-200 hover:bg-dark-700 transition-colors truncate"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+          {artistName && title && (
+            <p className="text-xs text-dark-400 mt-1 truncate">
+              Preview: <span className="text-dark-200">{artistName} - {title}</span>
+            </p>
+          )}
+        </div>
+
         {/* Title */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -482,7 +569,7 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
             <button
               onClick={() => setShowTruncatePreview(!showTruncatePreview)}
               className={`flex items-center gap-1 text-xs transition-colors ${
-                showTruncatePreview ? 'text-red-400' : 'text-dark-400 hover:text-dark-200'
+                showTruncatePreview ? 'text-dark-300' : 'text-dark-400 hover:text-dark-200'
               }`}
               title="Preview how title appears in search"
             >
@@ -719,10 +806,126 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
+                className="flex-1 px-4 py-2 bg-dark-600/30 text-dark-300 rounded-lg hover:bg-dark-600/40 transition-colors"
               >
                 Delete
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* YouTube Preview Modal */}
+      {showYoutubePreview && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-start justify-center overflow-y-auto"
+          onClick={() => { setShowYoutubePreview(false); setPreviewPlaying(false); }}
+        >
+          {/* YouTube watch page container — matches real YT main column width */}
+          <div
+            className="w-full max-w-[854px] my-6 bg-[#0f0f0f] rounded-xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Player — 16:9 at 854px = 480px, same as YouTube 480p player */}
+            <div className="relative w-full bg-black" style={{ aspectRatio: '16/9' }}>
+              {previewPlaying && video.videoFileName ? (
+                /* Playing state — real video with controls */
+                <video
+                  ref={previewVideoRef}
+                  src={video.videoUrl || ''}
+                  poster={video.thumbnail || undefined}
+                  controls
+                  autoPlay
+                  className="w-full h-full bg-black"
+                />
+              ) : (
+                /* Thumbnail state — click to play if video exists */
+                <>
+                  {video.thumbnail ? (
+                    <img
+                      src={video.thumbnail}
+                      alt={title || 'Video'}
+                      className="w-full h-full object-contain bg-black"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-[#1a1a1a]">
+                      <Youtube className="w-20 h-20 text-[#ff0000]/30" />
+                    </div>
+                  )}
+                  {/* Play button — clickable when video exists, decorative when thumbnail only */}
+                  {(video.thumbnail || video.videoFileName) && (
+                    <div
+                      className={`absolute inset-0 flex items-center justify-center ${video.videoFileName ? 'cursor-pointer' : 'pointer-events-none'}`}
+                      onClick={() => { if (video.videoFileName) setPreviewPlaying(true); }}
+                    >
+                      <div className="w-[68px] h-[48px] rounded-xl bg-[#ff0000]/90 flex items-center justify-center hover:bg-[#ff0000] transition-colors">
+                        <div className="w-0 h-0 ml-1 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[18px] border-l-white" />
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+              {/* Progress bar */}
+              {!previewPlaying && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#3d3d3d]">
+                  <div className="h-full w-0 bg-[#ff0000]" />
+                </div>
+              )}
+            </div>
+
+            {/* Video Info */}
+            <div className="px-4 pt-3 pb-4">
+              <h1 className="text-xl font-semibold text-white leading-snug mb-3">
+                {artistName ? `${artistName} - ${title}` : title || 'Untitled Video'}
+              </h1>
+
+              {/* Channel Row */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-[#3d3d3d] overflow-hidden flex-shrink-0">
+                  {(currentProfile?.avatar || user?.avatar) ? (
+                    <img
+                      src={currentProfile?.avatar || user?.avatar}
+                      alt="Channel"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#aaa] text-sm font-bold">
+                      {(currentProfile?.name || user?.brandName || user?.name || 'Y').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">
+                    {currentProfile?.name || user?.brandName || user?.name || 'Your Channel'}
+                  </p>
+                  <p className="text-xs text-[#aaa]">1.2K subscribers</p>
+                </div>
+                <button className="px-4 py-2 bg-white text-[#0f0f0f] rounded-full text-sm font-medium flex-shrink-0">
+                  Subscribe
+                </button>
+              </div>
+
+              {/* Description Card */}
+              <div className="bg-[#272727] rounded-xl p-3">
+                <div className="flex items-center gap-2 text-xs text-[#aaa] mb-1.5">
+                  <span>0 views</span>
+                  <span>&middot;</span>
+                  <span>{video.scheduledDate ? new Date(video.scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Just now'}</span>
+                  {video.status === 'scheduled' && (
+                    <>
+                      <span>&middot;</span>
+                      <span className="text-blue-400">Scheduled</span>
+                    </>
+                  )}
+                </div>
+                {description ? (
+                  <p className="text-sm text-[#e0e0e0] whitespace-pre-wrap">
+                    {description}
+                  </p>
+                ) : (
+                  <p className="text-sm text-[#717171] italic">No description</p>
+                )}
+              </div>
             </div>
           </div>
         </div>

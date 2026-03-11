@@ -104,7 +104,7 @@ export default function Reliquary({ characters = [], loading = false, onEditArch
                 <div key={pack.id}>
                   <div
                     className={`bg-dark-800 rounded-xl border border-zinc-500/20 p-5 mb-4 transition-all ${
-                      feedback === 'success' ? 'ring-2 ring-green-500/40' : ''
+                      feedback === 'success' ? 'ring-2 ring-dark-100/40' : ''
                     }`}
                     style={{ boxShadow: '0 0 12px 2px rgba(161,161,170,0.06)' }}
                   >

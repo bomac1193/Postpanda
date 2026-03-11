@@ -73,7 +73,7 @@ const InstagramPreview = React.memo(function InstagramPreview({
       <div className="p-3">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-4">
-            <Heart className="w-6 h-6 text-white cursor-pointer hover:text-red-500 transition-colors" fill="none" />
+            <Heart className="w-6 h-6 text-white cursor-pointer hover:text-dark-100 transition-colors" fill="none" />
             <MessageCircle className="w-6 h-6 text-white cursor-pointer" />
             <Share2 className="w-6 h-6 text-white cursor-pointer" />
           </div>

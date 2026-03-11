@@ -194,7 +194,7 @@ const PostMetadataEditor = React.memo(function PostMetadataEditor({
           <button
             onClick={handleGenerateCaption}
             disabled={generatingCaption}
-            className="text-xs text-accent-purple hover:text-accent-purple/80 flex items-center gap-1 disabled:opacity-50"
+            className="text-xs text-dark-100 hover:text-dark-100/80 flex items-center gap-1 disabled:opacity-50"
           >
             {generatingCaption ? (
               <>
@@ -222,7 +222,7 @@ const PostMetadataEditor = React.memo(function PostMetadataEditor({
           onChange={(e) => onHashtagsChange(e.target.value)}
           onBlur={onHashtagsBlur}
           placeholder="#fashion #style #ootd"
-          className="input min-h-[60px] resize-none text-accent-blue"
+          className="input min-h-[60px] resize-none text-dark-100"
         />
         <div className="flex items-center justify-between mt-1">
           <span className="text-xs text-dark-500">
@@ -231,7 +231,7 @@ const PostMetadataEditor = React.memo(function PostMetadataEditor({
           <button
             onClick={handleSuggestHashtags}
             disabled={generatingHashtags}
-            className="text-xs text-accent-purple hover:text-accent-purple/80 flex items-center gap-1 disabled:opacity-50"
+            className="text-xs text-dark-100 hover:text-dark-100/80 flex items-center gap-1 disabled:opacity-50"
           >
             {generatingHashtags ? (
               <>

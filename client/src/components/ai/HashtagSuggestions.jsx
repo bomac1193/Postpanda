@@ -11,8 +11,8 @@ const CATEGORIES = [
 ];
 
 const POPULARITY_LEVELS = {
-  high: { label: 'High', color: '#4CAF50', minPosts: '1M+' },
-  medium: { label: 'Medium', color: '#FF9800', minPosts: '100K-1M' },
+  high: { label: 'High', color: '#d4d4d8', minPosts: '1M+' },
+  medium: { label: 'Medium', color: '#d4d4d8', minPosts: '100K-1M' },
   low: { label: 'Low', color: '#2196F3', minPosts: '<100K' },
 };
 

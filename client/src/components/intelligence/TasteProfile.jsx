@@ -10,9 +10,9 @@ import { intelligenceApi } from '../../lib/api';
 function PatternTag({ children, type = 'default' }) {
   const typeClasses = {
     default: 'bg-dark-600 text-dark-200',
-    positive: 'bg-green-500/20 text-green-400',
-    negative: 'bg-red-500/20 text-red-400',
-    highlight: 'bg-accent-purple/20 text-accent-purple'
+    positive: 'bg-dark-600/30 text-dark-100',
+    negative: 'bg-dark-600/30 text-dark-300',
+    highlight: 'bg-dark-700 text-dark-100'
   };
 
   return (
@@ -26,7 +26,7 @@ function PatternSection({ title, icon: Icon, children }) {
   return (
     <div className="space-y-2">
       <h4 className="text-sm font-medium text-dark-200 flex items-center gap-2">
-        <Icon className="w-4 h-4 text-accent-purple" />
+        <Icon className="w-4 h-4 text-dark-100" />
         {title}
       </h4>
       {children}
@@ -67,7 +67,7 @@ export function TasteProfileCard({ profileId, compact = false }) {
 
   if (error) {
     return (
-      <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center gap-2">
+      <div className="p-4 bg-dark-600/20 border border-dark-600 rounded-lg text-dark-300 text-sm flex items-center gap-2">
         <AlertCircle className="w-4 h-4" />
         {error}
       </div>
@@ -98,7 +98,7 @@ export function TasteProfileCard({ profileId, compact = false }) {
         </div>
         <div className="h-1.5 bg-dark-700 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-accent-purple to-accent-pink transition-all"
+            className="h-full bg-dark-100 transition-all"
             style={{ width: `${confidence * 100}%` }}
           />
         </div>
@@ -121,8 +121,8 @@ export function TasteProfileCard({ profileId, compact = false }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-accent-purple/20 to-accent-pink/20 rounded-xl">
-            <Brain className="w-6 h-6 text-accent-purple" />
+          <div className="p-2.5 bg-dark-700 rounded-xl">
+            <Brain className="w-6 h-6 text-dark-100" />
           </div>
           <div>
             <h3 className="font-semibold text-dark-100">Your Taste DNA</h3>
@@ -147,7 +147,7 @@ export function TasteProfileCard({ profileId, compact = false }) {
         </div>
         <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-accent-purple to-accent-pink transition-all"
+            className="h-full bg-dark-100 transition-all"
             style={{ width: `${confidence * 100}%` }}
           />
         </div>

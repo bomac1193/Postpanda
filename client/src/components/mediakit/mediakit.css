@@ -110,9 +110,9 @@
 }
 
 .platform-actions .remove-btn:hover {
-  background: rgba(244, 67, 54, 0.1);
-  border-color: #f44336;
-  color: #f44336;
+  background: rgba(113, 113, 122, 0.1);
+  border-color: #71717a;
+  color: #71717a;
 }
 
 .add-platform-btn {

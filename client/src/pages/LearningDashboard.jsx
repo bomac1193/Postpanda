@@ -81,8 +81,8 @@ function LearningDashboard() {
     return (
       <div className="min-h-screen bg-dark-900 text-white flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-accent-purple mx-auto mb-4" />
-          <p className="text-gray-400">Loading learning dashboard...</p>
+          <Loader2 className="w-12 h-12 animate-spin text-dark-100 mx-auto mb-4" />
+          <p className="text-dark-400">Loading learning dashboard...</p>
         </div>
       </div>
     );
@@ -94,13 +94,13 @@ function LearningDashboard() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center py-20">
             <Brain className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-400 mb-2">No Learning Data Yet</h2>
-            <p className="text-gray-500 mb-6">
+            <h2 className="text-2xl font-bold text-dark-400 mb-2">No Learning Data Yet</h2>
+            <p className="text-dark-500 mb-6">
               Start scheduling posts to build your conviction loop learning history
             </p>
             <a
               href="/calendar"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-accent-purple text-white rounded-lg hover:bg-accent-purple-dark transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-dark-100 text-dark-900 rounded-lg hover:bg-white transition-colors"
             >
               <Calendar className="w-5 h-5" />
               Go to Calendar
@@ -127,10 +127,10 @@ function LearningDashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-3 mb-2">
-              <Brain className="w-8 h-8 text-accent-purple" />
+              <Brain className="w-8 h-8 text-dark-100" />
               Learning Dashboard
             </h1>
-            <p className="text-gray-400">
+            <p className="text-dark-400">
               Track how conviction predictions improve over time
             </p>
           </div>
@@ -140,7 +140,7 @@ function LearningDashboard() {
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
-              className="bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-accent-purple"
+              className="bg-dark-700 border border-dark-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-dark-100"
             >
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
@@ -183,7 +183,7 @@ function LearningDashboard() {
           {/* Average Accuracy */}
           <StatCard
             icon={Zap}
-            iconColor="text-yellow-400"
+            iconColor="text-dark-300"
             label="Avg Accuracy"
             value={`${Math.round(avgAccuracy)}%`}
             trend={accuracyTrend}
@@ -193,7 +193,7 @@ function LearningDashboard() {
           {/* Recent Accuracy */}
           <StatCard
             icon={TrendingUp}
-            iconColor="text-green-400"
+            iconColor="text-dark-100"
             label="Recent Accuracy"
             value={`${Math.round(recentAccuracy)}%`}
             subtitle="Last 10 predictions"
@@ -211,11 +211,11 @@ function LearningDashboard() {
 
         {/* Learning Insight Banner */}
         {accuracyTrend > 5 && (
-          <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-lg p-4 mb-8">
+          <div className="bg-dark-700/50 border border-dark-600 rounded-lg p-4 mb-8">
             <div className="flex items-center gap-3">
-              <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0" />
+              <CheckCircle className="w-6 h-6 text-dark-100 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold text-green-300 mb-1">
+                <h3 className="font-semibold text-dark-100 mb-1">
                   Your genome is learning.
                 </h3>
                 <p className="text-green-200 text-sm">
@@ -228,11 +228,11 @@ function LearningDashboard() {
         )}
 
         {accuracyTrend < -5 && (
-          <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-lg p-4 mb-8">
+          <div className="bg-dark-700/50 border border-dark-600 rounded-lg p-4 mb-8">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-orange-400 flex-shrink-0" />
+              <AlertCircle className="w-6 h-6 text-dark-300 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold text-orange-300 mb-1">
+                <h3 className="font-semibold text-dark-300 mb-1">
                   Prediction accuracy is declining
                 </h3>
                 <p className="text-orange-200 text-sm">
@@ -248,10 +248,10 @@ function LearningDashboard() {
           <div className="bg-dark-800 rounded-lg p-6 border border-dark-700">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-accent-purple" />
+                <TrendingUp className="w-5 h-5 text-dark-100" />
                 Prediction Accuracy Over Time
               </h2>
-              <div className="flex items-center gap-2 text-sm text-gray-400">
+              <div className="flex items-center gap-2 text-sm text-dark-400">
                 <Info className="w-4 h-4" />
                 <span>How well Atelio predicts your content performance</span>
               </div>
@@ -268,10 +268,10 @@ function LearningDashboard() {
           <div className="bg-dark-800 rounded-lg p-6 border border-dark-700">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold flex items-center gap-2">
-                <Target className="w-5 h-5 text-accent-purple" />
+                <Target className="w-5 h-5 text-dark-100" />
                 Validation History
               </h2>
-              <div className="text-sm text-gray-400">
+              <div className="text-sm text-dark-400">
                 {validations.length} validations in {timeRange}
               </div>
             </div>
@@ -293,7 +293,7 @@ function StatCard({ icon: Icon, iconColor, label, value, trend, subtitle }) {
       <div className="flex items-center justify-between mb-4">
         <Icon className={`w-6 h-6 ${iconColor}`} />
         {trend !== undefined && trend !== 0 && (
-          <div className={`flex items-center gap-1 text-sm ${trend > 0 ? 'text-green-400' : 'text-red-400'}`}>
+          <div className={`flex items-center gap-1 text-sm ${trend > 0 ? 'text-dark-100' : 'text-dark-300'}`}>
             {trend > 0 ? (
               <ArrowUp className="w-4 h-4" />
             ) : (
@@ -303,9 +303,9 @@ function StatCard({ icon: Icon, iconColor, label, value, trend, subtitle }) {
           </div>
         )}
       </div>
-      <div className="text-sm text-gray-400 mb-2">{label}</div>
+      <div className="text-sm text-dark-400 mb-2">{label}</div>
       <div className="text-3xl font-bold mb-1">{value}</div>
-      {subtitle && <div className="text-sm text-gray-500">{subtitle}</div>}
+      {subtitle && <div className="text-sm text-dark-500">{subtitle}</div>}
     </div>
   );
 }

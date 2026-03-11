@@ -106,7 +106,7 @@ const UpscaleControls = React.memo(function UpscaleControls({
                 ) : (
                   <>
                     {upscaleError && (
-                      <div className="px-3 py-1.5 bg-red-500/80 rounded-lg backdrop-blur-sm">
+                      <div className="px-3 py-1.5 bg-dark-700 rounded-lg backdrop-blur-sm">
                         <span className="text-white text-xs">{upscaleError}</span>
                       </div>
                     )}

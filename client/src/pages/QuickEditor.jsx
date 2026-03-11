@@ -421,7 +421,7 @@ function QuickEditor() {
               )}
             </button>
             {saveError && (
-              <span className="text-red-400 text-sm">{saveError}</span>
+              <span className="text-dark-300 text-sm">{saveError}</span>
             )}
           </div>
         </div>
@@ -478,7 +478,7 @@ function QuickEditor() {
             </button>
             <button
               onClick={toggleFlipH}
-              className={`btn-icon flex flex-col items-center gap-1 py-3 ${flipH ? 'bg-accent-purple/20 text-accent-purple' : ''}`}
+              className={`btn-icon flex flex-col items-center gap-1 py-3 ${flipH ? 'bg-dark-700 text-dark-100' : ''}`}
               title="Flip Horizontal"
             >
               <FlipHorizontal className="w-5 h-5" />
@@ -486,7 +486,7 @@ function QuickEditor() {
             </button>
             <button
               onClick={toggleFlipV}
-              className={`btn-icon flex flex-col items-center gap-1 py-3 ${flipV ? 'bg-accent-purple/20 text-accent-purple' : ''}`}
+              className={`btn-icon flex flex-col items-center gap-1 py-3 ${flipV ? 'bg-dark-700 text-dark-100' : ''}`}
               title="Flip Vertical"
             >
               <FlipVertical className="w-5 h-5" />
@@ -521,7 +521,7 @@ function QuickEditor() {
                 onClick={() => setCropAspectRatio(ratio.id)}
                 className={`btn-icon flex flex-col items-center gap-1 py-3 ${
                   cropAspectRatio === ratio.id
-                    ? 'bg-accent-purple/20 text-accent-purple'
+                    ? 'bg-dark-700 text-dark-100'
                     : ''
                 }`}
               >
@@ -622,7 +622,7 @@ function QuickEditor() {
                 onClick={() => applyFilterPreset(preset)}
                 className={`p-2 rounded-lg text-center transition-colors ${
                   activeFilter === preset.id
-                    ? 'bg-accent-purple/20 text-accent-purple border border-accent-purple'
+                    ? 'bg-dark-700 text-dark-100 border border-dark-100'
                     : 'bg-dark-700 text-dark-300 hover:text-dark-100 border border-transparent'
                 }`}
               >

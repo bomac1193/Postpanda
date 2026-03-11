@@ -64,7 +64,7 @@ const PRESET_THEMES = [
       backgroundColor: '#e8f5e9',
       textColor: '#1b5e20',
       buttonStyle: 'rounded',
-      buttonColor: '#4CAF50',
+      buttonColor: '#66023C',
       buttonTextColor: '#ffffff',
       fontFamily: 'Nunito',
     },

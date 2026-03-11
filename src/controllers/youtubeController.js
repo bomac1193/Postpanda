@@ -30,9 +30,6 @@ const uploadThumbnailToCloudinary = async (base64Data, userId) => {
     const result = await cloudinaryService.uploadBuffer(buffer, {
       folder: `slayt/youtube/${userId}`,
       resource_type: 'image',
-      transformation: [
-        { width: 1920, height: 1080, crop: 'limit', quality: 'auto:best' }
-      ]
     });
 
     return result.secure_url;
@@ -166,7 +163,7 @@ exports.updateCollection = async (req, res) => {
     }
 
     // Update allowed fields
-    const allowedUpdates = ['name', 'color', 'tags', 'rolloutId', 'sectionId', 'folder', 'position'];
+    const allowedUpdates = ['name', 'color', 'tags', 'rolloutId', 'sectionId', 'folder', 'position', 'cruciblaProjectId', 'cruciblaProjectName', 'cruciblaProjectType', 'cruciblaEra', 'cruciblaAlbum', 'cruciblaAlbumColor'];
 
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {
@@ -224,7 +221,7 @@ exports.deleteCollection = async (req, res) => {
 // Create a new video
 exports.createVideo = async (req, res) => {
   try {
-    const { title, description, thumbnail, collectionId, status, scheduledDate, position, tags } = req.body;
+    const { title, description, thumbnail, collectionId, status, scheduledDate, position, tags, originalFilename } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Video title is required' });
@@ -272,7 +269,8 @@ exports.createVideo = async (req, res) => {
       status: status || 'draft',
       scheduledDate: scheduledDate || null,
       position: videoPosition || 0,
-      tags: tags || []
+      tags: tags || [],
+      originalFilename: originalFilename || undefined
     });
 
     await video.save();
@@ -383,7 +381,27 @@ exports.updateVideo = async (req, res) => {
 
     // Upload new thumbnail to Cloudinary if it's base64
     if (updates.thumbnail && updates.thumbnail.startsWith('data:')) {
-      updates.thumbnail = await uploadThumbnailToCloudinary(updates.thumbnail, req.user._id.toString());
+      const base64Data = updates.thumbnail;
+      const videoId = video._id;
+      const userId = req.user._id.toString();
+
+      // Save base64 immediately — respond fast, upload to Cloudinary in background
+      // User sees thumbnail instantly; Cloudinary URL replaces it async
+      setImmediate(() => {
+        uploadThumbnailToCloudinary(base64Data, userId)
+          .then(url => {
+            if (url !== base64Data) {
+              // Only replace if thumbnail is still OUR base64 — prevents race
+              // condition where a newer upload overwrites a more recent thumbnail
+              YoutubeVideo.updateOne(
+                { _id: videoId, thumbnail: base64Data },
+                { $set: { thumbnail: url } }
+              ).catch(err => console.error('Failed to persist Cloudinary URL:', err));
+            }
+          })
+          .catch(err => console.error('Background Cloudinary upload failed:', err));
+      });
+      // Keep base64 as thumbnail for now (gets saved below)
     }
 
     // Validate title if being updated (required field)
@@ -392,7 +410,7 @@ exports.updateVideo = async (req, res) => {
     }
 
     // Update allowed fields
-    const allowedUpdates = ['title', 'description', 'thumbnail', 'collectionId', 'status', 'scheduledDate', 'position', 'tags', 'videoFileName', 'videoFileSize'];
+    const allowedUpdates = ['title', 'description', 'thumbnail', 'collectionId', 'status', 'scheduledDate', 'position', 'tags', 'videoFileName', 'videoFileSize', 'artistName', 'originalFilename'];
 
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {
@@ -487,6 +505,204 @@ exports.reorderVideos = async (req, res) => {
   } catch (error) {
     console.error('Reorder YouTube videos error:', error);
     res.status(500).json({ error: 'Failed to reorder videos' });
+  }
+};
+
+/**
+ * Collection Version Controllers
+ */
+
+// Save a version (snapshot) of the current collection state
+exports.saveVersion = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ error: 'Invalid collection ID' });
+    }
+
+    const collection = await YoutubeCollection.findOne({
+      _id: id,
+      userId: req.user._id
+    });
+
+    if (!collection) {
+      return res.status(404).json({ error: 'Collection not found' });
+    }
+
+    // Cap at 20 versions
+    if (collection.versions && collection.versions.length >= 20) {
+      return res.status(400).json({ error: 'Maximum of 20 versions reached. Delete an older version first.' });
+    }
+
+    // Fetch current videos in this collection
+    const videos = await YoutubeVideo.find({
+      collectionId: id,
+      userId: req.user._id
+    }).sort({ position: 1 });
+
+    const versionName = name || `v${(collection.versions?.length || 0) + 1}`;
+
+    const snapshot = {
+      name: versionName,
+      savedAt: new Date(),
+      videos: videos.map(v => ({
+        videoId: v._id,
+        title: v.title,
+        description: v.description || '',
+        position: v.position,
+        status: v.status,
+        artistName: v.artistName || ''
+      }))
+    };
+
+    if (!collection.versions) {
+      collection.versions = [];
+    }
+    collection.versions.push(snapshot);
+    await collection.save();
+
+    res.status(201).json({
+      message: 'Version saved successfully',
+      version: {
+        name: snapshot.name,
+        savedAt: snapshot.savedAt,
+        videoCount: snapshot.videos.length
+      },
+      index: collection.versions.length - 1
+    });
+  } catch (error) {
+    console.error('Save version error:', error);
+    res.status(500).json({ error: 'Failed to save version' });
+  }
+};
+
+// Get list of versions for a collection
+exports.getVersions = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ error: 'Invalid collection ID' });
+    }
+
+    const collection = await YoutubeCollection.findOne({
+      _id: id,
+      userId: req.user._id
+    });
+
+    if (!collection) {
+      return res.status(404).json({ error: 'Collection not found' });
+    }
+
+    const versions = (collection.versions || []).map((v, i) => ({
+      index: i,
+      name: v.name,
+      savedAt: v.savedAt,
+      videoCount: v.videos?.length || 0
+    }));
+
+    res.json({ versions });
+  } catch (error) {
+    console.error('Get versions error:', error);
+    res.status(500).json({ error: 'Failed to fetch versions' });
+  }
+};
+
+// Restore a version — update existing videos to match snapshot
+exports.restoreVersion = async (req, res) => {
+  try {
+    const { id, index } = req.params;
+    const versionIndex = parseInt(index, 10);
+
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ error: 'Invalid collection ID' });
+    }
+
+    if (isNaN(versionIndex) || versionIndex < 0) {
+      return res.status(400).json({ error: 'Invalid version index' });
+    }
+
+    const collection = await YoutubeCollection.findOne({
+      _id: id,
+      userId: req.user._id
+    });
+
+    if (!collection) {
+      return res.status(404).json({ error: 'Collection not found' });
+    }
+
+    if (!collection.versions || versionIndex >= collection.versions.length) {
+      return res.status(404).json({ error: 'Version not found' });
+    }
+
+    const version = collection.versions[versionIndex];
+
+    // Update each video that still exists
+    for (const snap of version.videos) {
+      await YoutubeVideo.findOneAndUpdate(
+        { _id: snap.videoId, userId: req.user._id, collectionId: id },
+        {
+          title: snap.title,
+          description: snap.description,
+          position: snap.position,
+          status: snap.status,
+          artistName: snap.artistName || ''
+        }
+      );
+    }
+
+    // Fetch updated videos
+    const videos = await YoutubeVideo.find({
+      collectionId: id,
+      userId: req.user._id
+    }).sort({ position: 1 });
+
+    res.json({
+      message: 'Version restored successfully',
+      videos
+    });
+  } catch (error) {
+    console.error('Restore version error:', error);
+    res.status(500).json({ error: 'Failed to restore version' });
+  }
+};
+
+// Delete a version by index
+exports.deleteVersion = async (req, res) => {
+  try {
+    const { id, index } = req.params;
+    const versionIndex = parseInt(index, 10);
+
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ error: 'Invalid collection ID' });
+    }
+
+    if (isNaN(versionIndex) || versionIndex < 0) {
+      return res.status(400).json({ error: 'Invalid version index' });
+    }
+
+    const collection = await YoutubeCollection.findOne({
+      _id: id,
+      userId: req.user._id
+    });
+
+    if (!collection) {
+      return res.status(404).json({ error: 'Collection not found' });
+    }
+
+    if (!collection.versions || versionIndex >= collection.versions.length) {
+      return res.status(404).json({ error: 'Version not found' });
+    }
+
+    collection.versions.splice(versionIndex, 1);
+    await collection.save();
+
+    res.json({ message: 'Version deleted successfully' });
+  } catch (error) {
+    console.error('Delete version error:', error);
+    res.status(500).json({ error: 'Failed to delete version' });
   }
 };
 

@@ -5,7 +5,7 @@ import { Trash2, GripVertical, Image } from 'lucide-react';
 const STATUS_COLORS = {
   draft: 'bg-gray-500',
   scheduled: 'bg-blue-500',
-  published: 'bg-green-500',
+  published: 'bg-dark-100',
 };
 
 const STATUS_LABELS = {
@@ -43,20 +43,20 @@ function YouTubeVideoCard({ video, isSelected, isLocked, isDropTarget, onClick, 
       {...(!isLocked ? { ...attributes, ...listeners } : {})}
       className={`relative bg-dark-700 rounded-lg overflow-hidden transition-all duration-200 group ${
         isDropTarget
-          ? 'ring-2 ring-red-400 ring-offset-2 ring-offset-dark-800 bg-red-500/10 scale-[1.02]'
+          ? 'ring-2 ring-dark-400 ring-offset-2 ring-offset-dark-800 bg-dark-600/20 scale-[1.02]'
           : isSelected
-            ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-dark-800'
+            ? 'ring-2 ring-dark-300 ring-offset-2 ring-offset-dark-800'
             : 'hover:ring-2 hover:ring-dark-500'
       } ${isDragging ? 'z-10 cursor-grabbing opacity-30' : isLocked ? 'cursor-pointer' : 'cursor-grab'}`}
       onClick={onClick}
     >
       {/* 16:9 Thumbnail */}
-      <div className="relative aspect-video bg-dark-600">
+      <div className="relative aspect-video bg-black">
         {video.thumbnail ? (
           <img
             src={video.thumbnail}
             alt={video.title || 'Video thumbnail'}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             draggable={false}
           />
         ) : (
@@ -93,7 +93,7 @@ function YouTubeVideoCard({ video, isSelected, isLocked, isDropTarget, onClick, 
               e.stopPropagation();
               onDelete?.();
             }}
-            className="p-3 rounded-full bg-black/70 text-white hover:bg-red-600/80 transition-colors pointer-events-auto"
+            className="p-3 rounded-full bg-black/70 text-white hover:bg-dark-600/80 transition-colors pointer-events-auto"
             title="Delete"
           >
             <Trash2 className="w-5 h-5" />
@@ -104,7 +104,7 @@ function YouTubeVideoCard({ video, isSelected, isLocked, isDropTarget, onClick, 
       {/* Title Section */}
       <div className="p-3">
         <h3 className="text-sm font-medium text-dark-100 line-clamp-2 min-h-[2.5rem]">
-          {video.title || 'Untitled Video'}
+          {video.artistName ? `${video.artistName} - ${video.title}` : video.title || 'Untitled Video'}
         </h3>
 
         {/* Character count indicator */}

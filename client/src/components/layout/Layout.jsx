@@ -15,7 +15,7 @@ function Layout() {
         }`}
       >
         <Header />
-        <main className="flex-1 overflow-auto p-6 bg-dark-900">
+        <main className="flex-1 overflow-auto p-5 bg-dark-900">
           <Outlet />
         </main>
       </div>

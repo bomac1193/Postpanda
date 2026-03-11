@@ -129,13 +129,13 @@
 }
 
 .linkinbio-page-status.published {
-  background: rgba(76, 175, 80, 0.2);
-  color: #4CAF50;
+  background: rgba(212, 212, 216, 0.15);
+  color: #d4d4d8;
 }
 
 .linkinbio-page-status.draft {
-  background: rgba(255, 152, 0, 0.2);
-  color: #FF9800;
+  background: rgba(63, 63, 70, 0.3);
+  color: #71717a;
 }
 
 /* Main Content */
@@ -354,9 +354,9 @@
 }
 
 .link-delete-btn:hover {
-  background: rgba(244, 67, 54, 0.1);
-  color: #f44336;
-  border-color: #f44336;
+  background: rgba(63, 63, 70, 0.3);
+  color: #d4d4d8;
+  border-color: #52525b;
 }
 
 .link-edit-form {
@@ -577,7 +577,7 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743);
+  background: #27272a;
   margin: 0 auto 0.75rem;
 }
 

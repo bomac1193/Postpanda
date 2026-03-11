@@ -131,7 +131,7 @@ function TimingInsights({ platform, onFetchTiming, disabled }) {
                     <span className="ai-peak-day">{peak.day}</span>
                     <span className="ai-peak-time">{peak.time}</span>
                     <span className="ai-peak-score" style={{
-                      color: peak.score >= 80 ? '#4CAF50' : peak.score >= 60 ? '#FF9800' : '#f44336'
+                      color: '#d4d4d8'
                     }}>
                       {peak.score}%
                     </span>

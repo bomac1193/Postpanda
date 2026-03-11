@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, Target, Zap, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { rolloutApi } from '../../lib/api';
 
 /**
@@ -37,10 +37,10 @@ export default function RolloutIntelligencePanel({ rolloutId, rollout }) {
 
   if (loading) {
     return (
-      <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 border-2 border-accent-purple border-t-transparent rounded-full animate-spin" />
-          <span className="text-dark-400">Analyzing readiness...</span>
+      <div className="bg-dark-800 border border-dark-700 rounded-xl p-3">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-dark-100 border-t-transparent rounded-full animate-spin" />
+          <span className="text-dark-400 text-sm">Analyzing readiness...</span>
         </div>
       </div>
     );
@@ -54,47 +54,38 @@ export default function RolloutIntelligencePanel({ rolloutId, rollout }) {
   const allReady = overallReadiness.ready;
 
   return (
-    <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
+    <div className="bg-dark-800/60 rounded-lg overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-6 py-4 hover:bg-dark-750 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-dark-800 transition-colors"
       >
-        <div className="flex items-center gap-3">
-          <Zap className="w-5 h-5 text-accent-purple" />
-          <div className="text-left">
-            <h3 className="font-semibold text-white">Readiness Check</h3>
-            <p className="text-sm text-dark-400">Conviction-based launch readiness</p>
-          </div>
-        </div>
+        <span className="text-xs text-dark-300 uppercase tracking-wider">Readiness</span>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {allReady ? (
-            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-sm">
-              <CheckCircle className="w-4 h-4" />
+            <span className="px-2 py-0.5 bg-dark-600/30 text-dark-100 rounded text-xs">
               Ready to Launch
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 text-orange-400 rounded-lg text-sm">
-              <AlertTriangle className="w-4 h-4" />
-              {overallReadiness.readySections}/{overallReadiness.totalSections} Sections Ready
+            <span className="px-2 py-0.5 bg-dark-600/30 text-dark-300 rounded text-xs">
+              {overallReadiness.readySections}/{overallReadiness.totalSections} Ready
             </span>
           )}
 
           {expanded ? (
-            <ChevronUp className="w-5 h-5 text-dark-400" />
+            <ChevronUp className="w-4 h-4 text-dark-400" />
           ) : (
-            <ChevronDown className="w-5 h-5 text-dark-400" />
+            <ChevronDown className="w-4 h-4 text-dark-400" />
           )}
         </div>
       </button>
 
       {expanded && (
-        <div className="px-6 py-4 space-y-6 border-t border-dark-700">
+        <div className="px-4 py-3 space-y-3 border-t border-dark-800">
           {/* Overall Readiness */}
           <div>
-            <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-              <Target className="w-4 h-4 text-accent-purple" />
+            <h4 className="text-xs font-medium text-dark-300 mb-2">
               Overall Readiness
             </h4>
             <div className="grid grid-cols-3 gap-3">
@@ -119,24 +110,23 @@ export default function RolloutIntelligencePanel({ rolloutId, rollout }) {
           {/* Section Readiness Details */}
           {sections && sections.some(s => !s.ready) && (
             <div>
-              <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-orange-400" />
+              <h4 className="text-xs font-medium text-dark-300 mb-2">
                 Sections Blocked
               </h4>
               <div className="space-y-2">
                 {sections.filter(s => !s.ready).map((section, idx) => (
-                  <div key={idx} className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-orange-400">{section.sectionName}</span>
-                      <span className="text-xs text-orange-400">
+                  <div key={idx} className="bg-dark-800/50 rounded p-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-medium text-white">{section.sectionName}</span>
+                      <span className="text-[10px] text-dark-500">
                         {section.stats.belowThreshold} blocked
                       </span>
                     </div>
-                    <p className="text-sm text-white mb-2">{section.message}</p>
+                    <p className="text-xs text-dark-400 mb-2">{section.message}</p>
                     {section.suggestions.length > 0 && (
                       <ul className="space-y-1">
                         {section.suggestions.slice(0, 2).map((suggestion, sIdx) => (
-                          <li key={sIdx} className="text-xs text-orange-300">
+                          <li key={sIdx} className="text-xs text-dark-300">
                             {suggestion}
                           </li>
                         ))}
@@ -154,16 +144,16 @@ export default function RolloutIntelligencePanel({ rolloutId, rollout }) {
 }
 
 function StatCard({ label, value, color = 'neutral' }) {
-  const colors = {
-    green: 'bg-green-500/10 border-green-500/30 text-green-400',
-    orange: 'bg-orange-500/10 border-orange-500/30 text-orange-400',
-    neutral: 'bg-dark-750 border-dark-600 text-dark-200',
+  const textColors = {
+    green: 'text-white',
+    orange: 'text-dark-300',
+    neutral: 'text-dark-200',
   };
 
   return (
-    <div className={`rounded-lg border p-3 ${colors[color]}`}>
-      <div className="text-xs opacity-75 mb-1">{label}</div>
-      <div className="text-lg font-bold">{value}</div>
+    <div className="bg-dark-800/50 rounded p-3">
+      <div className="text-[10px] text-dark-500 uppercase tracking-wider mb-1">{label}</div>
+      <div className={`text-lg font-light ${textColors[color]}`}>{value}</div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Calendar, TrendingUp, Award, Clock, AlertTriangle } from 'lucide-react';
+import { Calendar, TrendingUp, ArrowUp, Clock, AlertTriangle, Check } from 'lucide-react';
 import ConvictionBadge from './ConvictionBadge';
 
 /**
@@ -111,7 +111,7 @@ const CalendarConvictionPanel = ({
     <div className="bg-gray-800/50 rounded-lg p-6 space-y-6">
       <div>
         <h3 className="text-white font-semibold text-lg flex items-center gap-2 mb-4">
-          <Calendar className="w-5 h-5 text-green-400" />
+          <Calendar className="w-5 h-5 text-dark-100" />
           Calendar Insights
         </h3>
 
@@ -126,12 +126,12 @@ const CalendarConvictionPanel = ({
 
           <div className="bg-gray-900/50 rounded-lg p-3 text-center">
             <p className="text-gray-400 text-xs mb-1">High Conviction</p>
-            <p className="text-green-400 text-2xl font-bold">{stats.highConvictionCount}</p>
+            <p className="text-dark-100 text-2xl font-bold">{stats.highConvictionCount}</p>
           </div>
 
           <div className="bg-gray-900/50 rounded-lg p-3 text-center">
             <p className="text-gray-400 text-xs mb-1">Needs Review</p>
-            <p className={`text-2xl font-bold ${stats.lowConvictionCount > 0 ? 'text-orange-400' : 'text-gray-500'}`}>
+            <p className={`text-2xl font-bold ${stats.lowConvictionCount > 0 ? 'text-dark-300' : 'text-dark-500'}`}>
               {stats.lowConvictionCount}
             </p>
           </div>
@@ -141,13 +141,13 @@ const CalendarConvictionPanel = ({
         {stats.bestDay && (
           <div className="mb-6">
             <h4 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-green-400" />
+              <Clock className="w-4 h-4 text-dark-100" />
               Best Posting Days
             </h4>
             <div className="space-y-2">
-              <div className="flex items-center justify-between bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+              <div className="flex items-center justify-between bg-dark-600/20 border border-dark-600 rounded-lg p-3">
                 <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-green-400" />
+                  <ArrowUp className="w-4 h-4 text-dark-100" />
                   <span className="text-white text-sm font-medium">{stats.bestDay.day}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -160,7 +160,7 @@ const CalendarConvictionPanel = ({
                 <div className="flex items-center justify-between bg-gray-900/30 border border-gray-700 rounded-lg p-3">
                   <span className="text-gray-300 text-sm">{stats.worstDay.day}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-500 text-xs">{stats.worstDay.count} posts</span>
+                    <span className="text-dark-500 text-xs">{stats.worstDay.count} posts</span>
                     <ConvictionBadge score={stats.worstDay.avg} size="xs" />
                   </div>
                 </div>
@@ -172,7 +172,7 @@ const CalendarConvictionPanel = ({
         {/* Recommendations */}
         <div>
           <h4 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-green-400" />
+            <TrendingUp className="w-4 h-4 text-dark-100" />
             Recommendations
           </h4>
           <div className="space-y-2">
@@ -182,14 +182,14 @@ const CalendarConvictionPanel = ({
                 className={`
                   flex items-start gap-2 p-3 rounded-lg text-sm
                   ${rec.includes('Review') || rec.includes('Consider')
-                    ? 'bg-orange-500/10 border border-orange-500/20 text-orange-300'
-                    : 'bg-green-500/10 border border-green-500/20 text-green-300'}
+                    ? 'bg-dark-600/20 border border-dark-600 text-dark-300'
+                    : 'bg-dark-600/20 border border-dark-600 text-dark-100'}
                 `}
               >
                 {rec.includes('Review') || rec.includes('Consider') ? (
                   <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 ) : (
-                  <Award className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 )}
                 <span>{rec}</span>
               </div>

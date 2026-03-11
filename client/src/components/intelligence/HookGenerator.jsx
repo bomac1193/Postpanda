@@ -18,10 +18,10 @@ function VariantCard({ variant, onCopy }) {
   };
 
   const getScoreColor = (score) => {
-    if (score >= 80) return 'text-green-400';
-    if (score >= 60) return 'text-yellow-400';
-    if (score >= 40) return 'text-orange-400';
-    return 'text-red-400';
+    if (score >= 80) return 'text-dark-100';
+    if (score >= 60) return 'text-dark-300';
+    if (score >= 40) return 'text-dark-300';
+    return 'text-dark-300';
   };
 
   return (
@@ -56,7 +56,7 @@ function VariantCard({ variant, onCopy }) {
           className="p-1.5 rounded-lg text-dark-400 hover:text-dark-100 hover:bg-dark-600 transition-colors opacity-0 group-hover:opacity-100"
         >
           {copied ? (
-            <Check className="w-4 h-4 text-green-400" />
+            <Check className="w-4 h-4 text-dark-100" />
           ) : (
             <Copy className="w-4 h-4" />
           )}
@@ -117,12 +117,12 @@ export function HookGenerator({ profileId, onSelect, className = '' }) {
             onChange={(e) => setTopic(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
             placeholder="What's your content about?"
-            className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 text-sm placeholder:text-dark-500 focus:outline-none focus:border-accent-purple"
+            className="flex-1 px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 text-sm placeholder:text-dark-500 focus:outline-none focus:border-dark-100"
           />
           <select
             value={platform}
             onChange={(e) => setPlatform(e.target.value)}
-            className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 text-sm focus:outline-none focus:border-accent-purple"
+            className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-lg text-dark-100 text-sm focus:outline-none focus:border-dark-100"
           >
             <option value="instagram">Instagram</option>
             <option value="tiktok">TikTok</option>
@@ -134,7 +134,7 @@ export function HookGenerator({ profileId, onSelect, className = '' }) {
         <button
           onClick={handleGenerate}
           disabled={loading || !topic.trim()}
-          className="w-full py-2.5 bg-gradient-to-r from-accent-purple to-accent-pink text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-2.5 bg-dark-100 text-dark-900 rounded-lg font-medium text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
@@ -152,7 +152,7 @@ export function HookGenerator({ profileId, onSelect, className = '' }) {
 
       {/* Error message */}
       {error && (
-        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+        <div className="p-3 bg-dark-600/20 border border-dark-600 rounded-lg text-dark-300 text-sm">
           {error}
         </div>
       )}
@@ -208,8 +208,8 @@ export function HookGeneratorModal({ isOpen, onClose, profileId, onSelect }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-dark-700">
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-gradient-to-br from-accent-purple/20 to-accent-pink/20 rounded-lg">
-              <Sparkles className="w-5 h-5 text-accent-purple" />
+            <div className="p-2 bg-dark-700 rounded-lg">
+              <Sparkles className="w-5 h-5 text-dark-100" />
             </div>
             <div>
               <h3 className="font-semibold text-dark-100">Hook Generator</h3>

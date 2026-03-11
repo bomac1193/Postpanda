@@ -16,7 +16,7 @@ const COMPONENT_META = {
 
 const BAR_COLORS = {
   blue: { bar: 'bg-blue-500', track: 'bg-blue-500/10' },
-  emerald: { bar: 'bg-emerald-500', track: 'bg-emerald-500/10' },
+  emerald: { bar: 'bg-accent-purple', track: 'bg-accent-purple/10' },
   purple: { bar: 'bg-purple-500', track: 'bg-purple-500/10' },
   amber: { bar: 'bg-amber-500', track: 'bg-amber-500/10' },
   cyan: { bar: 'bg-cyan-500', track: 'bg-cyan-500/10' },
@@ -24,10 +24,10 @@ const BAR_COLORS = {
 };
 
 const TIER_LABELS = {
-  exceptional: { label: 'Exceptional', class: 'text-green-400' },
-  high: { label: 'High', class: 'text-green-400' },
-  medium: { label: 'Needs Work', class: 'text-orange-400' },
-  low: { label: 'Low', class: 'text-red-400' },
+  exceptional: { label: 'Exceptional', class: 'text-dark-100' },
+  high: { label: 'High', class: 'text-dark-100' },
+  medium: { label: 'Needs Work', class: 'text-dark-300' },
+  low: { label: 'Low', class: 'text-dark-300' },
 };
 
 const GATING_ICONS = {
@@ -38,9 +38,9 @@ const GATING_ICONS = {
 };
 
 const GATING_COLORS = {
-  approved: 'text-green-400',
-  warning: 'text-orange-400',
-  blocked: 'text-red-400',
+  approved: 'text-dark-100',
+  warning: 'text-dark-300',
+  blocked: 'text-dark-300',
   override: 'text-blue-400',
 };
 
@@ -56,16 +56,16 @@ const SIGNAL_META = {
 };
 
 function getCalibrationStatus(adsCount) {
-  if (adsCount >= 20) return { label: 'Calibrated', class: 'text-green-400 bg-green-500/10', desc: 'Predictions are grounded in real performance data' };
+  if (adsCount >= 20) return { label: 'Calibrated', class: 'text-dark-100 bg-dark-600/20', desc: 'Predictions are grounded in real performance data' };
   if (adsCount >= 5) return { label: 'Learning', class: 'text-amber-400 bg-amber-500/10', desc: `${20 - adsCount} more published posts to calibrate` };
   return { label: 'Uncalibrated', class: 'text-dark-500 bg-dark-700/50', desc: `${5 - adsCount} more published posts to start learning` };
 }
 
 function getAdsTier(score) {
-  if (score >= 80) return { label: 'Deep', class: 'text-green-400 bg-green-500/15' };
-  if (score >= 60) return { label: 'Engaged', class: 'text-emerald-400 bg-emerald-500/15' };
-  if (score >= 40) return { label: 'Surface', class: 'text-orange-400 bg-orange-500/15' };
-  return { label: 'Shallow', class: 'text-red-400 bg-red-500/15' };
+  if (score >= 80) return { label: 'Deep', class: 'text-dark-100 bg-dark-600/25' };
+  if (score >= 60) return { label: 'Engaged', class: 'text-accent-purple bg-accent-purple/15' };
+  if (score >= 40) return { label: 'Surface', class: 'text-dark-300 bg-dark-600/25' };
+  return { label: 'Shallow', class: 'text-dark-300 bg-dark-600/25' };
 }
 
 function ScoreBar({ value, color }) {
@@ -81,10 +81,10 @@ function ScoreBar({ value, color }) {
 }
 
 function getAccuracyLabel(accuracy) {
-  if (accuracy >= 90) return { label: 'Spot on', class: 'bg-green-500/15 text-green-400' };
-  if (accuracy >= 75) return { label: 'Close', class: 'bg-green-500/10 text-green-400' };
-  if (accuracy >= 60) return { label: 'Fair', class: 'bg-orange-500/10 text-orange-400' };
-  return { label: 'Off', class: 'bg-red-500/10 text-red-400' };
+  if (accuracy >= 90) return { label: 'Spot on', class: 'bg-dark-600/25 text-dark-100' };
+  if (accuracy >= 75) return { label: 'Close', class: 'bg-dark-600/20 text-dark-100' };
+  if (accuracy >= 60) return { label: 'Fair', class: 'bg-dark-600/20 text-dark-300' };
+  return { label: 'Off', class: 'bg-dark-600/20 text-dark-300' };
 }
 
 // --- ADS (post-publish) sub-component ---
@@ -134,7 +134,7 @@ function AudienceDepthView({ postId }) {
   }
 
   if (error) {
-    return <p className="text-xs text-red-400 py-2">{error}</p>;
+    return <p className="text-xs text-dark-300 py-2">{error}</p>;
   }
 
   const score = adsData?.audienceDepthScore;
@@ -383,7 +383,7 @@ const ConvictionBreakdown = React.memo(function ConvictionBreakdown({ postId, pr
       {expanded && (
         <div className="px-4 pb-4 space-y-4">
           {error && (
-            <p className="text-xs text-red-400">{error}</p>
+            <p className="text-xs text-dark-300">{error}</p>
           )}
 
           {/* POST-PUBLISH: Show real ADS */}
@@ -437,9 +437,9 @@ const ConvictionBreakdown = React.memo(function ConvictionBreakdown({ postId, pr
                   {/* Gating status */}
                   {gating && (
                     <div className={`flex items-start gap-2 px-3 py-2 rounded-lg ${
-                      gating.status === 'approved' ? 'bg-green-500/5' :
-                      gating.status === 'warning' ? 'bg-orange-500/5' :
-                      gating.status === 'blocked' ? 'bg-red-500/5' :
+                      gating.status === 'approved' ? 'bg-dark-600/10' :
+                      gating.status === 'warning' ? 'bg-dark-600/10' :
+                      gating.status === 'blocked' ? 'bg-dark-600/10' :
                       'bg-blue-500/5'
                     }`}>
                       <GatingIcon className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${gatingColor}`} />
@@ -473,9 +473,9 @@ const ConvictionBreakdown = React.memo(function ConvictionBreakdown({ postId, pr
                       </div>
 
                       {hadSuccessfulOverride && (
-                        <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-green-500/10">
-                          <CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-green-400" />
-                          <p className="text-[11px] text-green-300">
+                        <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-dark-600/20">
+                          <CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-dark-100" />
+                          <p className="text-[11px] text-dark-100">
                             You were right — your override paid off
                           </p>
                         </div>

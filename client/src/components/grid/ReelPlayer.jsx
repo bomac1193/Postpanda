@@ -208,7 +208,7 @@ function ReelPlayer({ reel, onClose, onSelectThumbnail }) {
             onClick={() => setIsLiked(!isLiked)}
             className="flex flex-col items-center gap-1"
           >
-            <Heart className={`w-7 h-7 ${isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`} />
+            <Heart className={`w-7 h-7 ${isLiked ? 'text-dark-100 fill-dark-100' : 'text-white'}`} />
             <span className="text-white text-xs">1.2K</span>
           </button>
 
@@ -242,7 +242,7 @@ function ReelPlayer({ reel, onClose, onSelectThumbnail }) {
         <div className="absolute bottom-4 left-4 right-16">
           {/* User info */}
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-purple to-accent-pink overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-dark-600 overflow-hidden">
               {user?.avatar ? (
                 <img src={user.avatar} alt="" className="w-full h-full object-cover" />
               ) : (

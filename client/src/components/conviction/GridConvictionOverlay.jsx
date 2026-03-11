@@ -18,13 +18,13 @@ const GridConvictionOverlay = ({
     if (!score && score !== 0) return '';
 
     if (score >= 80) {
-      return 'shadow-lg shadow-green-500/50';
+      return 'shadow-lg shadow-accent-purple/50';
     } else if (score >= 60) {
-      return 'shadow-md shadow-green-600/40';
+      return 'shadow-md shadow-accent-purple/40';
     } else if (score >= 40) {
-      return 'shadow-md shadow-orange-500/40';
+      return 'shadow-md shadow-dark-400/40';
     } else {
-      return 'shadow-md shadow-red-600/40';
+      return 'shadow-md shadow-dark-600/40';
     }
   };
 

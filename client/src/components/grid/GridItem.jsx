@@ -32,7 +32,7 @@ const GridItem = React.memo(function GridItem({ post, isSelected, isLocked, onCl
       {...(!isLocked ? { ...attributes, ...listeners } : {})}
       className={`relative aspect-square bg-dark-700 rounded-lg overflow-hidden transition-all duration-200 group ${
         isSelected
-          ? 'ring-2 ring-accent-purple ring-offset-2 ring-offset-dark-800'
+          ? 'ring-2 ring-dark-100 ring-offset-2 ring-offset-dark-800'
           : 'hover:ring-2 hover:ring-dark-500'
       } ${isDragging ? 'z-10 cursor-grabbing' : isLocked ? 'cursor-pointer' : 'cursor-grab'}`}
       onClick={onClick}
@@ -107,7 +107,7 @@ const GridItem = React.memo(function GridItem({ post, isSelected, isLocked, onCl
             e.stopPropagation();
             onDelete?.();
           }}
-          className="p-2 bg-dark-800/80 rounded-lg text-dark-200 hover:text-red-400 transition-colors pointer-events-auto"
+          className="p-2 bg-dark-800/80 rounded-lg text-dark-200 hover:text-dark-200 transition-colors pointer-events-auto"
         >
           <Trash2 className="w-4 h-4" />
         </button>

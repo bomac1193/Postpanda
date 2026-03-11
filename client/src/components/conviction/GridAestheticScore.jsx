@@ -85,12 +85,7 @@ const GridAestheticScore = ({ gridItems = [], columns = 3 }) => {
     };
   }, [gridItems, columns]);
 
-  // Get color based on score
-  const getScoreColor = (score) => {
-    if (score >= 70) return 'text-green-500';
-    if (score >= 50) return 'text-orange-500';
-    return 'text-red-500';
-  };
+  const getScoreColor = () => 'text-dark-100';
 
   return (
     <div className="bg-dark-900/50 border border-dark-700 rounded-lg p-4">

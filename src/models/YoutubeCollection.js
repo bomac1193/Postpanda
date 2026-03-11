@@ -41,6 +41,42 @@ const youtubeCollectionSchema = new mongoose.Schema({
   sectionId: {
     type: String // References a section within a rollout
   },
+  cruciblaProjectId: {
+    type: String,
+    default: null
+  },
+  cruciblaProjectName: {
+    type: String,
+    default: null
+  },
+  cruciblaProjectType: {
+    type: String,
+    default: null
+  },
+  cruciblaEra: {
+    type: String,
+    default: null
+  },
+  cruciblaAlbum: {
+    type: String,
+    default: null
+  },
+  cruciblaAlbumColor: {
+    type: String,
+    default: null
+  },
+  versions: [{
+    name: String,
+    savedAt: { type: Date, default: Date.now },
+    videos: [{
+      videoId: mongoose.Schema.Types.ObjectId,
+      title: String,
+      description: String,
+      position: Number,
+      status: String,
+      artistName: String
+    }]
+  }],
   createdAt: {
     type: Date,
     default: Date.now

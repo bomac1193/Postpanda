@@ -244,7 +244,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
             <div className="mb-3">
               <label className="flex items-center justify-between text-xs font-medium text-dark-400 mb-1">
                 <span>Caption</span>
-                <span className={caption.length > CAPTION_LIMIT ? 'text-red-400' : ''}>
+                <span className={caption.length > CAPTION_LIMIT ? 'text-dark-300' : ''}>
                   {caption.length}/{CAPTION_LIMIT}
                 </span>
               </label>
@@ -253,7 +253,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
                 onChange={(e) => setCaption(e.target.value)}
                 placeholder="Write a caption..."
                 rows={3}
-                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:border-accent-purple resize-none"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:border-dark-100 resize-none"
               />
             </div>
 
@@ -264,7 +264,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
                   <Hash className="w-3 h-3" />
                   Hashtags
                 </span>
-                <span className={hashtagCount > HASHTAG_LIMIT ? 'text-red-400' : ''}>
+                <span className={hashtagCount > HASHTAG_LIMIT ? 'text-dark-300' : ''}>
                   {hashtagCount}/{HASHTAG_LIMIT}
                 </span>
               </label>
@@ -273,7 +273,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
                 onChange={(e) => setHashtags(e.target.value)}
                 placeholder="#viral #trending"
                 rows={2}
-                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:border-accent-purple resize-none"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:border-dark-100 resize-none"
               />
             </div>
 
@@ -288,7 +288,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
                 value={audioTrack}
                 onChange={(e) => setAudioTrack(e.target.value)}
                 placeholder="Original audio"
-                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:border-accent-purple"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:border-dark-100"
               />
             </div>
 
@@ -303,7 +303,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Add location"
-                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:border-accent-purple"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:border-dark-100"
               />
             </div>
 
@@ -318,7 +318,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
                 value={mentions}
                 onChange={(e) => setMentions(e.target.value)}
                 placeholder="@username"
-                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:border-accent-purple"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 placeholder-dark-500 focus:outline-none focus:border-dark-100"
               />
             </div>
 
@@ -332,7 +332,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
                 type="datetime-local"
                 value={scheduledFor}
                 onChange={(e) => setScheduledFor(e.target.value)}
-                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 focus:outline-none focus:border-accent-purple"
+                className="w-full bg-dark-700 border border-dark-600 rounded-lg px-2.5 py-2 text-sm text-dark-100 focus:outline-none focus:border-dark-100"
               />
             </div>
 
@@ -369,7 +369,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="w-full py-2.5 bg-accent-purple hover:bg-accent-purple/80 disabled:bg-dark-600 disabled:text-dark-400 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+              className="w-full py-2.5 bg-dark-100 hover:bg-white disabled:bg-dark-600 disabled:text-dark-400 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
             >
               {isSaving ? (
                 <>
@@ -392,7 +392,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="flex-1 py-2 text-red-400 hover:bg-red-500/10 border border-red-500/30 rounded-lg transition-colors text-sm flex items-center justify-center gap-1"
+                className="flex-1 py-2 text-dark-300 hover:bg-dark-600/30 border border-dark-500/30 rounded-lg transition-colors text-sm flex items-center justify-center gap-1"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete
@@ -424,7 +424,7 @@ function ReelEditor({ reel, onSave, onDelete, onClose, onChangeThumbnail, onPlay
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                  className="flex-1 py-2 bg-dark-100 hover:bg-white text-dark-900 rounded-lg transition-colors"
                 >
                   Delete
                 </button>

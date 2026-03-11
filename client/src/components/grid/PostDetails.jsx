@@ -111,7 +111,7 @@ function PostDetails({ post }) {
             onClick={() => qe.handleTabChange(p.id)}
             className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors ${
               qe.activeTab === p.id
-                ? 'text-accent-purple border-b-2 border-accent-purple bg-accent-purple/5'
+                ? 'text-dark-100 border-b-2 border-dark-100 bg-dark-700/50'
                 : 'text-dark-400 hover:text-dark-200'
             }`}
           >
@@ -130,7 +130,7 @@ function PostDetails({ post }) {
             <button
               onClick={qe.save}
               disabled={qe.saving}
-              className="h-7 px-3 text-[11px] bg-accent-purple text-white hover:bg-accent-purple/80 disabled:opacity-50 transition-colors"
+              className="h-7 px-3 text-[11px] bg-dark-100 text-white hover:bg-white disabled:opacity-50 transition-colors"
             >
               {qe.saving ? 'Saving...' : 'Save'}
             </button>

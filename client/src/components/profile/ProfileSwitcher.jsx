@@ -130,7 +130,7 @@ function ProfileSwitcher({ collapsed = false }) {
       <div className="px-2 py-3 border-b border-dark-700">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-10 h-10 rounded-full bg-dark-700 flex items-center justify-center mx-auto overflow-hidden hover:ring-2 hover:ring-accent-purple/50 transition-all"
+          className="w-10 h-10 rounded-full bg-dark-700 flex items-center justify-center mx-auto overflow-hidden hover:ring-2 hover:ring-dark-100/50 transition-all"
           title={currentProfile?.name || 'Switch Profile'}
         >
           {currentProfile?.avatar ? (
@@ -281,7 +281,7 @@ function ProfileDropdownContent({
 
               {/* Check if active */}
               {isActive && (
-                <Check className="w-4 h-4 text-accent-purple flex-shrink-0" />
+                <Check className="w-4 h-4 text-dark-100 flex-shrink-0" />
               )}
 
               {/* Default badge */}
@@ -305,7 +305,7 @@ function ProfileDropdownContent({
       <div className="border-t border-dark-700 py-2">
         <button
           onClick={onCreateProfile}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-accent-purple hover:bg-dark-700 transition-colors"
+          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-dark-100 hover:bg-dark-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
           Add New Profile

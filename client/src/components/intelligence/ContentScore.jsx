@@ -14,11 +14,8 @@ function ScoreRing({ score, size = 'md', label }) {
     lg: 'w-16 h-16 text-base'
   };
 
-  const getScoreColor = (score) => {
-    if (score >= 80) return 'text-green-400 border-green-400';
-    if (score >= 60) return 'text-yellow-400 border-yellow-400';
-    if (score >= 40) return 'text-orange-400 border-orange-400';
-    return 'text-red-400 border-red-400';
+  const getScoreColor = () => {
+    return 'text-dark-100 border-dark-400';
   };
 
   const circumference = 2 * Math.PI * 18;
@@ -119,7 +116,7 @@ export function ContentScoreCard({ content, profileId, onScored }) {
 
   if (error) {
     return (
-      <div className="flex items-center gap-1 text-red-400 text-xs">
+      <div className="flex items-center gap-1 text-dark-300 text-xs">
         <AlertCircle className="w-3 h-3" />
         {error}
       </div>
@@ -130,7 +127,7 @@ export function ContentScoreCard({ content, profileId, onScored }) {
     return (
       <button
         onClick={handleScore}
-        className="flex items-center gap-1 text-xs text-accent-purple hover:text-accent-pink transition-colors"
+        className="flex items-center gap-1 text-xs text-dark-100 hover:text-dark-100 transition-colors"
       >
         <Sparkles className="w-3 h-3" />
         Score Content
@@ -169,7 +166,7 @@ export function ContentScoreCard({ content, profileId, onScored }) {
         <div className="space-y-1">
           {scoreData.feedback.slice(0, 3).map((fb, i) => (
             <p key={i} className="text-[10px] text-dark-400 flex items-start gap-1">
-              <Zap className="w-2.5 h-2.5 mt-0.5 text-yellow-400 flex-shrink-0" />
+              <Zap className="w-2.5 h-2.5 mt-0.5 text-dark-300 flex-shrink-0" />
               {fb}
             </p>
           ))}
@@ -182,15 +179,8 @@ export function ContentScoreCard({ content, profileId, onScored }) {
 export function ContentScoreOverlay({ score, className = '' }) {
   if (score === undefined || score === null) return null;
 
-  const getScoreColor = (score) => {
-    if (score >= 80) return 'from-green-500/80 to-green-600/80';
-    if (score >= 60) return 'from-yellow-500/80 to-yellow-600/80';
-    if (score >= 40) return 'from-orange-500/80 to-orange-600/80';
-    return 'from-red-500/80 to-red-600/80';
-  };
-
   return (
-    <div className={`absolute top-2 right-2 px-2 py-1 rounded-full bg-gradient-to-r ${getScoreColor(score)} text-white text-xs font-bold shadow-lg ${className}`}>
+    <div className={`absolute top-2 right-2 px-2 py-1 rounded-full bg-dark-800/90 text-dark-100 text-xs font-bold ${className}`}>
       <span className="flex items-center gap-1">
         <Zap className="w-3 h-3" />
         {score}

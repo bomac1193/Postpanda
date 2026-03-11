@@ -31,7 +31,9 @@ const uploadBuffer = async (buffer, options = {}) => {
     throw new Error('Cloudinary not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env');
   }
 
-  return new Promise((resolve, reject) => {
+  const timeoutMs = options.timeout || 45000; // 45s default
+
+  const uploadPromise = new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: options.folder || 'slayt',
@@ -51,6 +53,12 @@ const uploadBuffer = async (buffer, options = {}) => {
 
     uploadStream.end(buffer);
   });
+
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`Cloudinary upload timed out after ${timeoutMs}ms`)), timeoutMs)
+  );
+
+  return Promise.race([uploadPromise, timeoutPromise]);
 };
 
 /**

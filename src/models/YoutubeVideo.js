@@ -42,6 +42,15 @@ const youtubeVideoSchema = new mongoose.Schema({
   scheduledDate: {
     type: Date
   },
+  originalFilename: {
+    type: String,
+    trim: true
+  },
+  artistName: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   position: {
     type: Number,
     default: 0
