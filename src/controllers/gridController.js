@@ -84,8 +84,7 @@ exports.getAllGrids = async (req, res) => {
 
     const grids = await Grid.find(filter)
       .populate('cells.contentId')
-      .populate('cells.characterId', 'name avatar color voice captionStyle')
-      .sort({ updatedAt: -1 });
+        .sort({ updatedAt: -1 });
     grids.forEach(normalizeGrid);
 
     // Log for debugging

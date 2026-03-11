@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/useAppStore';
 import {
   Bell,
@@ -7,30 +7,12 @@ import {
   Plus,
 } from 'lucide-react';
 
-const pageTitles = {
-  '/grid': 'Grid Planner',
-  '/youtube': 'YouTube Planner',
-  '/calendar': 'Content Calendar',
-  '/library': 'Media Library',
-  '/connections': 'Platform Connections',
-  '/settings': 'Settings',
-};
-
 function Header() {
-  const location = useLocation();
   const navigate = useNavigate();
   const user = useAppStore((state) => state.user);
 
-  const title = pageTitles[location.pathname] || 'Atelio';
-
   return (
-    <header className="h-16 bg-dark-800/80 backdrop-blur-sm border-b border-dark-700 flex items-center justify-between px-6 sticky top-0 z-30">
-      {/* Page Title */}
-      <div>
-        <h1 className="text-lg font-display font-normal text-dark-100 uppercase tracking-widest">{title}</h1>
-      </div>
-
-      {/* Actions */}
+    <header className="h-16 bg-dark-800/80 backdrop-blur-sm border-b border-dark-700 flex items-center justify-end px-6 sticky top-0 z-30">
       <div className="flex items-center gap-3">
         {/* Search */}
         <div className="relative">

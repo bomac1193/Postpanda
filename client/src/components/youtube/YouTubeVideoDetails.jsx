@@ -397,12 +397,12 @@ function YouTubeVideoDetails({ video, onThumbnailUpload }) {
       {/* Content */}
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* Thumbnail Preview */}
-        <div className="relative aspect-video bg-dark-700 rounded-lg overflow-hidden group">
+        <div className="relative aspect-video bg-black rounded-lg overflow-hidden group">
           {video.thumbnail ? (
             <img
               src={video.thumbnail}
               alt={video.title || 'Video thumbnail'}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">

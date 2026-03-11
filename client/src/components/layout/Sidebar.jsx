@@ -166,14 +166,14 @@ function Sidebar() {
         {!sidebarCollapsed && (
           <div className="flex items-center">
             <span className="font-display font-semibold text-[1.15rem] leading-none text-white tracking-[0.03em]">
-              Atelio
+              Slayt
             </span>
           </div>
         )}
         {sidebarCollapsed && (
           <div className="mx-auto">
             <span className="font-display font-semibold text-xs leading-none text-white tracking-[0.04em]">
-              Atelio
+              Slayt
             </span>
           </div>
         )}
