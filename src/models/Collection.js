@@ -155,6 +155,32 @@ const collectionSchema = new mongoose.Schema({
   // Tags for organization
   tags: [String],
 
+  // Crucibla project linking
+  cruciblaProjectId: {
+    type: String,
+    default: null
+  },
+  cruciblaProjectName: {
+    type: String,
+    default: null
+  },
+  cruciblaProjectType: {
+    type: String,
+    default: null
+  },
+  cruciblaEra: {
+    type: String,
+    default: null
+  },
+  cruciblaAlbum: {
+    type: String,
+    default: null
+  },
+  cruciblaAlbumColor: {
+    type: String,
+    default: null
+  },
+
   // Error tracking
   errors: [{
     timestamp: Date,

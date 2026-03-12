@@ -125,17 +125,24 @@ exports.getGridById = async (req, res) => {
 // Update grid
 exports.updateGrid = async (req, res) => {
   try {
-    const { name, platform, columns, isActive } = req.body;
+    const updates = req.body;
 
     const grid = await Grid.findOne({ _id: req.params.id, userId: req.userId });
     if (!grid) {
       return res.status(404).json({ error: 'Grid not found' });
     }
 
-    if (name) grid.name = name;
-    if (platform) grid.platform = platform;
-    if (columns) grid.columns = columns;
-    if (isActive !== undefined) grid.isActive = isActive;
+    const allowedUpdates = [
+      'name', 'platform', 'columns', 'isActive',
+      'cruciblaProjectId', 'cruciblaProjectName', 'cruciblaProjectType',
+      'cruciblaEra', 'cruciblaAlbum', 'cruciblaAlbumColor'
+    ];
+
+    allowedUpdates.forEach(field => {
+      if (updates[field] !== undefined) {
+        grid[field] = updates[field];
+      }
+    });
 
     await grid.save();
 

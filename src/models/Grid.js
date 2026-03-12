@@ -57,6 +57,30 @@ const gridSchema = new mongoose.Schema({
   },
   description: String,
   tags: [String],
+  cruciblaProjectId: {
+    type: String,
+    default: null
+  },
+  cruciblaProjectName: {
+    type: String,
+    default: null
+  },
+  cruciblaProjectType: {
+    type: String,
+    default: null
+  },
+  cruciblaEra: {
+    type: String,
+    default: null
+  },
+  cruciblaAlbum: {
+    type: String,
+    default: null
+  },
+  cruciblaAlbumColor: {
+    type: String,
+    default: null
+  },
   isActive: {
     type: Boolean,
     default: true

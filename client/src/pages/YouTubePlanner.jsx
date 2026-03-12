@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '../stores/useAppStore';
-import { youtubeApi, cruciblaApi } from '../lib/api';
+import { youtubeApi } from '../lib/api';
+import CruciblaProjectPicker from '../components/CruciblaProjectPicker';
 import { compressImage } from '../lib/imageUtils';
 import YouTubeGridView from '../components/youtube/YouTubeGridView';
 import YouTubeSidebarView from '../components/youtube/YouTubeSidebarView';
@@ -109,11 +110,6 @@ function YouTubePlanner() {
   const [showRolloutPickerFor, setShowRolloutPickerFor] = useState(null);
   const [showCruciblaPickerFor, setShowCruciblaPickerFor] = useState(null);
   const collectionsDropdownRef = useRef(null);
-
-  // Crucibla project linking state
-  const [cruciblaProjects, setCruciblaProjects] = useState([]);
-  const [loadingCrucibla, setLoadingCrucibla] = useState(false);
-  const [cruciblaLoaded, setCruciblaLoaded] = useState(false);
 
   // Get videos by collection for showing counts
   const youtubeVideosByCollection = useAppStore((state) => state.youtubeVideosByCollection);
@@ -403,20 +399,6 @@ function YouTubePlanner() {
   }, [rollouts]);
 
   // Crucibla project handlers
-  const fetchCruciblaProjects = useCallback(async () => {
-    if (cruciblaLoaded) return;
-    setLoadingCrucibla(true);
-    try {
-      const projects = await cruciblaApi.getProjects();
-      setCruciblaProjects(projects);
-      setCruciblaLoaded(true);
-    } catch (err) {
-      console.error('Failed to fetch Crucibla projects:', err);
-    } finally {
-      setLoadingCrucibla(false);
-    }
-  }, [cruciblaLoaded]);
-
   const handleAssignCruciblaProject = useCallback(async (e, collectionId, project, album) => {
     e.stopPropagation();
     try {
@@ -880,7 +862,6 @@ function YouTubePlanner() {
                                     setShowCruciblaPickerFor(pickerTarget);
                                     setShowColorPickerFor(null);
                                     setShowRolloutPickerFor(null);
-                                    if (pickerTarget) fetchCruciblaProjects();
                                   }}
                                   className={`p-1 hover:bg-dark-600 rounded ${
                                     collection.cruciblaProjectId ? 'text-dark-100' : 'text-dark-500 hover:text-dark-200'
@@ -1021,54 +1002,14 @@ function YouTubePlanner() {
                           )}
 
                           {/* Crucibla Project Picker Dropdown */}
-                          {showCruciblaPickerFor === (collection._id || collection.id) && (
-                            <div className="absolute left-full top-0 ml-1 w-60 bg-dark-900 border border-dark-600 rounded-lg shadow-xl z-50 p-2 max-h-72 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                              <p className="text-xs text-dark-400 mb-2 px-1">Link to Crucibla Project</p>
-                              {loadingCrucibla ? (
-                                <div className="flex items-center justify-center py-4">
-                                  <Loader2 className="w-4 h-4 text-dark-400 animate-spin" />
-                                  <span className="ml-2 text-xs text-dark-400">Loading projects...</span>
-                                </div>
-                              ) : cruciblaProjects.length === 0 ? (
-                                <p className="text-xs text-dark-500 px-1 py-2">No projects found. Is Crucibla running?</p>
-                              ) : (
-                                cruciblaProjects.map((project) => (
-                                  <button
-                                    key={project.id}
-                                    onClick={(e) => handleAssignCruciblaProject(e, collection._id || collection.id, project)}
-                                    className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
-                                      collection.cruciblaProjectId === project.id ? 'bg-dark-700' : ''
-                                    }`}
-                                  >
-                                    {project.group_color && (
-                                      <span
-                                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                        style={{ backgroundColor: project.group_color }}
-                                      />
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <span className="text-xs text-dark-200 truncate block">{project.name}</span>
-                                      <span className="text-xs text-dark-500">
-                                        {project.type}{project.era ? ` · ${project.era}` : ''}
-                                      </span>
-                                    </div>
-                                    {collection.cruciblaProjectId === project.id && (
-                                      <Check className="w-3 h-3 text-dark-100 flex-shrink-0" />
-                                    )}
-                                  </button>
-                                ))
-                              )}
-                              {collection.cruciblaProjectId && (
-                                <button
-                                  onClick={(e) => handleUnassignCruciblaProject(e, collection._id || collection.id)}
-                                  className="w-full mt-2 px-2 py-1.5 text-xs text-dark-300 hover:bg-dark-600/30 rounded flex items-center gap-2 border-t border-dark-700 pt-2"
-                                >
-                                  <Unlink className="w-3 h-3" />
-                                  Unlink Project
-                                </button>
-                              )}
-                            </div>
-                          )}
+                          <CruciblaProjectPicker
+                            isOpen={showCruciblaPickerFor === (collection._id || collection.id)}
+                            targetId={collection._id || collection.id}
+                            currentProjectId={collection.cruciblaProjectId}
+                            onAssign={handleAssignCruciblaProject}
+                            onUnassign={handleUnassignCruciblaProject}
+                            onClose={() => setShowCruciblaPickerFor(null)}
+                          />
                         </div>
                       );
                     })}

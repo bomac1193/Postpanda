@@ -116,7 +116,11 @@ exports.updateCollection = async (req, res) => {
     }
 
     // Update allowed fields
-    const allowedUpdates = ['name', 'description', 'platform', 'gridConfig', 'scheduling', 'tags', 'status', 'settings'];
+    const allowedUpdates = [
+      'name', 'description', 'platform', 'gridConfig', 'scheduling', 'tags', 'status', 'settings',
+      'cruciblaProjectId', 'cruciblaProjectName', 'cruciblaProjectType',
+      'cruciblaEra', 'cruciblaAlbum', 'cruciblaAlbumColor'
+    ];
 
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {

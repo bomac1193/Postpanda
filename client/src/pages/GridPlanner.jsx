@@ -19,6 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useAppStore } from '../stores/useAppStore';
 import { gridApi, contentApi, authApi } from '../lib/api';
+import CruciblaProjectPicker from '../components/CruciblaProjectPicker';
 import GridItem from '../components/grid/GridItem';
 import GridPreview from '../components/grid/GridPreview';
 import TikTokPreview from '../components/grid/TikTokPreview';
@@ -57,6 +58,7 @@ import {
   Palette,
   Link2,
   Unlink,
+  Package,
 } from 'lucide-react';
 
 // Preset colors for grids
@@ -123,6 +125,8 @@ function GridPlanner() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [showColorPickerFor, setShowColorPickerFor] = useState(null);
   const [showRolloutPickerFor, setShowRolloutPickerFor] = useState(null);
+  const [showCruciblaPickerFor, setShowCruciblaPickerFor] = useState(null);
+  const [showGridMenuFor, setShowGridMenuFor] = useState(null);
 
   // Check authentication on mount
   useEffect(() => {
@@ -369,6 +373,48 @@ function GridPlanner() {
     unassignGridFromRollout(gridId);
     setShowRolloutPickerFor(null);
   }, [unassignGridFromRollout]);
+
+  // Handle Crucibla project assignment for grid
+  const handleAssignCruciblaProject = useCallback(async (e, gridId, project, album) => {
+    e.stopPropagation();
+    try {
+      const updates = {
+        cruciblaProjectId: project.id,
+        cruciblaProjectName: project.name,
+        cruciblaProjectType: project.type,
+        cruciblaEra: project.era || '',
+        cruciblaAlbum: album?.name || null,
+        cruciblaAlbumColor: album?.group_color || null,
+      };
+      await gridApi.update(gridId, updates);
+      setGrids(prev => prev.map(g => g._id === gridId ? { ...g, ...updates } : g));
+    } catch (err) {
+      console.error('Failed to assign Crucibla project:', err);
+      setError('Failed to link project.');
+    }
+    setShowCruciblaPickerFor(null);
+  }, []);
+
+  // Handle Crucibla project unassignment for grid
+  const handleUnassignCruciblaProject = useCallback(async (e, gridId) => {
+    e.stopPropagation();
+    try {
+      const updates = {
+        cruciblaProjectId: null,
+        cruciblaProjectName: null,
+        cruciblaProjectType: null,
+        cruciblaEra: null,
+        cruciblaAlbum: null,
+        cruciblaAlbumColor: null,
+      };
+      await gridApi.update(gridId, updates);
+      setGrids(prev => prev.map(g => g._id === gridId ? { ...g, ...updates } : g));
+    } catch (err) {
+      console.error('Failed to unlink Crucibla project:', err);
+      setError('Failed to unlink project.');
+    }
+    setShowCruciblaPickerFor(null);
+  }, []);
 
   // Get rollout and section info for a grid
   const getGridRolloutInfo = useCallback((gridId) => {
@@ -918,50 +964,74 @@ function GridPlanner() {
                                 {grid.cells?.filter(c => !c.isEmpty).length || 0}
                               </span>
 
-                              {/* Action Buttons - show on hover */}
-                              <div className="hidden group-hover:flex items-center gap-1">
-                                {/* Color picker button */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowColorPickerFor(showColorPickerFor === grid._id ? null : grid._id);
-                                    setShowRolloutPickerFor(null);
-                                  }}
-                                  className="p-1 text-dark-400 hover:text-white hover:bg-dark-500 rounded"
-                                  title="Set Color"
-                                >
-                                  <Palette className="w-3.5 h-3.5" />
-                                </button>
-                                {/* Rollout assignment button */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowRolloutPickerFor(showRolloutPickerFor === grid._id ? null : grid._id);
-                                    setShowColorPickerFor(null);
-                                  }}
-                                  className={`p-1 hover:bg-dark-500 rounded ${
-                                    gridMeta[grid._id]?.rolloutId ? 'text-dark-100' : 'text-dark-400 hover:text-white'
-                                  }`}
-                                  title={gridMeta[grid._id]?.rolloutId ? 'Change Rollout' : 'Assign to Rollout'}
-                                >
-                                  {gridMeta[grid._id]?.rolloutId ? <Link2 className="w-3.5 h-3.5" /> : <Unlink className="w-3.5 h-3.5" />}
-                                </button>
-                                <button
-                                  onClick={(e) => handleStartRename(e, grid)}
-                                  className="p-1 text-dark-400 hover:text-white hover:bg-dark-500 rounded"
-                                  title="Rename"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(grid._id); }}
-                                className="p-1 text-dark-400 hover:text-dark-200 hover:bg-dark-500 rounded"
-                                title="Delete"
+                              {/* More menu trigger - show on hover */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowGridMenuFor(showGridMenuFor === grid._id ? null : grid._id);
+                                  setShowColorPickerFor(null);
+                                  setShowRolloutPickerFor(null);
+                                  setShowCruciblaPickerFor(null);
+                                }}
+                                className="hidden group-hover:block p-1 text-dark-400 hover:text-white hover:bg-dark-500 rounded"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <MoreVertical className="w-3.5 h-3.5" />
                               </button>
-                            </div>
-                          </button>
+                            </button>
+
+                            {/* Grid context menu */}
+                            {showGridMenuFor === grid._id && (
+                              <div className="absolute right-0 top-full mt-1 w-44 bg-dark-800 border border-dark-600 rounded-lg shadow-xl z-50 py-1" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowColorPickerFor(grid._id);
+                                    setShowGridMenuFor(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-dark-200 hover:bg-dark-700"
+                                >
+                                  <Palette className="w-3.5 h-3.5 text-dark-400" />
+                                  Set Color
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowRolloutPickerFor(grid._id);
+                                    setShowGridMenuFor(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-dark-200 hover:bg-dark-700"
+                                >
+                                  <Link2 className="w-3.5 h-3.5 text-dark-400" />
+                                  {gridMeta[grid._id]?.rolloutId ? 'Change Rollout' : 'Assign to Rollout'}
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowCruciblaPickerFor(grid._id);
+                                    setShowGridMenuFor(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-dark-200 hover:bg-dark-700"
+                                >
+                                  <Package className="w-3.5 h-3.5 text-dark-400" />
+                                  {grid.cruciblaProjectId ? 'Change Project' : 'Link Project'}
+                                </button>
+                                <div className="border-t border-dark-600 my-1" />
+                                <button
+                                  onClick={(e) => { handleStartRename(e, grid); setShowGridMenuFor(null); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-dark-200 hover:bg-dark-700"
+                                >
+                                  <Pencil className="w-3.5 h-3.5 text-dark-400" />
+                                  Rename
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(grid._id); setShowGridMenuFor(null); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-red-400 hover:bg-dark-700"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Delete
+                                </button>
+                              </div>
+                            )}
 
                             {/* Rollout info badge */}
                             {getGridRolloutInfo(grid._id) && (
@@ -975,6 +1045,24 @@ function GridPlanner() {
                                 >
                                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getGridRolloutInfo(grid._id).section.color }} />
                                   {getGridRolloutInfo(grid._id).rollout.name} → {getGridRolloutInfo(grid._id).section.name}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Crucibla project badge */}
+                            {grid.cruciblaProjectId && (
+                              <div className="px-3 pb-2 -mt-1">
+                                <div
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs"
+                                  style={{
+                                    backgroundColor: `${grid.cruciblaAlbumColor || '#6366f1'}20`,
+                                    color: grid.cruciblaAlbumColor || '#6366f1',
+                                  }}
+                                >
+                                  <Package className="w-3 h-3" />
+                                  <span>{grid.cruciblaProjectName}</span>
+                                  <span className="opacity-60">({grid.cruciblaProjectType})</span>
+                                  {grid.cruciblaEra && <span className="opacity-60">· {grid.cruciblaEra}</span>}
                                 </div>
                               </div>
                             )}
@@ -1051,6 +1139,16 @@ function GridPlanner() {
                                 )}
                               </div>
                             )}
+
+                            {/* Crucibla Project Picker Dropdown */}
+                            <CruciblaProjectPicker
+                              isOpen={showCruciblaPickerFor === grid._id}
+                              targetId={grid._id}
+                              currentProjectId={grid.cruciblaProjectId}
+                              onAssign={handleAssignCruciblaProject}
+                              onUnassign={handleUnassignCruciblaProject}
+                              onClose={() => setShowCruciblaPickerFor(null)}
+                            />
                           </>
                         )}
                       </div>
