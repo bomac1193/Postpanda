@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
-import { youtubeApi, cruciblaApi } from '../../lib/api';
+import { youtubeApi } from '../../lib/api';
 import {
   Folder,
   FolderOpen,
@@ -14,12 +14,11 @@ import {
   GripVertical,
   Trash2,
   Pencil,
-  Unlink,
-  Loader2,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
 import EditableCollectionName from './EditableCollectionName';
+import CruciblaProjectPicker from '../CruciblaProjectPicker';
 
 /**
  * YouTube Collections Manager
@@ -47,10 +46,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId, c
 
   // Crucibla project linking
   const [cruciblaPickerFor, setCruciblaPickerFor] = useState(null); // collectionId showing picker
-  const [cruciblaProjects, setCruciblaProjects] = useState([]);
-  const [loadingCrucibla, setLoadingCrucibla] = useState(false);
-  const [cruciblaLoaded, setCruciblaLoaded] = useState(false);
-  const cruciblaPickerRef = React.useRef(null);
+  const [cruciblaPickerAnchorEl, setCruciblaPickerAnchorEl] = useState(null);
 
   // Clear selection on ESC key, close move dropdown
   useEffect(() => {
@@ -80,34 +76,6 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId, c
     return () => document.removeEventListener('mousedown', handleClick);
   }, [moveDropdown]);
 
-  // Close crucibla picker on outside click
-  useEffect(() => {
-    if (!cruciblaPickerFor) return;
-    const handleClick = (e) => {
-      if (cruciblaPickerRef.current && !cruciblaPickerRef.current.contains(e.target)) {
-        setCruciblaPickerFor(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [cruciblaPickerFor]);
-
-  const fetchCruciblaProjects = async () => {
-    if (cruciblaLoaded) return;
-    setLoadingCrucibla(true);
-    try {
-      const projects = await cruciblaApi.getProjects();
-      setCruciblaProjects(projects);
-      setCruciblaLoaded(true);
-    } catch (err) {
-      console.error('Failed to fetch Crucibla projects:', err);
-    } finally {
-      setLoadingCrucibla(false);
-    }
-  };
-
-  const [cruciblaSelectedProject, setCruciblaSelectedProject] = useState(null); // project selected in step 1
-
   const handleLinkCruciblaProject = async (collectionId, project, album) => {
     const updates = {
       cruciblaProjectId: project.id,
@@ -124,7 +92,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId, c
       console.error('Failed to link Crucibla project:', err);
     }
     setCruciblaPickerFor(null);
-    setCruciblaSelectedProject(null);
+    setCruciblaPickerAnchorEl(null);
   };
 
   const handleUnlinkCruciblaProject = async (collectionId) => {
@@ -143,7 +111,20 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId, c
       console.error('Failed to unlink Crucibla project:', err);
     }
     setCruciblaPickerFor(null);
-    setCruciblaSelectedProject(null);
+    setCruciblaPickerAnchorEl(null);
+  };
+
+  const toggleCruciblaPicker = (event, collectionId) => {
+    event.stopPropagation();
+
+    if (cruciblaPickerFor === collectionId) {
+      setCruciblaPickerFor(null);
+      setCruciblaPickerAnchorEl(null);
+      return;
+    }
+
+    setCruciblaPickerFor(collectionId);
+    setCruciblaPickerAnchorEl(event.currentTarget);
   };
 
   // Group collections by folder with safety checks
@@ -832,13 +813,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId, c
                               {collection.cruciblaProjectName ? (
                                 <button
                                   type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const target = cruciblaPickerFor === collectionId ? null : collectionId;
-                                    setCruciblaPickerFor(target);
-                                    setCruciblaSelectedProject(null);
-                                    if (target) fetchCruciblaProjects();
-                                  }}
+                                  onClick={(e) => toggleCruciblaPicker(e, collectionId)}
                                   className="inline-flex items-center gap-1 text-[10px] leading-tight px-1.5 py-0.5 rounded hover:opacity-80 transition-opacity max-w-[100px]"
                                   style={{
                                     color: collection.cruciblaAlbumColor || '#818cf8',
@@ -852,124 +827,27 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId, c
                               ) : (
                                 <button
                                   type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const target = cruciblaPickerFor === collectionId ? null : collectionId;
-                                    setCruciblaPickerFor(target);
-                                    setCruciblaSelectedProject(null);
-                                    if (target) fetchCruciblaProjects();
-                                  }}
+                                  onClick={(e) => toggleCruciblaPicker(e, collectionId)}
                                   className="text-[10px] text-indigo-400/70 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100"
                                   title="Connect to Crucibla"
                                 >
                                   crucibla
                                 </button>
                               )}
-                              {/* Crucibla picker dropdown — two-step: Project → Album */}
-                              {cruciblaPickerFor === collectionId && (
-                                <div
-                                  ref={cruciblaPickerRef}
-                                  className="absolute right-0 top-full mt-1 w-56 bg-dark-900 border border-dark-600 rounded-lg shadow-xl z-50 p-2 max-h-72 overflow-y-auto"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {loadingCrucibla ? (
-                                    <div className="flex items-center justify-center py-3">
-                                      <Loader2 className="w-4 h-4 text-dark-400 animate-spin" />
-                                      <span className="ml-2 text-xs text-dark-400">Loading...</span>
-                                    </div>
-                                  ) : cruciblaProjects.length === 0 ? (
-                                    <p className="text-xs text-dark-500 px-1 py-2">No projects found</p>
-                                  ) : !cruciblaSelectedProject ? (
-                                    <>
-                                      <p className="text-xs text-dark-400 mb-2 px-1">Select Project</p>
-                                      {cruciblaProjects.map((project) => (
-                                        <button
-                                          key={project.id}
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (project.albums && project.albums.length > 0) {
-                                              setCruciblaSelectedProject(project);
-                                            } else {
-                                              handleLinkCruciblaProject(collectionId, project, null);
-                                            }
-                                          }}
-                                          className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
-                                            collection.cruciblaProjectId === project.id ? 'bg-dark-700' : ''
-                                          }`}
-                                        >
-                                          <div className="flex-1 min-w-0">
-                                            <span className="text-xs text-dark-200 block truncate">{project.name}</span>
-                                            <span className="text-xs text-dark-500">
-                                              {project.type}{project.era ? ` · ${project.era}` : ''}
-                                              {project.albums?.length ? ` · ${project.albums.length} album${project.albums.length > 1 ? 's' : ''}` : ''}
-                                            </span>
-                                          </div>
-                                          {project.albums?.length > 0 && (
-                                            <ChevronRight className="w-3 h-3 text-dark-500 flex-shrink-0" />
-                                          )}
-                                        </button>
-                                      ))}
-                                    </>
-                                  ) : (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); setCruciblaSelectedProject(null); }}
-                                        className="flex items-center gap-1 text-xs text-dark-400 hover:text-dark-200 mb-2 px-1"
-                                      >
-                                        <ChevronRight className="w-3 h-3 rotate-180" />
-                                        {cruciblaSelectedProject.name}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleLinkCruciblaProject(collectionId, cruciblaSelectedProject, null);
-                                        }}
-                                        className="w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 text-xs text-dark-400 italic"
-                                      >
-                                        Project only (no album)
-                                      </button>
-                                      <div className="border-t border-dark-700 my-1" />
-                                      {cruciblaSelectedProject.albums.map((album) => (
-                                        <button
-                                          key={album.name}
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleLinkCruciblaProject(collectionId, cruciblaSelectedProject, album);
-                                          }}
-                                          className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
-                                            collection.cruciblaProjectId === cruciblaSelectedProject.id && collection.cruciblaAlbum === album.name ? 'bg-dark-700' : ''
-                                          }`}
-                                        >
-                                          {album.group_color && (
-                                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: album.group_color }} />
-                                          )}
-                                          <span className="text-xs text-dark-200 truncate">{album.name}</span>
-                                          {collection.cruciblaProjectId === cruciblaSelectedProject.id && collection.cruciblaAlbum === album.name && (
-                                            <Check className="w-3 h-3 text-dark-100 flex-shrink-0 ml-auto" />
-                                          )}
-                                        </button>
-                                      ))}
-                                    </>
-                                  )}
-                                  {collection.cruciblaProjectId && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleUnlinkCruciblaProject(collectionId);
-                                      }}
-                                      className="w-full mt-1 px-2 py-1.5 text-xs text-dark-400 hover:text-dark-200 hover:bg-dark-700 rounded flex items-center gap-1.5 border-t border-dark-700 pt-2"
-                                    >
-                                      <Unlink className="w-3 h-3" />
-                                      Unlink
-                                    </button>
-                                  )}
-                                </div>
-                              )}
+                              <CruciblaProjectPicker
+                                isOpen={cruciblaPickerFor === collectionId}
+                                targetId={collectionId}
+                                currentProjectId={collection.cruciblaProjectId}
+                                currentAlbumName={collection.cruciblaAlbum}
+                                anchorElement={cruciblaPickerFor === collectionId ? cruciblaPickerAnchorEl : null}
+                                preferredPlacement="bottom-end"
+                                onAssign={(_event, targetCollectionId, project, album) => handleLinkCruciblaProject(targetCollectionId, project, album)}
+                                onUnassign={(_event, targetCollectionId) => handleUnlinkCruciblaProject(targetCollectionId)}
+                                onClose={() => {
+                                  setCruciblaPickerFor(null);
+                                  setCruciblaPickerAnchorEl(null);
+                                }}
+                              />
                             </div>
                             <span className="text-[10px] text-dark-600 flex-shrink-0 tabular-nums w-4 text-right">
                               {collection.videoCount || 0}
@@ -1185,13 +1063,7 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId, c
                                 {collection.cruciblaProjectName ? (
                                   <button
                                     type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const target = cruciblaPickerFor === collectionId ? null : collectionId;
-                                      setCruciblaPickerFor(target);
-                                      setCruciblaSelectedProject(null);
-                                      if (target) fetchCruciblaProjects();
-                                    }}
+                                    onClick={(e) => toggleCruciblaPicker(e, collectionId)}
                                     className="inline-flex items-center gap-1 text-[10px] leading-tight px-1.5 py-0.5 rounded hover:opacity-80 transition-opacity max-w-[100px]"
                                     style={{
                                       color: collection.cruciblaAlbumColor || '#818cf8',
@@ -1205,124 +1077,27 @@ function YouTubeCollectionsManager({ onSelectCollection, selectedCollectionId, c
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const target = cruciblaPickerFor === collectionId ? null : collectionId;
-                                      setCruciblaPickerFor(target);
-                                      setCruciblaSelectedProject(null);
-                                      if (target) fetchCruciblaProjects();
-                                    }}
+                                    onClick={(e) => toggleCruciblaPicker(e, collectionId)}
                                     className="text-[10px] text-indigo-400/70 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100"
                                     title="Connect to Crucibla"
                                   >
                                     crucibla
                                   </button>
                                 )}
-                                {/* Crucibla picker dropdown — two-step: Project → Album */}
-                                {cruciblaPickerFor === collectionId && (
-                                  <div
-                                    ref={cruciblaPickerRef}
-                                    className="absolute right-0 top-full mt-1 w-56 bg-dark-900 border border-dark-600 rounded-lg shadow-xl z-50 p-2 max-h-72 overflow-y-auto"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {loadingCrucibla ? (
-                                      <div className="flex items-center justify-center py-3">
-                                        <Loader2 className="w-4 h-4 text-dark-400 animate-spin" />
-                                        <span className="ml-2 text-xs text-dark-400">Loading...</span>
-                                      </div>
-                                    ) : cruciblaProjects.length === 0 ? (
-                                      <p className="text-xs text-dark-500 px-1 py-2">No projects found</p>
-                                    ) : !cruciblaSelectedProject ? (
-                                      <>
-                                        <p className="text-xs text-dark-400 mb-2 px-1">Select Project</p>
-                                        {cruciblaProjects.map((project) => (
-                                          <button
-                                            key={project.id}
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (project.albums && project.albums.length > 0) {
-                                                setCruciblaSelectedProject(project);
-                                              } else {
-                                                handleLinkCruciblaProject(collectionId, project, null);
-                                              }
-                                            }}
-                                            className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
-                                              collection.cruciblaProjectId === project.id ? 'bg-dark-700' : ''
-                                            }`}
-                                          >
-                                            <div className="flex-1 min-w-0">
-                                              <span className="text-xs text-dark-200 block truncate">{project.name}</span>
-                                              <span className="text-xs text-dark-500">
-                                                {project.type}{project.era ? ` · ${project.era}` : ''}
-                                                {project.albums?.length ? ` · ${project.albums.length} album${project.albums.length > 1 ? 's' : ''}` : ''}
-                                              </span>
-                                            </div>
-                                            {project.albums?.length > 0 && (
-                                              <ChevronRight className="w-3 h-3 text-dark-500 flex-shrink-0" />
-                                            )}
-                                          </button>
-                                        ))}
-                                      </>
-                                    ) : (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => { e.stopPropagation(); setCruciblaSelectedProject(null); }}
-                                          className="flex items-center gap-1 text-xs text-dark-400 hover:text-dark-200 mb-2 px-1"
-                                        >
-                                          <ChevronRight className="w-3 h-3 rotate-180" />
-                                          {cruciblaSelectedProject.name}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleLinkCruciblaProject(collectionId, cruciblaSelectedProject, null);
-                                          }}
-                                          className="w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 text-xs text-dark-400 italic"
-                                        >
-                                          Project only (no album)
-                                        </button>
-                                        <div className="border-t border-dark-700 my-1" />
-                                        {cruciblaSelectedProject.albums.map((album) => (
-                                          <button
-                                            key={album.name}
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleLinkCruciblaProject(collectionId, cruciblaSelectedProject, album);
-                                            }}
-                                            className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
-                                              collection.cruciblaProjectId === cruciblaSelectedProject.id && collection.cruciblaAlbum === album.name ? 'bg-dark-700' : ''
-                                            }`}
-                                          >
-                                            {album.group_color && (
-                                              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: album.group_color }} />
-                                            )}
-                                            <span className="text-xs text-dark-200 truncate">{album.name}</span>
-                                            {collection.cruciblaProjectId === cruciblaSelectedProject.id && collection.cruciblaAlbum === album.name && (
-                                              <Check className="w-3 h-3 text-dark-100 flex-shrink-0 ml-auto" />
-                                            )}
-                                          </button>
-                                        ))}
-                                      </>
-                                    )}
-                                    {collection.cruciblaProjectId && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleUnlinkCruciblaProject(collectionId);
-                                        }}
-                                        className="w-full mt-1 px-2 py-1.5 text-xs text-dark-400 hover:text-dark-200 hover:bg-dark-700 rounded flex items-center gap-1.5 border-t border-dark-700 pt-2"
-                                      >
-                                        <Unlink className="w-3 h-3" />
-                                        Unlink
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
+                                <CruciblaProjectPicker
+                                  isOpen={cruciblaPickerFor === collectionId}
+                                  targetId={collectionId}
+                                  currentProjectId={collection.cruciblaProjectId}
+                                  currentAlbumName={collection.cruciblaAlbum}
+                                  anchorElement={cruciblaPickerFor === collectionId ? cruciblaPickerAnchorEl : null}
+                                  preferredPlacement="bottom-end"
+                                  onAssign={(_event, targetCollectionId, project, album) => handleLinkCruciblaProject(targetCollectionId, project, album)}
+                                  onUnassign={(_event, targetCollectionId) => handleUnlinkCruciblaProject(targetCollectionId)}
+                                  onClose={() => {
+                                    setCruciblaPickerFor(null);
+                                    setCruciblaPickerAnchorEl(null);
+                                  }}
+                                />
                               </div>
                               <span className="text-[10px] text-dark-600 flex-shrink-0 tabular-nums w-4 text-right">
                                 {collection.videoCount || 0}

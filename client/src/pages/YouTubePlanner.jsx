@@ -111,6 +111,7 @@ function YouTubePlanner() {
   const [showColorPickerFor, setShowColorPickerFor] = useState(null);
   const [showRolloutPickerFor, setShowRolloutPickerFor] = useState(null);
   const [showCruciblaPickerFor, setShowCruciblaPickerFor] = useState(null);
+  const [cruciblaPickerAnchorEl, setCruciblaPickerAnchorEl] = useState(null);
   const collectionsDropdownRef = useRef(null);
 
   // Get videos by collection for showing counts
@@ -203,9 +204,18 @@ function YouTubePlanner() {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (collectionsDropdownRef.current && !collectionsDropdownRef.current.contains(e.target)) {
+      const clickedInsideCruciblaPicker =
+        e.target instanceof Element && Boolean(e.target.closest('[data-crucibla-picker-root="true"]'));
+
+      if (
+        collectionsDropdownRef.current &&
+        !collectionsDropdownRef.current.contains(e.target) &&
+        !clickedInsideCruciblaPicker
+      ) {
         setShowCollectionsDropdown(false);
         setEditingCollectionId(null);
+        setShowCruciblaPickerFor(null);
+        setCruciblaPickerAnchorEl(null);
       }
       if (versionsDropdownRef.current && !versionsDropdownRef.current.contains(e.target)) {
         setShowVersionsDropdown(false);
@@ -219,10 +229,14 @@ function YouTubePlanner() {
   const handleSwitchCollection = useCallback(async (collectionId) => {
     if (collectionId === currentYoutubeCollectionId) {
       setShowCollectionsDropdown(false);
+      setShowCruciblaPickerFor(null);
+      setCruciblaPickerAnchorEl(null);
       return;
     }
     setCurrentYoutubeCollection(collectionId);
     setShowCollectionsDropdown(false);
+    setShowCruciblaPickerFor(null);
+    setCruciblaPickerAnchorEl(null);
     // Videos will be loaded by the useEffect
   }, [currentYoutubeCollectionId, setCurrentYoutubeCollection]);
 
@@ -242,6 +256,8 @@ function YouTubePlanner() {
       setCurrentYoutubeCollection(newCollection._id);
       setYoutubeVideos([]);
       setShowCollectionsDropdown(false);
+      setShowCruciblaPickerFor(null);
+      setCruciblaPickerAnchorEl(null);
     } catch (err) {
       console.error('Failed to create collection:', err);
       setError('Failed to create collection. Please try again.');
@@ -314,6 +330,7 @@ function YouTubePlanner() {
           collectionId: newCollectionId,
           status: v.status || 'draft',
           tags: v.tags || [],
+          artistName: v.artistName || '',
           position: i,
         });
       }
@@ -326,6 +343,8 @@ function YouTubePlanner() {
 
       setYoutubeCollections([...youtubeCollections, newCollection]);
       setShowCollectionsDropdown(false);
+      setShowCruciblaPickerFor(null);
+      setCruciblaPickerAnchorEl(null);
     } catch (err) {
       console.error('Failed to duplicate collection:', err);
       setError('Failed to duplicate collection.');
@@ -421,6 +440,7 @@ function YouTubePlanner() {
       setError('Failed to link project.');
     }
     setShowCruciblaPickerFor(null);
+    setCruciblaPickerAnchorEl(null);
   }, [youtubeCollections, setYoutubeCollections]);
 
   const handleUnassignCruciblaProject = useCallback(async (e, collectionId) => {
@@ -443,6 +463,7 @@ function YouTubePlanner() {
       setError('Failed to unlink project.');
     }
     setShowCruciblaPickerFor(null);
+    setCruciblaPickerAnchorEl(null);
   }, [youtubeCollections, setYoutubeCollections]);
 
   // Version handlers
@@ -838,16 +859,24 @@ function YouTubePlanner() {
       {/* Main Grid Area */}
       <div className="flex-1 flex flex-col">
         {/* Toolbar */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+        <div className="mb-4 rounded-2xl border border-dark-700/50 bg-dark-800/40 p-3">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:gap-2 rounded-xl border border-dark-700/40 bg-dark-900/20 p-2">
             {/* Collections Dropdown */}
             <div className="relative" ref={collectionsDropdownRef}>
               <button
-                onClick={() => setShowCollectionsDropdown(!showCollectionsDropdown)}
-                className="flex items-center gap-2 h-9 px-3 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
+                onClick={() => {
+                  const nextOpen = !showCollectionsDropdown;
+                  setShowCollectionsDropdown(nextOpen);
+                  if (!nextOpen) {
+                    setShowCruciblaPickerFor(null);
+                    setCruciblaPickerAnchorEl(null);
+                  }
+                }}
+                className="flex items-center gap-2 h-9 px-2.5 sm:px-3 whitespace-nowrap border border-dark-700/60 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
               >
                 <FolderOpen className="w-4 h-4 text-dark-100" />
-                <span className="text-sm font-medium text-dark-200 max-w-[150px] truncate">
+                <span className="text-sm font-medium text-dark-200 max-w-[100px] sm:max-w-[150px] 2xl:max-w-[220px] truncate">
                   {currentCollection.name}
                 </span>
                 <ChevronDown className={`w-4 h-4 text-dark-400 transition-transform ${showCollectionsDropdown ? 'rotate-180' : ''}`} />
@@ -927,6 +956,7 @@ function YouTubePlanner() {
                                     setShowRolloutPickerFor(showRolloutPickerFor === (collection._id || collection.id) ? null : collection.id);
                                     setShowColorPickerFor(null);
                                     setShowCruciblaPickerFor(null);
+                                    setCruciblaPickerAnchorEl(null);
                                   }}
                                   className={`p-1 hover:bg-dark-600 rounded ${
                                     collection.rolloutId ? 'text-dark-100' : 'text-dark-500 hover:text-dark-200'
@@ -939,8 +969,10 @@ function YouTubePlanner() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    const pickerTarget = showCruciblaPickerFor === (collection._id || collection.id) ? null : (collection._id || collection.id);
+                                    const collectionId = collection._id || collection.id;
+                                    const pickerTarget = showCruciblaPickerFor === collectionId ? null : collectionId;
                                     setShowCruciblaPickerFor(pickerTarget);
+                                    setCruciblaPickerAnchorEl(pickerTarget ? e.currentTarget : null);
                                     setShowColorPickerFor(null);
                                     setShowRolloutPickerFor(null);
                                   }}
@@ -1087,9 +1119,15 @@ function YouTubePlanner() {
                             isOpen={showCruciblaPickerFor === (collection._id || collection.id)}
                             targetId={collection._id || collection.id}
                             currentProjectId={collection.cruciblaProjectId}
+                            currentAlbumName={collection.cruciblaAlbum}
+                            anchorElement={showCruciblaPickerFor === (collection._id || collection.id) ? cruciblaPickerAnchorEl : null}
+                            preferredPlacement="right-start"
                             onAssign={handleAssignCruciblaProject}
                             onUnassign={handleUnassignCruciblaProject}
-                            onClose={() => setShowCruciblaPickerFor(null)}
+                            onClose={() => {
+                              setShowCruciblaPickerFor(null);
+                              setCruciblaPickerAnchorEl(null);
+                            }}
                           />
                         </div>
                       );
@@ -1109,34 +1147,45 @@ function YouTubePlanner() {
               )}
             </div>
 
+            <button
+              type="button"
+              onClick={(e) => handleDuplicateCollection(e, currentCollection._id || currentCollection.id)}
+              disabled={syncing || !currentYoutubeCollectionId}
+              className="flex shrink-0 items-center gap-2 h-9 px-2.5 sm:px-3 whitespace-nowrap border border-dark-700/60 bg-dark-800 hover:bg-dark-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+              title={`Duplicate ${currentCollection.name}`}
+            >
+              <Copy className="w-4 h-4 text-dark-200" />
+              <span className="hidden 2xl:inline text-sm font-medium text-dark-200">Duplicate Collection</span>
+              <span className="hidden sm:inline 2xl:hidden text-sm font-medium text-dark-200">Duplicate</span>
+            </button>
+
             {/* Crucibla Project Badge (toolbar) */}
             {currentCollection.cruciblaProjectId && (
               <div
-                className="flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs"
+                className="flex min-w-0 max-w-full items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg text-xs"
                 style={{
                   backgroundColor: `${currentCollection.group_color || '#6366f1'}15`,
                   color: currentCollection.group_color || '#6366f1',
                 }}
               >
-                <Package className="w-3.5 h-3.5" />
-                <span className="font-medium">{currentCollection.cruciblaProjectName}</span>
-                <span className="opacity-60">{currentCollection.cruciblaProjectType}</span>
+                <Package className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="min-w-0 truncate font-medium">{currentCollection.cruciblaProjectName}</span>
+                <span className="hidden lg:inline opacity-60 flex-shrink-0">{currentCollection.cruciblaProjectType}</span>
               </div>
             )}
 
             {/* Video Count */}
-            <div className="flex items-center gap-2 h-9 px-3 bg-dark-800 rounded-lg">
+            <div className="flex shrink-0 items-center gap-2 h-9 px-2.5 sm:px-3 whitespace-nowrap border border-dark-700/60 bg-dark-800 rounded-lg">
               <Youtube className="w-4 h-4 text-dark-100" />
-              <span className="text-sm font-medium text-dark-200">
-                {youtubeVideos.length} Videos
-              </span>
+              <span className="text-sm font-medium text-dark-200">{youtubeVideos.length}</span>
+              <span className="hidden md:inline text-sm font-medium text-dark-200">Videos</span>
             </div>
 
             {/* Versions Button */}
             <div className="relative" ref={versionsDropdownRef}>
               <button
                 onClick={handleToggleVersions}
-                className="h-9 w-9 flex items-center justify-center bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
+                className="h-9 w-9 flex items-center justify-center border border-dark-700/60 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
                 title="Versions"
               >
                 <History className="w-4 h-4 text-dark-400" />
@@ -1203,7 +1252,7 @@ function YouTubePlanner() {
             <button
               onClick={fetchCollections}
               disabled={loading || syncing}
-              className="h-9 w-9 flex items-center justify-center bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors disabled:opacity-50"
+              className="h-9 w-9 flex items-center justify-center border border-dark-700/60 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors disabled:opacity-50"
               title="Refresh from cloud"
             >
               <RefreshCw className={`w-4 h-4 text-dark-400 ${loading ? 'animate-spin' : ''}`} />
@@ -1212,14 +1261,14 @@ function YouTubePlanner() {
             {/* Bulk Replace Button */}
             <button
               onClick={() => { setBulkReplaceScope('collection'); setShowBulkReplace(true); }}
-              className="h-9 w-9 flex items-center justify-center bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
+              className="h-9 w-9 flex items-center justify-center border border-dark-700/60 bg-dark-800 hover:bg-dark-700 rounded-lg transition-colors"
               title="Bulk replace thumbnails"
             >
               <Images className="w-4 h-4 text-dark-400" />
             </button>
 
             {/* View Mode Toggle */}
-            <div className="flex items-center h-9 bg-dark-800 rounded-lg p-1 gap-0.5">
+            <div className="flex items-center h-9 border border-dark-700/60 bg-dark-800 rounded-lg p-1 gap-0.5">
               <button
                 onClick={() => setYoutubeViewMode('grid')}
                 className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors ${
@@ -1249,21 +1298,22 @@ function YouTubePlanner() {
               onClick={() => setIsLocked(!isLocked)}
               className={`flex items-center gap-2 h-9 px-3 rounded-lg transition-colors ${
                 isLocked
-                  ? 'bg-amber-500/15 text-amber-400'
-                  : 'bg-dark-800 text-dark-300 hover:bg-dark-700'
+                  ? 'border border-amber-500/30 bg-amber-500/15 text-amber-400'
+                  : 'border border-dark-700/60 bg-dark-800 text-dark-300 hover:bg-dark-700'
               }`}
               title={isLocked ? 'Click to enable drag & drop reordering' : 'Click to lock grid (prevent reordering)'}
             >
               {isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-              <span className="text-sm font-medium">{isLocked ? 'Locked' : 'Unlocked'}</span>
+              <span className="hidden 2xl:inline text-sm font-medium">{isLocked ? 'Locked' : 'Unlocked'}</span>
+              <span className="hidden sm:inline 2xl:hidden text-sm font-medium">{isLocked ? 'Lock' : 'Unlock'}</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dark-700/40 bg-dark-900/20 p-2">
             {/* Export */}
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 h-9 px-3 bg-dark-800 text-dark-300 hover:text-dark-100 hover:bg-dark-700 rounded-lg transition-colors"
+              className="flex items-center gap-2 h-9 px-3 border border-dark-700/60 bg-dark-800 text-dark-300 hover:text-dark-100 hover:bg-dark-700 rounded-lg transition-colors"
               disabled
               title="Coming in Phase 3"
             >
@@ -1272,7 +1322,7 @@ function YouTubePlanner() {
             </button>
 
             {/* Upload Button */}
-            <label className="flex items-center gap-2 h-9 px-3 bg-dark-100 hover:bg-white text-dark-900 rounded-lg text-sm font-medium cursor-pointer transition-colors">
+            <label className="flex items-center gap-2 h-9 px-3 border border-white/30 bg-dark-100 hover:bg-white text-dark-900 rounded-lg text-sm font-medium cursor-pointer transition-colors">
               <Upload className="w-4 h-4" />
               <span>Upload</span>
               <input
@@ -1283,6 +1333,7 @@ function YouTubePlanner() {
                 className="hidden"
               />
             </label>
+          </div>
           </div>
         </div>
 
