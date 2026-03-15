@@ -375,15 +375,15 @@ function YouTubeGridView({ isLocked, onUpload }) {
             Plan Your YouTube Channel
           </h3>
           <p className="text-dark-400 mb-6">
-            Upload thumbnails to visualize how your videos will look together on your channel page.
+            Upload videos or thumbnails to build a real publishing queue and control how the channel grid will look.
           </p>
           <label className="btn-primary cursor-pointer inline-flex">
             <Upload className="w-4 h-4" />
-            <span>Upload Thumbnails</span>
+            <span>Upload Videos or Thumbnails</span>
             <input
               type="file"
               multiple
-              accept="image/*"
+              accept="image/*,video/*"
               onChange={onUpload}
               className="hidden"
             />

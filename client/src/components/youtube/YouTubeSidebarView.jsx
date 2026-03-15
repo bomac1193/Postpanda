@@ -16,6 +16,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useAppStore } from '../../stores/useAppStore';
 import { youtubeApi } from '../../lib/api';
+import { formatDuration, getPlannerVideoAssetState } from '../../lib/videoUtils';
 import {
   Upload,
   Youtube,
@@ -55,6 +56,8 @@ function SortableVideoItem({ video, isSelected, isLocked, isDropTarget, onClick,
     scheduled: 'Scheduled',
     published: 'Published',
   };
+  const durationLabel = formatDuration(video.durationSeconds);
+  const assetState = getPlannerVideoAssetState(video);
 
   return (
     <div
@@ -95,7 +98,7 @@ function SortableVideoItem({ video, isSelected, isLocked, isDropTarget, onClick,
         )}
         {/* Duration placeholder */}
         <div className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/80 rounded text-[10px] text-white font-medium">
-          {video.duration || '0:00'}
+          {video.duration || durationLabel}
         </div>
       </div>
 
@@ -108,6 +111,26 @@ function SortableVideoItem({ video, isSelected, isLocked, isDropTarget, onClick,
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColors[video.status] || statusColors.draft}`}>
             {statusLabels[video.status] || 'Draft'}
           </span>
+          {assetState === 'missing' && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-dark-600 text-dark-300">
+              Thumbnail only
+            </span>
+          )}
+          {assetState === 'processing' && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/20 text-blue-200">
+              Processing
+            </span>
+          )}
+          {assetState === 'errored' && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/20 text-red-200">
+              Upload failed
+            </span>
+          )}
+          {video.thumbnailStatus === 'needs_custom' && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/20 text-amber-400">
+              Needs custom thumb
+            </span>
+          )}
           {video.scheduledDate && (
             <span className="flex items-center gap-1 text-[10px] text-dark-400">
               <Calendar className="w-3 h-3" />
@@ -236,15 +259,15 @@ function YouTubeSidebarView({ isLocked, onUpload }) {
             No Videos Yet
           </h3>
           <p className="text-dark-400 mb-6">
-            Upload thumbnails to start planning your YouTube content.
+            Upload videos or thumbnails to start planning real YouTube posts.
           </p>
           <label className="btn-primary cursor-pointer inline-flex">
             <Upload className="w-4 h-4" />
-            <span>Upload Thumbnails</span>
+            <span>Upload Videos or Thumbnails</span>
             <input
               type="file"
               multiple
-              accept="image/*"
+              accept="image/*,video/*"
               onChange={onUpload}
               className="hidden"
             />

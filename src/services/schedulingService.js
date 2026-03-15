@@ -1,9 +1,16 @@
 const Collection = require('../models/Collection');
 const Content = require('../models/Content');
+const YoutubeVideo = require('../models/YoutubeVideo');
 const User = require('../models/User');
 const socialMediaService = require('./socialMediaService');
+const youtubeApiService = require('./youtubeApiService');
+const { resolveYoutubeVideoSource } = require('./muxVideoService');
 const convictionService = require('./convictionService');
 const approvalGateService = require('./approvalGateService');
+const {
+  getScheduledPlatforms,
+  setScheduledPlatforms,
+} = require('../utils/postingPlatforms');
 
 /**
  * Scheduling Service
@@ -31,10 +38,14 @@ class SchedulingService {
 
     // Run immediately
     this.processScheduledCollections();
+    this.processScheduledContent();
+    this.processScheduledYoutubeVideos();
 
     // Then run on interval
     this.interval = setInterval(() => {
       this.processScheduledCollections();
+      this.processScheduledContent();
+      this.processScheduledYoutubeVideos();
     }, this.checkIntervalMs);
 
     console.log('✅ Scheduling service started');
@@ -79,6 +90,193 @@ class SchedulingService {
       }
     } catch (error) {
       console.error('❌ Error processing scheduled collections:', error);
+    }
+  }
+
+  /**
+   * Process scheduled single-content posts.
+   */
+  async processScheduledContent() {
+    try {
+      const now = new Date();
+      const posts = await Content.find({
+        status: 'scheduled',
+        autoPost: true,
+        scheduledTime: { $exists: true, $lte: now },
+        $or: [
+          { 'scheduledPlatforms.0': { $exists: true } },
+          { scheduledPlatform: { $exists: true, $nin: [null, ''] } },
+        ],
+      });
+
+      if (posts.length === 0) {
+        return;
+      }
+
+      console.log(`📮 Found ${posts.length} scheduled post(s) ready to publish`);
+
+      for (const post of posts) {
+        await this.processScheduledPost(post);
+      }
+    } catch (error) {
+      console.error('❌ Error processing scheduled posts:', error);
+    }
+  }
+
+  async processScheduledYoutubeVideos() {
+    try {
+      const now = new Date();
+      const videos = await YoutubeVideo.find({
+        status: 'scheduled',
+        scheduledDate: { $exists: true, $lte: now },
+      }).sort({ scheduledDate: 1, position: 1 });
+
+      if (videos.length === 0) {
+        return;
+      }
+
+      console.log(`📺 Found ${videos.length} scheduled YouTube planner video(s) ready to publish`);
+
+      for (const video of videos) {
+        await this.publishScheduledYoutubeVideo(video);
+      }
+    } catch (error) {
+      console.error('❌ Error processing scheduled YouTube planner videos:', error);
+    }
+  }
+
+  async publishScheduledYoutubeVideo(video) {
+    try {
+      const { videoUrl } = await resolveYoutubeVideoSource(video);
+
+      const user = await User.findById(video.userId);
+      if (!user) {
+        video.status = 'failed';
+        video.lastError = 'User not found';
+        await video.save();
+        return;
+      }
+
+      const result = await youtubeApiService.uploadVideo(user, {
+        videoUrl,
+        title: video.title || 'Untitled Video',
+        description: video.description || '',
+        tags: video.tags || [],
+        privacyStatus: 'private',
+        thumbnailUrl: video.thumbnail || null,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'YouTube upload failed');
+      }
+
+      video.status = 'published';
+      video.youtubeVideoId = result.videoId || '';
+      video.youtubeVideoUrl = result.videoUrl || '';
+      video.publishedAt = new Date();
+      video.lastError = undefined;
+      video.scheduledDate = undefined;
+      await video.save();
+    } catch (error) {
+      console.error(`❌ Error publishing scheduled YouTube planner video ${video._id}:`, error);
+      const isTemporaryMuxDelay = /still processing|still preparing/i.test(error.message);
+
+      if (isTemporaryMuxDelay) {
+        video.lastError = error.message;
+        await video.save();
+        return;
+      }
+
+      video.status = 'failed';
+      video.lastError = error.message;
+      await video.save();
+    }
+  }
+
+  async processScheduledPost(content) {
+    try {
+      const pendingPlatforms = getScheduledPlatforms(content);
+      if (pendingPlatforms.length === 0) {
+        content.status = 'failed';
+        await content.save();
+        return;
+      }
+
+      const user = await User.findById(content.userId);
+      if (!user) {
+        console.error(`❌ User not found for content ${content._id}`);
+        content.status = 'failed';
+        await content.save();
+        return;
+      }
+
+      const gate = await approvalGateService.evaluateContentGate({
+        content,
+        user,
+        action: 'schedule',
+      });
+      if (!gate.allowed) {
+        content.status = 'failed';
+        await content.save();
+        return;
+      }
+
+      let publishedAny = false;
+      let failed = false;
+      let remainingPlatforms = [...pendingPlatforms];
+
+      while (remainingPlatforms.length > 0) {
+        const platform = remainingPlatforms[0];
+        const result = await this.postContent(
+          user,
+          content,
+          platform,
+          content.scheduledProfileId || null,
+        );
+
+        if (!result.success) {
+          failed = true;
+          break;
+        }
+
+        publishedAny = true;
+        if (!content.platformPosts) {
+          content.platformPosts = {};
+        }
+        content.platformPosts[platform] = {
+          postId: result.postId || null,
+          postUrl: result.postUrl || null,
+          postedAt: new Date(),
+        };
+        if (!content.platformPostIds) {
+          content.platformPostIds = {};
+        }
+        if (result.postId) {
+          content.platformPostIds[platform] = result.postId;
+        }
+        content.platformPostUrl = result.postUrl || content.platformPostUrl;
+        remainingPlatforms = remainingPlatforms.slice(1);
+      }
+
+      if (remainingPlatforms.length === 0 && publishedAny) {
+        content.status = 'published';
+        content.publishedAt = new Date();
+        content.scheduledTime = undefined;
+        setScheduledPlatforms(content, []);
+        content.scheduledProfileId = undefined;
+        content.autoPost = false;
+      } else if (publishedAny) {
+        content.status = 'scheduled';
+        setScheduledPlatforms(content, remainingPlatforms);
+      } else if (failed) {
+        content.status = 'failed';
+      }
+
+      await content.save();
+    } catch (error) {
+      console.error(`❌ Error processing scheduled content ${content._id}:`, error);
+      content.status = 'failed';
+      await content.save();
     }
   }
 
@@ -177,7 +375,7 @@ class SchedulingService {
       }
 
       // Post content
-      const postResult = await this.postContent(user, content, collection.platform);
+      const postResult = await this.postContent(user, content, collection.platform, collection.profileId || null);
 
       if (postResult.success) {
         console.log(`✅ Successfully posted: ${content.title}`);
@@ -242,19 +440,28 @@ class SchedulingService {
   /**
    * Post content to the specified platform(s)
    */
-  async postContent(user, content, platform) {
+  async postContent(user, content, platform, profileId = null) {
     try {
       const options = {
         caption: content.caption,
-        title: content.title
+        description: content.caption,
+        title: content.title,
+        tags: content.hashtags || [],
       };
 
       let result;
 
-      if (platform === 'instagram') {
+      if (profileId) {
+        result = await socialMediaService.postWithProfile(profileId, content, {
+          ...options,
+          platform,
+        });
+      } else if (platform === 'instagram') {
         result = await socialMediaService.postToInstagram(user, content, options);
       } else if (platform === 'tiktok') {
         result = await socialMediaService.postToTikTok(user, content, options);
+      } else if (platform === 'youtube') {
+        result = await socialMediaService.postToYouTube(user, content, options);
       } else if (platform === 'both') {
         result = await socialMediaService.postToBoth(user, content, options);
 
@@ -351,7 +558,7 @@ class SchedulingService {
         };
       }
 
-      const postResult = await this.postContent(user, content, collection.platform);
+      const postResult = await this.postContent(user, content, collection.platform, collection.profileId || null);
 
       if (postResult.success) {
         await collection.markAsPosted(item.contentId, {

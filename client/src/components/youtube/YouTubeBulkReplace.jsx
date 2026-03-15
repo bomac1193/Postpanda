@@ -11,6 +11,12 @@ const CONFIDENCE_COLORS = {
   low: { dot: 'bg-red-400', text: 'text-red-400', label: 'Low' },
 };
 
+function buildSnapshotName() {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 16).replace('T', ' ');
+  return `Before thumbnail replace ${date}`;
+}
+
 /**
  * Generate a tiny JPEG preview (~3-5KB) from a File.
  * Uses createImageBitmap for fast native decode + resize, instead of
@@ -56,6 +62,7 @@ function YouTubeBulkReplace({ isOpen, onClose, videos, onReplace, scope, onScope
   const [scanning, setScanning] = useState(false);
   const [scanCount, setScanCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
+  const [applyError, setApplyError] = useState('');
   const [assignDropdown, setAssignDropdown] = useState(null);
   const dragCounterRef = useRef(0);
   const fileInputRef = useRef(null);
@@ -125,6 +132,7 @@ function YouTubeBulkReplace({ isOpen, onClose, videos, onReplace, scope, onScope
       f.type.startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(f.name)
     );
     if (imageFiles.length === 0) return;
+    setApplyError('');
 
     // Run matcher (instant — just string comparisons)
     const result = matchFilesToVideos(imageFiles, activeVideos);
@@ -216,15 +224,34 @@ function YouTubeBulkReplace({ isOpen, onClose, videos, onReplace, scope, onScope
     if (matches.length === 0) return;
     setApplying(true);
     setFailedCount(0);
+    setApplyError('');
 
     const total = matches.length;
     setProgress({ current: 0, total });
 
-    const CONCURRENCY = 6;
+    const CONCURRENCY = 4;
     const MAX_RETRIES = 2;
     let nextIndex = 0;
     let completed = 0;
     let failed = 0;
+
+    const collectionIds = [...new Set(
+      matches
+        .map(match => match.video.collectionId)
+        .filter(Boolean)
+        .map(id => String(id))
+    )];
+
+    try {
+      for (const collectionId of collectionIds) {
+        await youtubeApi.saveVersion(collectionId, buildSnapshotName());
+      }
+    } catch (err) {
+      console.error('Failed to save pre-replace snapshot:', err);
+      setApplyError(err.response?.data?.error || 'Failed to save a pre-replace snapshot. Delete an older version, then try again.');
+      setApplying(false);
+      return;
+    }
 
     async function worker() {
       while (nextIndex < matches.length) {
@@ -250,7 +277,7 @@ function YouTubeBulkReplace({ isOpen, onClose, videos, onReplace, scope, onScope
 
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
           try {
-            await onReplace(videoId, compressed, { originalFilename: match.file.name });
+            await onReplace(videoId, compressed, { thumbnailSourceFilename: match.file.name });
             success = true;
             break;
           } catch (err) {
@@ -448,7 +475,7 @@ function YouTubeBulkReplace({ isOpen, onClose, videos, onReplace, scope, onScope
               Drop image files here or <span className="text-dark-100">click to browse</span>
             </p>
             <p className="text-xs text-dark-500 mt-1">
-              Files are matched to videos by filename → title similarity
+              Files are matched by stored source filename first, then legacy filename/title fallback
             </p>
             {window.showDirectoryPicker && (
               <button
@@ -476,6 +503,19 @@ function YouTubeBulkReplace({ isOpen, onClose, videos, onReplace, scope, onScope
               className="hidden"
             />
           </div>
+
+          <div className="mb-5 rounded-xl border border-dark-700 bg-dark-900 px-4 py-3">
+            <p className="text-xs text-dark-300">
+              Bulk replace is optimized for HQ equivalents: it saves a collection snapshot before applying,
+              matches exact metadata first, and uploads in a bounded worker queue to avoid freezing the tab.
+            </p>
+          </div>
+
+          {applyError && (
+            <div className="mb-5 rounded-xl border border-red-900/40 bg-dark-900 px-4 py-3">
+              <p className="text-sm text-red-300">{applyError}</p>
+            </div>
+          )}
 
           {/* Applying progress — single continuous bar */}
           {applying && (

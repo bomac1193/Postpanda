@@ -3,6 +3,7 @@ import { useAppStore } from '../stores/useAppStore';
 import { youtubeApi } from '../lib/api';
 import CruciblaProjectPicker from '../components/CruciblaProjectPicker';
 import { compressImage } from '../lib/imageUtils';
+import { extractVideoFrame, hasPlannerVideoAttachment } from '../lib/videoUtils';
 import YouTubeGridView from '../components/youtube/YouTubeGridView';
 import YouTubeSidebarView from '../components/youtube/YouTubeSidebarView';
 import YouTubeVideoDetails from '../components/youtube/YouTubeVideoDetails';
@@ -13,7 +14,6 @@ import {
   Lock,
   Unlock,
   Upload,
-  ImagePlus,
   Loader2,
   LayoutGrid,
   List,
@@ -51,6 +51,63 @@ const COLLECTION_COLORS = [
   { id: 'cyan', value: '#06b6d4', name: 'Cyan' },
 ];
 
+const buildVideoPersistencePayload = (video = {}) => ({
+  storageProvider: video.storageProvider || (video.muxAssetId || video.muxUploadId ? 'mux' : 'legacy'),
+  videoUrl: video.videoUrl || '',
+  videoFileName: video.videoFileName || '',
+  videoFileSize: video.videoFileSize || undefined,
+  videoMimeType: video.videoMimeType || '',
+  durationSeconds: video.durationSeconds || undefined,
+  muxUploadId: video.muxUploadId || '',
+  muxUploadStatus: video.muxUploadStatus || '',
+  muxAssetId: video.muxAssetId || '',
+  muxAssetStatus: video.muxAssetStatus || '',
+  muxMasterStatus: video.muxMasterStatus || '',
+  muxMasterAccessExpiresAt: video.muxMasterAccessExpiresAt || null,
+});
+
+const createUploadProgressState = () => ({
+  current: 0,
+  total: 0,
+  percent: 0,
+  fileName: '',
+  details: '',
+  label: 'Uploading',
+});
+
+const formatBytes = (value) => {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0 B';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = value;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  const decimals = unitIndex === 0 ? 0 : size >= 100 ? 0 : size >= 10 ? 1 : 2;
+  return `${size.toFixed(decimals)} ${units[unitIndex]}`;
+};
+
+const formatEta = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds < 1) {
+    return 'under 1s';
+  }
+
+  const rounded = Math.ceil(seconds);
+  if (rounded < 60) {
+    return `${rounded}s`;
+  }
+
+  const minutes = Math.floor(rounded / 60);
+  const remainingSeconds = rounded % 60;
+  return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+};
+
 function YouTubePlanner() {
   const youtubeVideos = useAppStore((state) => state.youtubeVideos);
   const addYoutubeVideo = useAppStore((state) => state.addYoutubeVideo);
@@ -81,16 +138,18 @@ function YouTubePlanner() {
     const saved = localStorage.getItem('youtubeGridLocked');
     return saved === 'true';
   });
-  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [uploadProgress, setUploadProgress] = useState(createUploadProgressState);
   const [editingThumbnail, setEditingThumbnail] = useState(null);
   const [editingThumbnailSourceFilename, setEditingThumbnailSourceFilename] = useState('');
   const [editingVideoId, setEditingVideoId] = useState(null);
   const [showBulkReplace, setShowBulkReplace] = useState(false);
   const [bulkReplaceScope, setBulkReplaceScope] = useState('collection');
   const [collectionsCollapsed, setCollectionsCollapsed] = useState(false);
-  const [thumbnailClipboard, setThumbnailClipboard] = useState(null);
+  const [videoClipboard, setVideoClipboard] = useState(null);
+  const [thumbnailPreference, setThumbnailPreference] = useState(() => {
+    return localStorage.getItem('youtubeThumbnailPreference') || 'custom';
+  });
 
   // Loading and error states for cloud sync
   const [loading, setLoading] = useState(true);
@@ -117,12 +176,14 @@ function YouTubePlanner() {
   // Get videos by collection for showing counts
   const youtubeVideosByCollection = useAppStore((state) => state.youtubeVideosByCollection);
 
-  const dragCounterRef = useRef(0);
-
   // Persist isLocked state to localStorage
   useEffect(() => {
     localStorage.setItem('youtubeGridLocked', isLocked.toString());
   }, [isLocked]);
+
+  useEffect(() => {
+    localStorage.setItem('youtubeThumbnailPreference', thumbnailPreference);
+  }, [thumbnailPreference]);
 
   // Get current collection - use _id for backend collections
   const currentCollection = youtubeCollections?.find(c => (c._id || c.id) === currentYoutubeCollectionId)
@@ -327,10 +388,17 @@ function YouTubePlanner() {
           title: v.title,
           description: v.description || '',
           thumbnail: v.thumbnail || '',
+          thumbnailOriginalUrl: v.thumbnailOriginalUrl || null,
+          thumbnailMode: v.thumbnailMode || 'custom',
+          thumbnailStatus: v.thumbnailStatus || (v.thumbnail ? 'custom' : 'missing'),
           collectionId: newCollectionId,
           status: v.status || 'draft',
+          scheduledDate: v.scheduledDate || null,
           tags: v.tags || [],
+          ...buildVideoPersistencePayload(v),
           artistName: v.artistName || '',
+          originalFilename: v.originalFilename || '',
+          thumbnailSourceFilename: v.thumbnailSourceFilename || '',
           position: i,
         });
       }
@@ -497,7 +565,7 @@ function YouTubePlanner() {
 
   const handleRestoreVersion = useCallback(async (index) => {
     if (!currentYoutubeCollectionId) return;
-    if (!window.confirm('Restore this version? Current video titles, descriptions, order, and statuses will be overwritten for videos that existed at snapshot time.')) return;
+    if (!window.confirm('Restore this version? Current video titles, descriptions, thumbnails, order, and statuses will be overwritten for videos that existed at snapshot time.')) return;
     setSyncing(true);
     try {
       const data = await youtubeApi.restoreVersion(currentYoutubeCollectionId, index);
@@ -563,43 +631,130 @@ function YouTubePlanner() {
     });
   }, []);
 
+  const getBaseTitleFromFile = useCallback((fileName = '') => {
+    return fileName
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim()
+      .slice(0, 100) || 'Untitled Video';
+  }, []);
+
+  const resolveThumbnailChoice = useCallback((videoCount) => {
+    if (thumbnailPreference === 'auto') {
+      return { thumbnailMode: 'auto', thumbnailStatus: 'auto' };
+    }
+
+    if (thumbnailPreference === 'custom') {
+      return { thumbnailMode: 'auto', thumbnailStatus: 'needs_custom' };
+    }
+
+    const useAutoThumbnail = window.confirm(
+      `Use auto-generated thumbnail${videoCount > 1 ? 's' : ''} for this upload?\n\n` +
+      'Press Cancel to keep the generated frame as a fallback but mark the video as needing a custom thumbnail.'
+    );
+
+    return useAutoThumbnail
+      ? { thumbnailMode: 'auto', thumbnailStatus: 'auto' }
+      : { thumbnailMode: 'auto', thumbnailStatus: 'needs_custom' };
+  }, [thumbnailPreference]);
+
+  const uploadPlannerVideoFile = useCallback(async (file, options = {}) => {
+    const [{ asset }, { thumbnailDataUrl, durationSeconds }] = await Promise.all([
+      youtubeApi.uploadVideoAsset(file, options),
+      extractVideoFrame(file),
+    ]);
+
+    return {
+      ...asset,
+      durationSeconds: asset.durationSeconds || durationSeconds || 0,
+      thumbnailDataUrl,
+    };
+  }, []);
+
   // Handle file upload from input or drop - saves to cloud
   const handleFileUpload = useCallback(async (e) => {
     const files = e.target?.files || e.dataTransfer?.files;
     if (!files || files.length === 0) return;
 
-    const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
-    if (imageFiles.length === 0) return;
+    const allFiles = Array.from(files);
+    const imageFiles = allFiles.filter((f) => f.type.startsWith('image/'));
+    const videoFiles = allFiles.filter((f) => f.type.startsWith('video/'));
+    if (imageFiles.length === 0 && videoFiles.length === 0) return;
 
     // Make sure we have a collection to add to
     if (!currentYoutubeCollectionId) {
-      setError('Please create a collection first before uploading thumbnails.');
+      setError('Please create a collection first before uploading videos or thumbnails.');
       return;
     }
 
+    setError(null);
     setUploading(true);
-    setUploadProgress({ current: 0, total: imageFiles.length });
+    setUploadProgress({
+      ...createUploadProgressState(),
+      current: allFiles.length > 0 ? 1 : 0,
+      total: allFiles.length,
+    });
 
     const newVideos = [];
+    const totalFiles = allFiles.length;
+    const totalBytes = allFiles.reduce((sum, file) => sum + Math.max(Number(file.size) || 0, 1), 0);
+    let completedBytes = 0;
+    let processedCount = 0;
+    const selectedDraftVideo = selectedYoutubeVideoId
+      ? youtubeVideos.find((v) => v.id === selectedYoutubeVideoId && !hasPlannerVideoAttachment(v))
+      : null;
+
+    const updateBatchUploadProgress = ({
+      label = 'Uploading',
+      fileName = '',
+      details = '',
+      loadedBytes = completedBytes,
+      current = totalFiles > 0 ? Math.min(processedCount + 1, totalFiles) : 0,
+    } = {}) => {
+      const boundedLoadedBytes = Math.max(0, Math.min(totalBytes || 0, loadedBytes));
+      const percent = totalBytes > 0 ? Math.min(100, (boundedLoadedBytes / totalBytes) * 100) : 0;
+
+      setUploadProgress({
+        current,
+        total: totalFiles,
+        percent,
+        fileName,
+        details,
+        label,
+      });
+    };
+
     for (let i = 0; i < imageFiles.length; i++) {
       const file = imageFiles[i];
-      setUploadProgress({ current: i + 1, total: imageFiles.length });
+      const fileSize = Math.max(Number(file.size) || 0, 1);
+
+      updateBatchUploadProgress({
+        label: 'Uploading',
+        fileName: file.name,
+        details: 'Preparing thumbnail',
+      });
 
       try {
         const thumbnail = await processImageFile(file);
-        const title = file.name
-          .replace(/\.[^/.]+$/, '') // Remove extension
-          .replace(/[-_]/g, ' ') // Replace dashes/underscores with spaces
-          .replace(/\b\w/g, (c) => c.toUpperCase()); // Capitalize words
+        const title = getBaseTitleFromFile(file.name);
 
-        // Save to cloud
+        updateBatchUploadProgress({
+          label: 'Uploading',
+          fileName: file.name,
+          details: 'Saving thumbnail',
+          loadedBytes: completedBytes + fileSize,
+        });
+
         const data = await youtubeApi.createVideo({
-          title: title.slice(0, 100),
+          title,
           description: '',
           thumbnail,
           collectionId: currentYoutubeCollectionId,
           status: 'draft',
           originalFilename: file.name,
+          thumbnailMode: 'custom',
+          thumbnailStatus: 'custom',
         });
 
         const newVideo = {
@@ -609,6 +764,133 @@ function YouTubePlanner() {
         newVideos.push(newVideo);
       } catch (err) {
         console.error('Failed to upload video:', file.name, err);
+      } finally {
+        completedBytes += fileSize;
+        processedCount += 1;
+      }
+    }
+
+    const thumbnailChoice = videoFiles.length > 0
+      ? resolveThumbnailChoice(videoFiles.length)
+      : null;
+
+    for (let i = 0; i < videoFiles.length; i++) {
+      const file = videoFiles[i];
+      const fileSize = Math.max(Number(file.size) || 0, 1);
+
+      updateBatchUploadProgress({
+        label: 'Uploading',
+        fileName: file.name,
+        details: `0% • ${formatBytes(0)} of ${formatBytes(fileSize)}`,
+      });
+
+      try {
+        const videoAsset = await uploadPlannerVideoFile(file, {
+          onProgress: (progress) => {
+            if (progress.phase === 'uploading') {
+              const detailParts = [
+                `${Math.round(progress.percent ?? 0)}%`,
+                `${formatBytes(progress.loaded)} of ${formatBytes(progress.total || fileSize)}`,
+              ];
+
+              if (Number.isFinite(progress.etaSeconds) && progress.etaSeconds > 0) {
+                detailParts.push(`about ${formatEta(progress.etaSeconds)} left`);
+              }
+
+              updateBatchUploadProgress({
+                label: 'Uploading',
+                fileName: file.name,
+                details: detailParts.join(' • '),
+                loadedBytes: completedBytes + Math.min(progress.loaded || 0, fileSize),
+              });
+              return;
+            }
+
+            if (progress.phase === 'processing') {
+              updateBatchUploadProgress({
+                label: 'Preparing video for playback',
+                fileName: file.name,
+                details: 'Finalizing upload.',
+                loadedBytes: completedBytes + fileSize,
+              });
+              return;
+            }
+
+            if (progress.phase === 'ready') {
+              updateBatchUploadProgress({
+                label: 'Video ready',
+                fileName: file.name,
+                details: 'Upload complete.',
+                loadedBytes: completedBytes + fileSize,
+              });
+            }
+          },
+        });
+        const basePayload = {
+          ...buildVideoPersistencePayload({
+            ...videoAsset,
+            videoFileName: videoAsset.videoFileName || file.name,
+            videoFileSize: videoAsset.videoFileSize || file.size,
+            videoMimeType: videoAsset.videoMimeType || file.type,
+            durationSeconds: videoAsset.durationSeconds || undefined,
+          }),
+        };
+
+        if (selectedDraftVideo && videoFiles.length === 1 && i === 0) {
+          const attachUpdates = {
+            ...basePayload,
+            lastError: '',
+            ...(selectedDraftVideo.status === 'failed' ? { status: 'draft' } : {}),
+            ...(selectedDraftVideo.thumbnail
+              ? {}
+              : {
+                  thumbnail: videoAsset.thumbnailDataUrl,
+                  thumbnailMode: thumbnailChoice.thumbnailMode,
+                  thumbnailStatus: thumbnailChoice.thumbnailStatus,
+            }),
+          };
+          const { video: savedVideo } = await youtubeApi.updateVideo(selectedDraftVideo.id, attachUpdates);
+          const nextAssetState = savedVideo ? (savedVideo.videoAssetState || (savedVideo.videoUrl ? 'ready' : 'processing')) : 'processing';
+          updateYoutubeVideo(
+            selectedDraftVideo.id,
+            savedVideo ? { ...savedVideo, id: savedVideo._id || selectedDraftVideo.id } : attachUpdates
+          );
+          updateBatchUploadProgress({
+            label: nextAssetState === 'ready' ? 'Video ready' : 'Preparing video for playback',
+            fileName: file.name,
+            details: nextAssetState === 'ready' ? 'Upload complete.' : 'Finalizing upload.',
+            loadedBytes: completedBytes + fileSize,
+          });
+          continue;
+        }
+
+        const data = await youtubeApi.createVideo({
+          title: getBaseTitleFromFile(file.name),
+          description: '',
+          thumbnail: videoAsset.thumbnailDataUrl,
+          collectionId: currentYoutubeCollectionId,
+          status: 'draft',
+          originalFilename: file.name,
+          thumbnailMode: thumbnailChoice.thumbnailMode,
+          thumbnailStatus: thumbnailChoice.thumbnailStatus,
+          ...basePayload,
+        });
+
+        newVideos.push({
+          ...data.video,
+          id: data.video._id,
+        });
+        updateBatchUploadProgress({
+          label: data.video?.videoAssetState === 'ready' ? 'Video ready' : 'Preparing video for playback',
+          fileName: file.name,
+          details: data.video?.videoAssetState === 'ready' ? 'Upload complete.' : 'Finalizing upload.',
+          loadedBytes: completedBytes + fileSize,
+        });
+      } catch (err) {
+        console.error('Failed to upload planner video:', file.name, err);
+      } finally {
+        completedBytes += fileSize;
+        processedCount += 1;
       }
     }
 
@@ -618,13 +900,23 @@ function YouTubePlanner() {
     }
 
     setUploading(false);
-    setUploadProgress({ current: 0, total: 0 });
+    setUploadProgress(createUploadProgressState());
 
     // Reset input
     if (e.target?.value) {
       e.target.value = '';
     }
-  }, [processImageFile, currentYoutubeCollectionId, youtubeVideos, setYoutubeVideos]);
+  }, [
+    currentYoutubeCollectionId,
+    getBaseTitleFromFile,
+    processImageFile,
+    resolveThumbnailChoice,
+    selectedYoutubeVideoId,
+    setYoutubeVideos,
+    updateYoutubeVideo,
+    uploadPlannerVideoFile,
+    youtubeVideos,
+  ]);
 
   // Handle thumbnail replacement for existing video
   const handleThumbnailUpload = useCallback(async (file, videoId) => {
@@ -641,13 +933,15 @@ function YouTubePlanner() {
       try {
         const updates = {
           thumbnail: croppedThumbnail,
+          thumbnailMode: 'custom',
+          thumbnailStatus: 'custom',
           ...(editingThumbnailSourceFilename ? { thumbnailSourceFilename: editingThumbnailSourceFilename } : {}),
         };
-        await youtubeApi.updateVideo(editingVideoId, updates);
-        // Update local state
-        setYoutubeVideos(youtubeVideos.map(v =>
-          (v._id || v.id) === editingVideoId ? { ...v, ...updates } : v
-        ));
+        const { video: savedVideo } = await youtubeApi.updateVideo(editingVideoId, updates);
+        updateYoutubeVideo(
+          editingVideoId,
+          savedVideo ? { ...savedVideo, id: savedVideo._id || editingVideoId } : updates
+        );
       } catch (err) {
         console.error('Failed to save thumbnail:', err);
         setError('Failed to save thumbnail.');
@@ -656,119 +950,119 @@ function YouTubePlanner() {
     setEditingThumbnail(null);
     setEditingThumbnailSourceFilename('');
     setEditingVideoId(null);
-  }, [editingThumbnailSourceFilename, editingVideoId, youtubeVideos, setYoutubeVideos]);
+  }, [editingThumbnailSourceFilename, editingVideoId, updateYoutubeVideo]);
 
-  const handleCopyThumbnail = useCallback((video) => {
-    if (!video?.thumbnail) return;
+  const handleCopyVideo = useCallback((video) => {
+    if (!video) return;
 
-    setThumbnailClipboard({
+    setVideoClipboard({
       mode: 'copy',
-      thumbnail: video.thumbnail,
-      thumbnailOriginalUrl: video.thumbnailOriginalUrl || null,
-      thumbnailSourceFilename: video.thumbnailSourceFilename || video.originalFilename || '',
       sourceVideoId: video._id || video.id,
       sourceCollectionId: currentYoutubeCollectionId,
       sourceCollectionName: currentCollection.name,
       sourceVideoTitle: video.title || 'Untitled video',
+      payload: {
+        title: video.title || 'Untitled video',
+        description: video.description || '',
+        thumbnail: video.thumbnail || '',
+        thumbnailOriginalUrl: video.thumbnailOriginalUrl || null,
+        thumbnailMode: video.thumbnailMode || 'custom',
+        thumbnailStatus: video.thumbnailStatus || (video.thumbnail ? 'custom' : 'missing'),
+        status: video.status || 'draft',
+        scheduledDate: video.scheduledDate || null,
+        tags: video.tags || [],
+        originalFilename: video.originalFilename || '',
+        thumbnailSourceFilename: video.thumbnailSourceFilename || video.originalFilename || '',
+        ...buildVideoPersistencePayload(video),
+        artistName: video.artistName || '',
+      },
     });
   }, [currentCollection.name, currentYoutubeCollectionId]);
 
-  const handleCutThumbnail = useCallback((video) => {
-    if (!video?.thumbnail) return;
+  const handleCutVideo = useCallback((video) => {
+    if (!video) return;
 
-    setThumbnailClipboard({
+    setVideoClipboard({
       mode: 'cut',
-      thumbnail: video.thumbnail,
-      thumbnailOriginalUrl: video.thumbnailOriginalUrl || null,
-      thumbnailSourceFilename: video.thumbnailSourceFilename || video.originalFilename || '',
       sourceVideoId: video._id || video.id,
       sourceCollectionId: currentYoutubeCollectionId,
       sourceCollectionName: currentCollection.name,
       sourceVideoTitle: video.title || 'Untitled video',
+      payload: {
+        title: video.title || 'Untitled video',
+        description: video.description || '',
+        thumbnail: video.thumbnail || '',
+        thumbnailOriginalUrl: video.thumbnailOriginalUrl || null,
+        thumbnailMode: video.thumbnailMode || 'custom',
+        thumbnailStatus: video.thumbnailStatus || (video.thumbnail ? 'custom' : 'missing'),
+        status: video.status || 'draft',
+        scheduledDate: video.scheduledDate || null,
+        tags: video.tags || [],
+        originalFilename: video.originalFilename || '',
+        thumbnailSourceFilename: video.thumbnailSourceFilename || video.originalFilename || '',
+        ...buildVideoPersistencePayload(video),
+        artistName: video.artistName || '',
+      },
     });
   }, [currentCollection.name, currentYoutubeCollectionId]);
 
-  const handlePasteThumbnail = useCallback(async (video) => {
-    if (!thumbnailClipboard?.thumbnail || !video) return;
-
-    const targetVideoId = video._id || video.id;
-    const sourceVideoId = thumbnailClipboard.sourceVideoId;
-    const targetUpdates = {
-      thumbnail: thumbnailClipboard.thumbnail,
-      thumbnailOriginalUrl: thumbnailClipboard.thumbnailOriginalUrl,
-      thumbnailSourceFilename: thumbnailClipboard.thumbnailSourceFilename || undefined,
-    };
+  const handlePasteVideo = useCallback(async () => {
+    if (!videoClipboard?.payload || !currentYoutubeCollectionId) return;
 
     try {
-      await youtubeApi.updateVideo(targetVideoId, targetUpdates);
-      updateYoutubeVideo(targetVideoId, targetUpdates);
+      if (videoClipboard.mode === 'cut') {
+        if (videoClipboard.sourceCollectionId === currentYoutubeCollectionId) {
+          setError('Open a different collection to move this video there.');
+          return;
+        }
 
-      if (thumbnailClipboard.mode === 'cut' && sourceVideoId && sourceVideoId !== targetVideoId) {
-        const clearSourceUpdates = {
-          thumbnail: '',
-          thumbnailOriginalUrl: null,
-          thumbnailSourceFilename: '',
-        };
-        await youtubeApi.updateVideo(sourceVideoId, clearSourceUpdates);
-        updateYoutubeVideo(sourceVideoId, clearSourceUpdates);
-      }
+        const { video: movedVideo } = await youtubeApi.updateVideo(videoClipboard.sourceVideoId, {
+          collectionId: currentYoutubeCollectionId,
+          position: youtubeVideos.length,
+        });
 
-      if (thumbnailClipboard.mode === 'cut') {
-        setThumbnailClipboard(null);
+        if (movedVideo) {
+          addYoutubeVideo({ ...movedVideo, id: movedVideo._id || movedVideo.id });
+        }
+        setVideoClipboard(null);
+      } else {
+        const { video: createdVideo } = await youtubeApi.createVideo({
+          ...videoClipboard.payload,
+          collectionId: currentYoutubeCollectionId,
+          position: youtubeVideos.length,
+        });
+
+        if (createdVideo) {
+          addYoutubeVideo({ ...createdVideo, id: createdVideo._id || createdVideo.id });
+        }
       }
     } catch (err) {
-      console.error('Failed to paste thumbnail:', err);
-      setError('Failed to paste thumbnail.');
+      console.error('Failed to paste video:', err);
+      setError('Failed to paste video.');
     }
-  }, [thumbnailClipboard, updateYoutubeVideo]);
+  }, [addYoutubeVideo, currentYoutubeCollectionId, videoClipboard, youtubeVideos.length]);
 
   // Bulk replace: update a single video's thumbnail
   const handleBulkReplaceSingle = useCallback(async (videoId, base64, extraUpdates = {}) => {
     try {
-      await youtubeApi.updateVideo(videoId, { thumbnail: base64, ...extraUpdates });
-      setYoutubeVideos(prev => prev.map(v =>
-        (v._id || v.id) === videoId ? { ...v, thumbnail: base64, ...extraUpdates } : v
-      ));
+      const updates = {
+        thumbnail: base64,
+        thumbnailMode: 'custom',
+        thumbnailStatus: 'custom',
+        ...extraUpdates,
+      };
+      const { video: savedVideo } = await youtubeApi.updateVideo(videoId, updates);
+      updateYoutubeVideo(
+        videoId,
+        savedVideo
+          ? { ...savedVideo, id: savedVideo._id || videoId }
+          : updates
+      );
     } catch (err) {
       console.error('Failed to replace thumbnail:', err);
       throw err;
     }
-  }, [setYoutubeVideos]);
-
-  // Drag & drop handlers
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.dataTransfer?.types?.includes('Files')) {
-      setIsDraggingFiles(true);
-    }
-  }, []);
-
-  const handleDragEnter = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounterRef.current++;
-    if (e.dataTransfer?.types?.includes('Files')) {
-      setIsDraggingFiles(true);
-    }
-  }, []);
-
-  const handleDragLeave = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounterRef.current--;
-    if (dragCounterRef.current === 0) {
-      setIsDraggingFiles(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingFiles(false);
-    dragCounterRef.current = 0;
-    handleFileUpload(e);
-  }, [handleFileUpload]);
+  }, [updateYoutubeVideo]);
 
   // Export thumbnails as ZIP (placeholder for Phase 3)
   const handleExport = () => {
@@ -776,41 +1070,33 @@ function YouTubePlanner() {
   };
 
   return (
-    <div
-      className="youtube-native h-full flex gap-6 relative"
-      onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-    >
-      {/* Drop Overlay */}
-      {isDraggingFiles && (
-        <div className="absolute inset-0 z-50 bg-dark-900/90 backdrop-blur-sm flex items-center justify-center rounded-2xl border-2 border-dashed border-dark-100">
-          <div className="text-center">
-            <ImagePlus className="w-16 h-16 text-dark-100 mx-auto mb-4" />
-            <p className="text-xl font-semibold text-dark-100 mb-2">Drop thumbnails here</p>
-            <p className="text-dark-400">
-              Adding to <span className="text-dark-300 font-medium">{currentCollection.name}</span>
-            </p>
-          </div>
-        </div>
-      )}
-
+    <div className="youtube-native h-full flex gap-6 relative">
       {/* Upload Progress Overlay */}
       {uploading && (
         <div className="absolute inset-0 z-50 bg-dark-900/90 backdrop-blur-sm flex items-center justify-center rounded-2xl">
           <div className="text-center">
             <Loader2 className="w-12 h-12 text-dark-300 mx-auto mb-4 animate-spin" />
             <p className="text-lg font-semibold text-dark-100 mb-2">
-              Uploading {uploadProgress.current} of {uploadProgress.total}
+              {uploadProgress.label || 'Uploading'}
             </p>
-            <p className="text-sm text-dark-400 mb-3">
-              to <span className="text-dark-300">{currentCollection.name}</span>
+            <p className="text-sm text-dark-400">
+              {uploadProgress.current} of {uploadProgress.total}
+              {' '}to <span className="text-dark-300">{currentCollection.name}</span>
             </p>
+            {uploadProgress.fileName && (
+              <p className="text-sm text-dark-500 mt-1 truncate max-w-[20rem]">
+                {uploadProgress.fileName}
+              </p>
+            )}
+            {uploadProgress.details && (
+              <p className="text-sm text-dark-400 mb-3 mt-2">
+                {uploadProgress.details}
+              </p>
+            )}
             <div className="w-64 h-2 bg-dark-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-dark-100 transition-all duration-300"
-                style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                className="h-full bg-dark-100 transition-[width] duration-500 ease-out"
+                style={{ width: `${uploadProgress.percent || 0}%` }}
               />
             </div>
           </div>
@@ -1310,6 +1596,20 @@ function YouTubePlanner() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dark-700/40 bg-dark-900/20 p-2">
+            <div className="flex items-center gap-2 rounded-lg border border-dark-700/60 bg-dark-800 px-3 h-9">
+              <span className="text-xs uppercase tracking-[0.16em] text-dark-500">Thumbs</span>
+              <select
+                value={thumbnailPreference}
+                onChange={(e) => setThumbnailPreference(e.target.value)}
+                className="bg-transparent text-sm text-dark-200 focus:outline-none"
+                title="Default thumbnail workflow for uploaded videos"
+              >
+                <option value="custom">Prefer custom</option>
+                <option value="auto">Use video frame</option>
+                <option value="ask">Ask each upload</option>
+              </select>
+            </div>
+
             {/* Export */}
             <button
               onClick={handleExport}
@@ -1328,7 +1628,7 @@ function YouTubePlanner() {
               <input
                 type="file"
                 multiple
-                accept="image/*"
+                accept="image/*,video/*"
                 onChange={handleFileUpload}
                 className="hidden"
               />
@@ -1372,10 +1672,11 @@ function YouTubePlanner() {
         <YouTubeVideoDetails
           video={selectedVideo}
           onThumbnailUpload={handleThumbnailUpload}
-          thumbnailClipboard={thumbnailClipboard}
-          onCopyThumbnail={handleCopyThumbnail}
-          onCutThumbnail={handleCutThumbnail}
-          onPasteThumbnail={handlePasteThumbnail}
+          videoClipboard={videoClipboard}
+          currentCollectionName={currentCollection.name}
+          onCopyVideo={handleCopyVideo}
+          onCutVideo={handleCutVideo}
+          onPasteVideo={handlePasteVideo}
         />
       </div>
 

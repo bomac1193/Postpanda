@@ -1,7 +1,88 @@
 const YoutubeCollection = require('../models/YoutubeCollection');
 const YoutubeVideo = require('../models/YoutubeVideo');
+const MuxUploadSession = require('../models/MuxUploadSession');
 const { validateObjectId } = require('../utils/validators');
 const cloudinaryService = require('../services/cloudinaryService');
+const muxService = require('../services/muxService');
+const {
+  buildMuxVideoUpdates,
+  serializeYoutubeVideo,
+  syncYoutubeVideo,
+} = require('../services/muxVideoService');
+const youtubeTitleService = require('../services/youtubeTitleService');
+const path = require('path');
+
+const getApiOrigin = () =>
+  `${process.env.API_URL || process.env.BACKEND_PUBLIC_URL || `http://localhost:${process.env.PORT || 3002}`}`.replace(/\/+$/, '');
+
+const normalizeScheduledDate = (scheduledDate) => {
+  if (scheduledDate === undefined) return undefined;
+  if (!scheduledDate) return null;
+
+  const parsed = new Date(scheduledDate);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+};
+
+const resolveThumbnailMode = (thumbnailMode, thumbnailUrl = '') => {
+  if (thumbnailMode === 'custom' || thumbnailMode === 'auto') {
+    return thumbnailMode;
+  }
+  return thumbnailUrl ? 'custom' : 'auto';
+};
+
+const resolveThumbnailStatus = ({ thumbnailStatus, thumbnailMode, thumbnailUrl = '' }) => {
+  if (['missing', 'auto', 'custom', 'needs_custom'].includes(thumbnailStatus)) {
+    return thumbnailStatus;
+  }
+  if (!thumbnailUrl) return 'missing';
+  return thumbnailMode === 'custom' ? 'custom' : 'auto';
+};
+
+const getThumbnailSourceFilename = (payload = {}) => {
+  const explicit = typeof payload.thumbnailSourceFilename === 'string'
+    ? payload.thumbnailSourceFilename.trim()
+    : '';
+  if (explicit) return explicit;
+
+  const original = typeof payload.originalFilename === 'string'
+    ? payload.originalFilename.trim()
+    : '';
+  return original || undefined;
+};
+
+const buildUploadedVideoUrl = (file) => {
+  if (!file) return '';
+
+  if (file.path) {
+    return `${getApiOrigin()}/uploads/${path.basename(file.path)}`;
+  }
+
+  return '';
+};
+
+const serializeVideoRecord = async (video) => {
+  await syncYoutubeVideo(video, { requestMasterAccess: true });
+  return serializeYoutubeVideo(video);
+};
+
+const serializeVideoCollection = async (videos = []) =>
+  Promise.all(videos.map((video) => serializeVideoRecord(video)));
+
+const getUploadSessionState = ({ upload, asset }) => {
+  if (upload?.status === 'errored' || asset?.status === 'errored') {
+    return 'errored';
+  }
+  if (asset?.status === 'ready' && asset?.master?.url) {
+    return 'ready';
+  }
+  if (asset?.id) {
+    return 'processing';
+  }
+  if (upload?.asset_id) {
+    return 'asset_created';
+  }
+  return upload?.status || 'waiting';
+};
 
 /**
  * Upload base64 thumbnail to Cloudinary
@@ -48,7 +129,7 @@ const uploadThumbnailToCloudinary = async (base64Data, userId) => {
 // Create a new collection
 exports.createCollection = async (req, res) => {
   try {
-    const { name, color, tags, folder, position } = req.body;
+    const { name, color, tags, folder, position, themePrompt, folderThemePrompt } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Collection name is required' });
@@ -59,6 +140,8 @@ exports.createCollection = async (req, res) => {
       name: name.trim(),
       color: color || '#6366f1',
       tags: tags || [],
+      themePrompt: themePrompt || '',
+      folderThemePrompt: folderThemePrompt || '',
       folder: folder || null,
       position: position || 0
     });
@@ -135,7 +218,7 @@ exports.getCollection = async (req, res) => {
     res.json({
       collection: {
         ...collection.toObject(),
-        videos
+        videos: await serializeVideoCollection(videos)
       }
     });
   } catch (error) {
@@ -164,7 +247,7 @@ exports.updateCollection = async (req, res) => {
     }
 
     // Update allowed fields
-    const allowedUpdates = ['name', 'color', 'tags', 'rolloutId', 'sectionId', 'folder', 'position', 'cruciblaProjectId', 'cruciblaProjectName', 'cruciblaProjectType', 'cruciblaEra', 'cruciblaAlbum', 'cruciblaAlbumColor'];
+    const allowedUpdates = ['name', 'color', 'tags', 'themePrompt', 'folderThemePrompt', 'rolloutId', 'sectionId', 'folder', 'position', 'cruciblaProjectId', 'cruciblaProjectName', 'cruciblaProjectType', 'cruciblaEra', 'cruciblaAlbum', 'cruciblaAlbumColor'];
 
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {
@@ -222,7 +305,34 @@ exports.deleteCollection = async (req, res) => {
 // Create a new video
 exports.createVideo = async (req, res) => {
   try {
-    const { title, description, thumbnail, collectionId, status, scheduledDate, position, tags, originalFilename } = req.body;
+    const {
+      title,
+      description,
+      thumbnail,
+      thumbnailOriginalUrl: providedThumbnailOriginalUrl,
+      collectionId,
+      status,
+      scheduledDate,
+      position,
+      tags,
+      originalFilename,
+      thumbnailSourceFilename,
+      thumbnailMode,
+      thumbnailStatus,
+      storageProvider,
+      videoUrl,
+      videoFileName,
+      videoFileSize,
+      videoMimeType,
+      durationSeconds,
+      muxUploadId,
+      muxUploadStatus,
+      muxAssetId,
+      muxAssetStatus,
+      muxMasterStatus,
+      muxMasterAccessExpiresAt,
+      artistName,
+    } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Video title is required' });
@@ -257,11 +367,22 @@ exports.createVideo = async (req, res) => {
 
     // Upload thumbnail to Cloudinary if it's base64
     let thumbnailUrl = thumbnail || '';
-    let thumbnailOriginalUrl = null;
+    let thumbnailOriginalUrl = providedThumbnailOriginalUrl || null;
     if (thumbnail && thumbnail.startsWith('data:')) {
       const result = await uploadThumbnailToCloudinary(thumbnail, req.user._id.toString());
       thumbnailUrl = result.url;
       thumbnailOriginalUrl = result.originalUrl;
+    }
+
+    const resolvedThumbnailMode = resolveThumbnailMode(thumbnailMode, thumbnailUrl);
+    const resolvedThumbnailStatus = resolveThumbnailStatus({
+      thumbnailStatus,
+      thumbnailMode: resolvedThumbnailMode,
+      thumbnailUrl,
+    });
+    const resolvedScheduledDate = normalizeScheduledDate(scheduledDate);
+    if (scheduledDate && !resolvedScheduledDate) {
+      return res.status(400).json({ error: 'Invalid scheduled date' });
     }
 
     const video = new YoutubeVideo({
@@ -270,25 +391,205 @@ exports.createVideo = async (req, res) => {
       description: description || '',
       thumbnail: thumbnailUrl,
       thumbnailOriginalUrl,
+      thumbnailMode: resolvedThumbnailMode,
+      thumbnailStatus: resolvedThumbnailStatus,
       collectionId: collectionId || null,
       status: status || 'draft',
-      scheduledDate: scheduledDate || null,
+      scheduledDate: resolvedScheduledDate || null,
       position: videoPosition || 0,
       tags: tags || [],
-      originalFilename: originalFilename || undefined
+      originalFilename: originalFilename || undefined,
+      thumbnailSourceFilename: getThumbnailSourceFilename({ originalFilename, thumbnailSourceFilename }),
+      storageProvider: storageProvider || (muxAssetId || muxUploadId ? 'mux' : 'legacy'),
+      videoUrl: videoUrl || undefined,
+      videoFileName: videoFileName || undefined,
+      videoFileSize: videoFileSize || undefined,
+      videoMimeType: videoMimeType || undefined,
+      durationSeconds: durationSeconds || undefined,
+      muxUploadId: muxUploadId || undefined,
+      muxUploadStatus: muxUploadStatus || undefined,
+      muxAssetId: muxAssetId || undefined,
+      muxAssetStatus: muxAssetStatus || undefined,
+      muxMasterStatus: muxMasterStatus || undefined,
+      muxMasterAccessExpiresAt: muxMasterAccessExpiresAt || undefined,
+      artistName: artistName || '',
     });
 
     await video.save();
 
     res.status(201).json({
       message: 'Video created successfully',
-      video
+      video: await serializeVideoRecord(video)
     });
   } catch (error) {
     console.error('Create YouTube video error:', error);
     res.status(500).json({
       error: 'Failed to create video',
       details: error.message
+    });
+  }
+};
+
+exports.createUploadUrl = async (req, res) => {
+  try {
+    if (!muxService.isConfigured()) {
+      return res.status(409).json({
+        error: 'Mux direct uploads are not configured',
+      });
+    }
+
+    const {
+      fileName,
+      fileSize,
+      mimeType,
+    } = req.body || {};
+
+    if (!fileName || !String(fileName).trim()) {
+      return res.status(400).json({ error: 'File name is required' });
+    }
+
+    const upload = await muxService.createDirectUpload({
+      filename: fileName,
+      corsOrigin: muxService.getClientOrigin(),
+    });
+
+    await MuxUploadSession.create({
+      userId: req.user._id,
+      uploadId: upload.id,
+      status: upload.status || 'waiting',
+      originalFilename: String(fileName).trim(),
+      mimeType: mimeType || '',
+      fileSize: Number(fileSize) || undefined,
+    });
+
+    res.status(201).json({
+      message: 'Direct upload created successfully',
+      provider: 'mux',
+      upload: {
+        id: upload.id,
+        uploadId: upload.id,
+        url: upload.url,
+        timeout: upload.timeout || undefined,
+        status: upload.status || 'waiting',
+      },
+    });
+  } catch (error) {
+    console.error('Create Mux direct upload error:', error);
+    res.status(500).json({
+      error: 'Failed to create direct upload',
+      details: error.message,
+    });
+  }
+};
+
+exports.getUploadStatus = async (req, res) => {
+  try {
+    const { uploadId } = req.params;
+
+    const session = await MuxUploadSession.findOne({
+      uploadId,
+      userId: req.user._id,
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'Upload session not found' });
+    }
+
+    let upload = null;
+    let asset = null;
+
+    if (muxService.isConfigured()) {
+      upload = await muxService.getUpload(session.uploadId);
+      if (upload?.asset_id) {
+        session.assetId = upload.asset_id;
+      }
+
+      if (session.assetId) {
+        asset = await muxService.getAsset(session.assetId);
+        if (asset?.status === 'ready' && !asset?.master?.url && asset?.master?.status !== 'preparing') {
+          asset = await muxService.enableTemporaryMasterAccess(session.assetId);
+        }
+      }
+    }
+
+    const muxFields = buildMuxVideoUpdates({
+      upload,
+      asset,
+      currentVideo: {},
+    });
+
+    session.status = getUploadSessionState({ upload, asset });
+    if (session.status === 'errored') {
+      session.errorMessage = asset?.errors?.messages?.join(', ') || upload?.error || session.errorMessage || 'Mux processing failed';
+    } else {
+      session.errorMessage = '';
+    }
+    await session.save();
+
+    const assetRecord = serializeYoutubeVideo({
+      storageProvider: 'mux',
+      ...muxFields,
+      videoFileName: session.originalFilename || '',
+      videoFileSize: session.fileSize || undefined,
+      videoMimeType: session.mimeType || '',
+      durationSeconds: muxFields.durationSeconds || undefined,
+    });
+
+    res.json({
+      upload: {
+        id: session.uploadId,
+        uploadId: session.uploadId,
+        assetId: session.assetId || null,
+        status: session.status,
+        errorMessage: session.errorMessage || '',
+      },
+      asset: assetRecord,
+    });
+  } catch (error) {
+    console.error('Get Mux upload status error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch upload status',
+      details: error.message,
+    });
+  }
+};
+
+exports.uploadVideoAsset = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Video file is required' });
+    }
+
+    let uploadedVideoUrl = '';
+    let durationSeconds = null;
+
+    if (req.file.buffer && cloudinaryService.isConfigured()) {
+      const result = await cloudinaryService.uploadBuffer(req.file.buffer, {
+        folder: `slayt/youtube/${req.user._id.toString()}/videos`,
+        resourceType: 'video',
+      });
+      uploadedVideoUrl = result.secure_url;
+      durationSeconds = typeof result.duration === 'number' ? result.duration : null;
+    } else {
+      uploadedVideoUrl = buildUploadedVideoUrl(req.file);
+    }
+
+    res.status(201).json({
+      message: 'Video asset uploaded successfully',
+      asset: serializeYoutubeVideo({
+        storageProvider: 'legacy',
+        videoUrl: uploadedVideoUrl,
+        videoFileName: req.file.originalname,
+        videoFileSize: req.file.size,
+        videoMimeType: req.file.mimetype,
+        durationSeconds,
+      }),
+    });
+  } catch (error) {
+    console.error('Upload YouTube video asset error:', error);
+    res.status(500).json({
+      error: 'Failed to upload video asset',
+      details: error.message,
     });
   }
 };
@@ -315,7 +616,7 @@ exports.getVideos = async (req, res) => {
       .sort({ position: 1, createdAt: -1 });
 
     res.json({
-      videos,
+      videos: await serializeVideoCollection(videos),
       count: videos.length
     });
   } catch (error) {
@@ -342,7 +643,7 @@ exports.getVideo = async (req, res) => {
       return res.status(404).json({ error: 'Video not found' });
     }
 
-    res.json({ video });
+    res.json({ video: await serializeVideoRecord(video) });
   } catch (error) {
     console.error('Get YouTube video error:', error);
     res.status(500).json({ error: 'Failed to fetch video' });
@@ -414,8 +715,63 @@ exports.updateVideo = async (req, res) => {
       return res.status(400).json({ error: 'Title cannot be empty' });
     }
 
+    const resolvedThumbnailSourceFilename = getThumbnailSourceFilename(updates);
+    if (resolvedThumbnailSourceFilename) {
+      updates.thumbnailSourceFilename = resolvedThumbnailSourceFilename;
+    }
+
+    if (updates.scheduledDate !== undefined) {
+      const resolvedScheduledDate = normalizeScheduledDate(updates.scheduledDate);
+      if (updates.scheduledDate && !resolvedScheduledDate) {
+        return res.status(400).json({ error: 'Invalid scheduled date' });
+      }
+      updates.scheduledDate = resolvedScheduledDate;
+    }
+
+    if (updates.thumbnail !== undefined || updates.thumbnailMode !== undefined || updates.thumbnailStatus !== undefined) {
+      const nextThumbnail = updates.thumbnail !== undefined ? updates.thumbnail : video.thumbnail;
+      const nextMode = resolveThumbnailMode(updates.thumbnailMode || video.thumbnailMode, nextThumbnail);
+      updates.thumbnailMode = nextMode;
+      updates.thumbnailStatus = resolveThumbnailStatus({
+        thumbnailStatus: updates.thumbnailStatus,
+        thumbnailMode: nextMode,
+        thumbnailUrl: nextThumbnail,
+      });
+    }
+
     // Update allowed fields
-    const allowedUpdates = ['title', 'description', 'thumbnail', 'thumbnailOriginalUrl', 'collectionId', 'status', 'scheduledDate', 'position', 'tags', 'videoFileName', 'videoFileSize', 'artistName', 'originalFilename'];
+    const allowedUpdates = [
+      'title',
+      'description',
+      'thumbnail',
+      'thumbnailOriginalUrl',
+      'thumbnailMode',
+      'thumbnailStatus',
+      'collectionId',
+      'status',
+      'scheduledDate',
+      'position',
+      'tags',
+      'storageProvider',
+      'videoUrl',
+      'videoFileName',
+      'videoFileSize',
+      'videoMimeType',
+      'durationSeconds',
+      'muxUploadId',
+      'muxUploadStatus',
+      'muxAssetId',
+      'muxAssetStatus',
+      'muxMasterStatus',
+      'muxMasterAccessExpiresAt',
+      'artistName',
+      'originalFilename',
+      'thumbnailSourceFilename',
+      'publishedAt',
+      'youtubeVideoId',
+      'youtubeVideoUrl',
+      'lastError',
+    ];
 
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {
@@ -427,11 +783,52 @@ exports.updateVideo = async (req, res) => {
 
     res.json({
       message: 'Video updated successfully',
-      video
+      video: await serializeVideoRecord(video)
     });
   } catch (error) {
     console.error('Update YouTube video error:', error);
     res.status(500).json({ error: 'Failed to update video' });
+  }
+};
+
+// Suggest themed titles for uploaded assets or existing videos
+exports.suggestTitles = async (req, res) => {
+  try {
+    const {
+      collectionId,
+      prompt = '',
+      folder = '',
+      collectionName = '',
+      files = [],
+    } = req.body;
+
+    let resolvedCollection = null;
+    if (collectionId) {
+      if (!validateObjectId(collectionId)) {
+        return res.status(400).json({ error: 'Invalid collection ID' });
+      }
+
+      resolvedCollection = await YoutubeCollection.findOne({
+        _id: collectionId,
+        userId: req.user._id
+      });
+
+      if (!resolvedCollection) {
+        return res.status(404).json({ error: 'Collection not found' });
+      }
+    }
+
+    const suggestions = await youtubeTitleService.suggestTitles({
+      prompt: prompt || resolvedCollection?.themePrompt || resolvedCollection?.folderThemePrompt || '',
+      collectionName: collectionName || resolvedCollection?.name || '',
+      folder: folder || resolvedCollection?.folder || '',
+      files,
+    });
+
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('Suggest YouTube titles error:', error);
+    res.status(500).json({ error: 'Failed to suggest titles' });
   }
 };
 
@@ -505,7 +902,7 @@ exports.reorderVideos = async (req, res) => {
 
     res.json({
       message: 'Videos reordered successfully',
-      videos
+      videos: await serializeVideoCollection(videos)
     });
   } catch (error) {
     console.error('Reorder YouTube videos error:', error);
@@ -556,6 +953,10 @@ exports.saveVersion = async (req, res) => {
         videoId: v._id,
         title: v.title,
         description: v.description || '',
+        thumbnail: v.thumbnail || '',
+        thumbnailOriginalUrl: v.thumbnailOriginalUrl || '',
+        originalFilename: v.originalFilename || '',
+        thumbnailSourceFilename: v.thumbnailSourceFilename || '',
         position: v.position,
         status: v.status,
         artistName: v.artistName || ''
@@ -651,6 +1052,10 @@ exports.restoreVersion = async (req, res) => {
         {
           title: snap.title,
           description: snap.description,
+          thumbnail: snap.thumbnail || '',
+          thumbnailOriginalUrl: snap.thumbnailOriginalUrl || '',
+          originalFilename: snap.originalFilename || '',
+          thumbnailSourceFilename: snap.thumbnailSourceFilename || '',
           position: snap.position,
           status: snap.status,
           artistName: snap.artistName || ''
@@ -666,7 +1071,7 @@ exports.restoreVersion = async (req, res) => {
 
     res.json({
       message: 'Version restored successfully',
-      videos
+      videos: await serializeVideoCollection(videos)
     });
   } catch (error) {
     console.error('Restore version error:', error);

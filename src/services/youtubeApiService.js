@@ -12,6 +12,10 @@
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const crypto = require('crypto');
+const { pipeline } = require('stream/promises');
 const { google } = require('googleapis');
 
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3';
@@ -168,6 +172,8 @@ async function validateAndRefreshCredentials(user) {
  * @returns {Object} Upload result with video ID and URL
  */
 async function uploadVideo(user, videoData) {
+  let tempVideoPath = null;
+
   try {
     const {
       videoUrl,        // URL or file path to video
@@ -224,10 +230,10 @@ async function uploadVideo(user, videoData) {
     // Determine media source
     let media;
     if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
-      // Download video from URL first
-      const videoBuffer = await downloadVideoFromUrl(videoUrl);
+      // Stream remote video to a temp file so large uploads do not sit in memory.
+      tempVideoPath = await downloadVideoToTempFile(videoUrl);
       media = {
-        body: videoBuffer
+        body: fs.createReadStream(tempVideoPath)
       };
     } else {
       // Local file path
@@ -283,21 +289,29 @@ async function uploadVideo(user, videoData) {
       error: errorMessage,
       errorCode: error.response?.data?.error?.code || 'UPLOAD_FAILED'
     };
+  } finally {
+    if (typeof tempVideoPath === 'string' && tempVideoPath) {
+      fs.promises.unlink(tempVideoPath).catch(() => {});
+    }
   }
 }
 
 /**
- * Download video from URL to buffer
+ * Download video from URL to a temp file
  */
-async function downloadVideoFromUrl(url) {
+async function downloadVideoToTempFile(url) {
   try {
     const response = await axios.get(url, {
-      responseType: 'arraybuffer',
-      maxContentLength: 256 * 1024 * 1024, // 256 MB max
-      timeout: 300000 // 5 minute timeout
+      responseType: 'stream',
+      timeout: 15 * 60 * 1000,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
     });
 
-    return Buffer.from(response.data);
+    const extension = path.extname(new URL(url).pathname) || '.mp4';
+    const tempPath = path.join(os.tmpdir(), `slayt-youtube-${crypto.randomUUID()}${extension}`);
+    await pipeline(response.data, fs.createWriteStream(tempPath));
+    return tempPath;
   } catch (error) {
     throw new Error(`Failed to download video: ${error.message}`);
   }

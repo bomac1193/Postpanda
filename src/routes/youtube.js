@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const youtubeController = require('../controllers/youtubeController');
+const upload = require('../middleware/upload');
 
 // All routes require authentication
 router.use(authenticate);
@@ -47,6 +48,18 @@ router.delete('/collections/:id/versions/:index', youtubeController.deleteVersio
 
 // Create new video
 router.post('/videos', youtubeController.createVideo);
+
+// Create a direct upload URL for large Mux-backed video uploads
+router.post('/videos/upload-url', youtubeController.createUploadUrl);
+
+// Poll the status of a direct upload session
+router.get('/videos/uploads/:uploadId', youtubeController.getUploadStatus);
+
+// Upload a real video asset for planner entries
+router.post('/videos/upload', upload.single('video'), youtubeController.uploadVideoAsset);
+
+// Suggest themed titles for files or videos
+router.post('/titles/suggest', youtubeController.suggestTitles);
 
 // Get videos (filter by collectionId via query param)
 router.get('/videos', youtubeController.getVideos);

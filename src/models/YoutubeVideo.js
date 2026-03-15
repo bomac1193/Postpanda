@@ -31,21 +31,81 @@ const youtubeVideoSchema = new mongoose.Schema({
   thumbnailOriginalUrl: {
     type: String // Cloudinary URL of uncompressed original
   },
+  thumbnailMode: {
+    type: String,
+    enum: ['custom', 'auto'],
+    default: 'custom'
+  },
+  thumbnailStatus: {
+    type: String,
+    enum: ['missing', 'auto', 'custom', 'needs_custom'],
+    default: 'missing'
+  },
+  videoUrl: {
+    type: String
+  },
+  storageProvider: {
+    type: String,
+    enum: ['legacy', 'mux'],
+    default: 'legacy'
+  },
   videoFileName: {
     type: String
   },
   videoFileSize: {
     type: Number
   },
+  videoMimeType: {
+    type: String
+  },
+  durationSeconds: {
+    type: Number
+  },
+  muxUploadId: {
+    type: String,
+    index: true
+  },
+  muxUploadStatus: {
+    type: String
+  },
+  muxAssetId: {
+    type: String,
+    index: true
+  },
+  muxAssetStatus: {
+    type: String
+  },
+  muxMasterStatus: {
+    type: String
+  },
+  muxMasterAccessExpiresAt: {
+    type: Date
+  },
   status: {
     type: String,
-    enum: ['draft', 'scheduled', 'published'],
+    enum: ['draft', 'scheduled', 'published', 'failed'],
     default: 'draft'
   },
   scheduledDate: {
     type: Date
   },
+  publishedAt: {
+    type: Date
+  },
+  youtubeVideoId: {
+    type: String
+  },
+  youtubeVideoUrl: {
+    type: String
+  },
+  lastError: {
+    type: String
+  },
   originalFilename: {
+    type: String,
+    trim: true
+  },
+  thumbnailSourceFilename: {
     type: String,
     trim: true
   },

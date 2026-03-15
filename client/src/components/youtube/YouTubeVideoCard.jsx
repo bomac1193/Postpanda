@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Trash2, GripVertical, Image } from 'lucide-react';
+import { formatDuration, getPlannerVideoAssetState } from '../../lib/videoUtils';
 
 const STATUS_COLORS = {
   draft: 'bg-gray-500',
@@ -35,6 +36,8 @@ function YouTubeVideoCard({ video, isSelected, isLocked, isDropTarget, onClick, 
   // YouTube title limits: 100 chars max, ~60 visible in search
   const titleLength = video.title?.length || 0;
   const isTitleTruncated = titleLength > 60;
+  const durationLabel = formatDuration(video.durationSeconds);
+  const assetState = getPlannerVideoAssetState(video);
 
   return (
     <div
@@ -75,9 +78,9 @@ function YouTubeVideoCard({ video, isSelected, isLocked, isDropTarget, onClick, 
         )}
 
         {/* Duration placeholder (if we add it later) */}
-        {video.duration && (
+        {(video.duration || video.durationSeconds) && (
           <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 rounded text-xs text-white font-medium">
-            {video.duration}
+            {video.duration || durationLabel}
           </div>
         )}
 
@@ -108,6 +111,29 @@ function YouTubeVideoCard({ video, isSelected, isLocked, isDropTarget, onClick, 
         </h3>
 
         {/* Character count indicator */}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {assetState === 'missing' && (
+            <span className="rounded-full bg-dark-600 px-2 py-0.5 text-[10px] text-dark-200">
+              Thumbnail only
+            </span>
+          )}
+          {assetState === 'processing' && (
+            <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-200">
+              Processing
+            </span>
+          )}
+          {assetState === 'errored' && (
+            <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] text-red-200">
+              Upload failed
+            </span>
+          )}
+          {video.thumbnailStatus === 'needs_custom' && (
+            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-400">
+              Needs custom thumb
+            </span>
+          )}
+        </div>
+
         <div className="flex items-center justify-between mt-2">
           <span className={`text-xs ${isTitleTruncated ? 'text-amber-400' : 'text-dark-500'}`}>
             {titleLength}/100

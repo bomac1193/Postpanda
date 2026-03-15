@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
+const MUX_UPLOAD_POLL_INTERVAL_MS = 2000;
+const MUX_UPLOAD_POLL_TIMEOUT_MS = 2 * 60 * 1000;
 
 // Create axios instance with defaults
 const api = axios.create({
@@ -35,6 +37,96 @@ api.interceptors.response.use(
   }
 );
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const buildUploadProgress = ({ loaded = 0, total = 0, startedAt = Date.now() }) => {
+  const safeTotal = Number(total) || 0;
+  const safeLoaded = Number(loaded) || 0;
+  const percent = safeTotal > 0 ? Math.min(100, (safeLoaded / safeTotal) * 100) : 0;
+  const elapsedSeconds = Math.max((Date.now() - startedAt) / 1000, 0.25);
+  const bytesPerSecond = safeLoaded / elapsedSeconds;
+  const remainingBytes = Math.max(safeTotal - safeLoaded, 0);
+  const etaSeconds = bytesPerSecond > 0 && safeTotal > 0 ? remainingBytes / bytesPerSecond : null;
+
+  return {
+    phase: 'uploading',
+    loaded: safeLoaded,
+    total: safeTotal,
+    percent,
+    etaSeconds,
+  };
+};
+
+async function uploadFileToDirectUrl(url, file, onProgress) {
+  await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const startedAt = Date.now();
+
+    xhr.open('PUT', url, true);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress?.(buildUploadProgress({
+          loaded: event.loaded,
+          total: event.total,
+          startedAt,
+        }));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.({
+          phase: 'processing',
+          loaded: file.size,
+          total: file.size,
+          percent: 100,
+          etaSeconds: 0,
+        });
+        resolve();
+        return;
+      }
+
+      reject(new Error(`Direct upload failed with status ${xhr.status}`));
+    };
+
+    xhr.onerror = () => reject(new Error('Direct upload failed'));
+    xhr.onabort = () => reject(new Error('Direct upload was cancelled'));
+    xhr.send(file);
+  });
+}
+
+async function pollMuxUploadStatus(uploadId, onProgress) {
+  const startedAt = Date.now();
+  let latest = null;
+
+  while (Date.now() - startedAt < MUX_UPLOAD_POLL_TIMEOUT_MS) {
+    const { data } = await api.get(`/api/youtube/videos/uploads/${uploadId}`);
+    latest = data;
+
+    if (data?.upload?.status === 'errored' || data?.asset?.videoAssetState === 'errored') {
+      throw new Error(data?.upload?.errorMessage || 'Video processing failed');
+    }
+
+    if (data?.asset?.videoAssetState === 'ready') {
+      onProgress?.({ phase: 'ready', percent: 100, etaSeconds: 0 });
+      return latest;
+    }
+
+    const hasMuxAssetReference = Boolean(data?.upload?.assetId || data?.asset?.muxAssetId);
+    if (hasMuxAssetReference && Date.now() - startedAt >= 15 * 1000) {
+      onProgress?.({ phase: 'processing', percent: 100, etaSeconds: null });
+      return latest;
+    }
+
+    onProgress?.({ phase: 'processing', percent: 100, etaSeconds: null });
+    await sleep(MUX_UPLOAD_POLL_INTERVAL_MS);
+  }
+
+  return latest;
+}
+
 // Auth API
 export const authApi = {
   async login(email, password) {
@@ -67,6 +159,16 @@ export const authApi = {
 
   async updateProfile(profileData) {
     const { data } = await api.put('/api/auth/profile', profileData);
+    return data;
+  },
+
+  async updateClarosaConnection(connectionData) {
+    const { data } = await api.put('/api/auth/clarosa', connectionData);
+    return data;
+  },
+
+  async indexClarosaLibrary() {
+    const { data } = await api.post('/api/auth/clarosa/index-library');
     return data;
   },
 
@@ -138,6 +240,59 @@ export const youtubeApi = {
   },
   async createVideo(videoData) {
     const { data } = await api.post('/api/youtube/videos', videoData);
+    return data;
+  },
+  async uploadVideoAsset(file, options = {}) {
+    const { onProgress } = options;
+    try {
+      const { data } = await api.post('/api/youtube/videos/upload-url', {
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+      });
+
+      if (data?.provider === 'mux' && data?.upload?.url) {
+        await uploadFileToDirectUrl(data.upload.url, file, onProgress);
+        const statusData = await pollMuxUploadStatus(data.upload.uploadId || data.upload.id, onProgress);
+        return {
+          message: 'Video asset uploaded successfully',
+          asset: {
+            ...(statusData?.asset || {}),
+            videoFileName: statusData?.asset?.videoFileName || file.name,
+            videoFileSize: statusData?.asset?.videoFileSize || file.size,
+            videoMimeType: statusData?.asset?.videoMimeType || file.type,
+          },
+        };
+      }
+    } catch (error) {
+      const status = error?.response?.status;
+      const shouldFallback = status && [404, 409, 501, 503].includes(status);
+      if (!shouldFallback) {
+        throw error;
+      }
+    }
+
+    const formData = new FormData();
+    formData.append('video', file);
+    const uploadStartedAt = Date.now();
+    const { data } = await api.post('/api/youtube/videos/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 10 * 60 * 1000,
+      onUploadProgress: (event) => {
+        if (event.total) {
+          onProgress?.(buildUploadProgress({
+            loaded: event.loaded,
+            total: event.total,
+            startedAt: uploadStartedAt,
+          }));
+        }
+      },
+    });
+    onProgress?.({ phase: 'ready', percent: 100, etaSeconds: 0 });
+    return data;
+  },
+  async suggestTitles(payload) {
+    const { data } = await api.post('/api/youtube/titles/suggest', payload);
     return data;
   },
   async updateVideo(id, updates) {
@@ -348,6 +503,11 @@ export const contentApi = {
     const blob = await response.blob();
     return this.updateMediaFromBlob(id, blob, filename, options);
   },
+
+  async syncClarosa() {
+    const { data } = await api.post('/api/content/sync-clarosa');
+    return data;
+  },
 };
 
 // Grid API
@@ -536,6 +696,11 @@ export const postingApi = {
 export const platformApi = {
   async getConnections() {
     const { data } = await api.get('/api/auth/connections');
+    return data;
+  },
+
+  async getConnectionAudit() {
+    const { data } = await api.get('/api/auth/connections/audit');
     return data;
   },
 

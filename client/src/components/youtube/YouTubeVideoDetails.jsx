@@ -2,6 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../../stores/useAppStore';
 import { intelligenceApi, youtubeApi } from '../../lib/api';
 import {
+  extractVideoFrame,
+  formatDuration,
+  getPlannerVideoAssetState,
+  hasPlannerVideoAttachment,
+} from '../../lib/videoUtils';
+import {
   Image,
   Type,
   Calendar,
@@ -37,13 +43,99 @@ const STATUS_OPTIONS = [
 const TITLE_MAX = 100;
 const TITLE_VISIBLE = 60; // Characters visible in search results
 
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+};
+
+const toTimeInputValue = (value) => {
+  if (!value) return '12:00';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '12:00';
+  return `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
+};
+
+const buildVideoPersistencePayload = (video = {}) => ({
+  storageProvider: video.storageProvider || (video.muxAssetId || video.muxUploadId ? 'mux' : 'legacy'),
+  videoUrl: video.videoUrl || '',
+  videoFileName: video.videoFileName || '',
+  videoFileSize: video.videoFileSize || undefined,
+  videoMimeType: video.videoMimeType || '',
+  durationSeconds: video.durationSeconds || undefined,
+  muxUploadId: video.muxUploadId || '',
+  muxUploadStatus: video.muxUploadStatus || '',
+  muxAssetId: video.muxAssetId || '',
+  muxAssetStatus: video.muxAssetStatus || '',
+  muxMasterStatus: video.muxMasterStatus || '',
+  muxMasterAccessExpiresAt: video.muxMasterAccessExpiresAt || null,
+});
+
+const isVideoFile = (file) => {
+  if (!file) return false;
+  if (typeof file.type === 'string' && file.type.startsWith('video/')) {
+    return true;
+  }
+  return /\.(mp4|mov|avi|webm|m4v|mkv)$/i.test(file.name || '');
+};
+
+const dragEventHasFiles = (event) => {
+  const types = Array.from(event.dataTransfer?.types || []);
+  return types.includes('Files');
+};
+
+const dragEventHasVideoFiles = (event) => {
+  const items = Array.from(event.dataTransfer?.items || []);
+  if (items.length > 0) {
+    return items.some((item) => item.kind === 'file' && item.type.startsWith('video/'));
+  }
+
+  const files = Array.from(event.dataTransfer?.files || []);
+  return files.some(isVideoFile);
+};
+
+const formatBytes = (value) => {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0 B';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = value;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  const decimals = unitIndex === 0 ? 0 : size >= 100 ? 0 : size >= 10 ? 1 : 2;
+  return `${size.toFixed(decimals)} ${units[unitIndex]}`;
+};
+
+const formatEta = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds < 1) {
+    return 'under 1s';
+  }
+
+  const rounded = Math.ceil(seconds);
+  if (rounded < 60) {
+    return `${rounded}s`;
+  }
+
+  const minutes = Math.floor(rounded / 60);
+  const remainingSeconds = rounded % 60;
+  return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+};
+
 function YouTubeVideoDetails({
   video,
   onThumbnailUpload,
-  thumbnailClipboard,
-  onCopyThumbnail,
-  onCutThumbnail,
-  onPasteThumbnail,
+  videoClipboard,
+  currentCollectionName,
+  onCopyVideo,
+  onCutVideo,
+  onPasteVideo,
 }) {
   const updateYoutubeVideo = useAppStore((state) => state.updateYoutubeVideo);
   const deleteYoutubeVideo = useAppStore((state) => state.deleteYoutubeVideo);
@@ -64,14 +156,16 @@ function YouTubeVideoDetails({
   const [showArtistSuggestions, setShowArtistSuggestions] = useState(false);
   const artistInputRef = useRef(null);
   const [status, setStatus] = useState(video?.status || 'draft');
-  const [scheduledDate, setScheduledDate] = useState(video?.scheduledDate || '');
-  const [scheduledTime, setScheduledTime] = useState(video?.scheduledTime || '12:00');
+  const [scheduledDate, setScheduledDate] = useState(toDateInputValue(video?.scheduledDate));
+  const [scheduledTime, setScheduledTime] = useState(toTimeInputValue(video?.scheduledDate));
   const [showTruncatePreview, setShowTruncatePreview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showYoutubePreview, setShowYoutubePreview] = useState(false);
   const [previewPlaying, setPreviewPlaying] = useState(false);
   const previewVideoRef = useRef(null);
   const [showVideoFile, setShowVideoFile] = useState(true);
+  const [isDraggingVideoFile, setIsDraggingVideoFile] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(null);
   const [showDescription, setShowDescription] = useState(true);
   const [showSchedule, setShowSchedule] = useState(true);
 
@@ -86,6 +180,7 @@ function YouTubeVideoDetails({
 
   const fileInputRef = useRef(null);
   const videoFileInputRef = useRef(null);
+  const videoFileDragCounterRef = useRef(0);
   const autosaveTimer = useRef(null);
   const lastSavedRef = useRef({
     title: video?.title || '',
@@ -99,8 +194,11 @@ function YouTubeVideoDetails({
       setDescription(video.description || '');
       setArtistName(video.artistName || '');
       setStatus(video.status || 'draft');
-      setScheduledDate(video.scheduledDate || '');
-      setScheduledTime(video.scheduledTime || '12:00');
+      setScheduledDate(toDateInputValue(video.scheduledDate));
+      setScheduledTime(toTimeInputValue(video.scheduledDate));
+      setIsDraggingVideoFile(false);
+      setVideoUploadProgress(null);
+      videoFileDragCounterRef.current = 0;
       lastSavedRef.current = {
         title: video.title || '',
         description: video.description || '',
@@ -111,6 +209,70 @@ function YouTubeVideoDetails({
       }
     }
   }, [video?.id]);
+
+  useEffect(() => {
+    if (!videoId || videoUploadProgress?.phase !== 'processing') {
+      return undefined;
+    }
+
+    let cancelled = false;
+    let timeoutId = null;
+
+    const pollUntilReady = async () => {
+      try {
+        const { video: latestVideo } = await youtubeApi.getVideo(videoId);
+        if (cancelled || !latestVideo) {
+          return;
+        }
+
+        updateYoutubeVideo(videoId, { ...latestVideo, id: latestVideo._id || videoId });
+        const latestAssetState = getPlannerVideoAssetState(latestVideo);
+
+        if (latestAssetState === 'ready') {
+          setVideoUploadProgress({
+            phase: 'done',
+            percent: 100,
+            label: 'Video ready',
+            details: 'Upload complete.',
+          });
+
+          timeoutId = setTimeout(() => {
+            if (!cancelled) {
+              setVideoUploadProgress(null);
+            }
+          }, 1200);
+          return;
+        }
+
+        if (latestAssetState === 'errored') {
+          setVideoUploadProgress({
+            phase: 'error',
+            percent: 0,
+            label: 'Upload failed',
+            details: latestVideo.lastError || 'The uploaded video could not be prepared.',
+          });
+          return;
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to refresh video processing status:', error);
+        }
+      }
+
+      if (!cancelled) {
+        timeoutId = setTimeout(pollUntilReady, 5000);
+      }
+    };
+
+    timeoutId = setTimeout(pollUntilReady, 3000);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [videoId, videoUploadProgress?.phase, updateYoutubeVideo]);
 
   // Debounced autosave for title/description so refresh/collection switch doesn't lose edits
   useEffect(() => {
@@ -173,13 +335,31 @@ function YouTubeVideoDetails({
         <p className="text-sm text-dark-500">
           Click on a video to view and edit its details
         </p>
+        {videoClipboard?.payload && (
+          <div className="mt-5 w-full max-w-[240px] rounded-xl border border-dark-600 bg-dark-700/60 p-3 text-left">
+            <p className="text-xs text-dark-300 mb-1">
+              {videoClipboard.mode === 'cut' ? 'Cut' : 'Copied'} video ready
+            </p>
+            <p className="text-xs text-dark-500 truncate mb-3">
+              {videoClipboard.sourceVideoTitle}
+            </p>
+            <button
+              type="button"
+              onClick={() => onPasteVideo?.()}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-dark-100 hover:bg-white text-dark-900 rounded-lg text-xs font-medium transition-colors"
+            >
+              <ClipboardPaste className="w-3.5 h-3.5" />
+              <span>Paste to {currentCollectionName || 'This Collection'}</span>
+            </button>
+          </div>
+        )}
       </div>
     );
   }
 
   // Persist updates to the backend and keep local state in sync
   const persistVideoUpdates = async (updates) => {
-    if (!videoId) return;
+    if (!videoId) return null;
 
     // Optimistic local update
     updateYoutubeVideo(videoId, updates);
@@ -194,10 +374,12 @@ function YouTubeVideoDetails({
             description: updates.description ?? lastSavedRef.current.description,
           };
         }
+        return savedVideo;
       }
     } catch (error) {
       console.error('Failed to save YouTube video update:', error);
     }
+    return null;
   };
 
   const handleTitleChange = (value) => {
@@ -223,17 +405,42 @@ function YouTubeVideoDetails({
   // Taste feedback signals — removed (genome stripped)
   const sendTasteSignal = async () => {};
 
+  const assetState = getPlannerVideoAssetState(video);
+  const hasVideoAsset = hasPlannerVideoAttachment(video);
+  const isVideoReady = assetState === 'ready';
+  const durationLabel = formatDuration(video.durationSeconds);
+
   const handleStatusChange = (newStatus) => {
+    if (newStatus === 'scheduled' && !hasVideoAsset) {
+      alert('Upload a video file before scheduling this YouTube item.');
+      return;
+    }
+    if (newStatus === 'scheduled' && !scheduledDate) {
+      alert('Set a schedule date and time before marking this YouTube item as scheduled.');
+      return;
+    }
     setStatus(newStatus);
     persistVideoUpdates({ status: newStatus });
   };
 
   const handleScheduleChange = () => {
-    const nextStatus = scheduledDate ? 'scheduled' : status;
+    if (scheduledDate && !hasVideoAsset) {
+      alert('Upload a video file before scheduling this YouTube item.');
+      return;
+    }
+
+    const nextStatus = scheduledDate
+      ? 'scheduled'
+      : status === 'scheduled'
+        ? 'draft'
+        : status;
+    const scheduledAt = scheduledDate
+      ? new Date(`${scheduledDate}T${scheduledTime || '12:00'}`)
+      : null;
+
     setStatus(nextStatus);
     persistVideoUpdates({
-      scheduledDate,
-      scheduledTime,
+      scheduledDate: scheduledAt ? scheduledAt.toISOString() : null,
       status: nextStatus,
     });
   };
@@ -246,20 +453,211 @@ function YouTubeVideoDetails({
     e.target.value = '';
   };
 
+  const uploadVideoFileToCurrentCard = async (file) => {
+    if (!isVideoFile(file)) {
+      alert('Drop or upload a video file here.');
+      return;
+    }
+
+    try {
+      setVideoUploadProgress({
+        phase: 'preparing',
+        percent: 0,
+        label: 'Uploading',
+        details: file.name,
+      });
+
+      const [{ asset }, frameData] = await Promise.all([
+        youtubeApi.uploadVideoAsset(file, {
+          onProgress: (progress) => {
+            if (progress.phase === 'uploading') {
+              const roundedPercent = Math.round(progress.percent ?? 0);
+              setVideoUploadProgress({
+                phase: 'uploading',
+                percent: progress.percent ?? 0,
+                label: 'Uploading',
+                details: `${roundedPercent}% • ${formatBytes(progress.loaded)} of ${formatBytes(progress.total)}${progress.etaSeconds ? ` • about ${formatEta(progress.etaSeconds)} left` : ''}`,
+              });
+              return;
+            }
+
+            if (progress.phase === 'processing') {
+              setVideoUploadProgress({
+                phase: 'processing',
+                percent: 100,
+                label: 'Preparing video for playback',
+                details: 'Finalizing the uploaded file.',
+              });
+              return;
+            }
+
+            if (progress.phase === 'ready') {
+              setVideoUploadProgress({
+                phase: 'done',
+                percent: 100,
+                label: 'Video ready',
+                details: 'Upload complete.',
+              });
+            }
+          },
+        }),
+        extractVideoFrame(file),
+      ]);
+
+      const savedVideo = await persistVideoUpdates({
+        ...buildVideoPersistencePayload({
+          ...asset,
+          videoFileName: asset.videoFileName || file.name,
+          videoFileSize: asset.videoFileSize || file.size,
+          videoMimeType: asset.videoMimeType || file.type,
+          durationSeconds: asset.durationSeconds || frameData.durationSeconds || 0,
+        }),
+        lastError: '',
+        ...(status === 'failed' ? { status: 'draft' } : {}),
+        ...(video.thumbnail
+          ? {}
+          : {
+              thumbnail: frameData.thumbnailDataUrl,
+              thumbnailMode: 'auto',
+              thumbnailStatus: 'auto',
+            }),
+      });
+
+      const nextAssetState = getPlannerVideoAssetState(savedVideo || asset);
+      if (nextAssetState === 'ready') {
+        setVideoUploadProgress({
+          phase: 'done',
+          percent: 100,
+          label: 'Video ready',
+          details: 'Upload complete.',
+        });
+
+        window.setTimeout(() => {
+          setVideoUploadProgress((current) => current?.phase === 'done' ? null : current);
+        }, 1200);
+      } else {
+        setVideoUploadProgress({
+          phase: 'processing',
+          percent: 100,
+          label: 'Preparing video for playback',
+          details: 'Finalizing the uploaded file.',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to upload planner video asset:', error);
+      setVideoUploadProgress({
+        phase: 'error',
+        percent: 0,
+        label: 'Upload failed',
+        details: error.message || 'Failed to upload video file. Please try again.',
+      });
+      alert('Failed to upload video file. Please try again.');
+    }
+  };
+
   const handleVideoFileChange = async (e) => {
-    const file = e.target.files?.[0];
+    const file = Array.from(e.target.files || []).find(isVideoFile);
     if (file) {
-      // TODO: Upload video file to Cloudinary or storage
-      // For now, just save the file name
-      persistVideoUpdates({ videoFileName: file.name, videoFileSize: file.size });
-      console.log('Video file selected:', file.name, file.size);
+      await uploadVideoFileToCurrentCard(file);
     }
     e.target.value = '';
+  };
+
+  const handleVideoFileDragEnter = (e) => {
+    if (!dragEventHasFiles(e)) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    videoFileDragCounterRef.current += 1;
+
+    if (dragEventHasVideoFiles(e)) {
+      setIsDraggingVideoFile(true);
+    }
+  };
+
+  const handleVideoFileDragOver = (e) => {
+    if (!dragEventHasFiles(e)) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+
+    if (dragEventHasVideoFiles(e)) {
+      setIsDraggingVideoFile(true);
+    }
+  };
+
+  const handleVideoFileDragLeave = (e) => {
+    if (!dragEventHasFiles(e)) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    videoFileDragCounterRef.current = Math.max(0, videoFileDragCounterRef.current - 1);
+
+    if (videoFileDragCounterRef.current === 0) {
+      setIsDraggingVideoFile(false);
+    }
+  };
+
+  const handleVideoFileDrop = async (e) => {
+    if (!dragEventHasFiles(e)) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingVideoFile(false);
+    videoFileDragCounterRef.current = 0;
+
+    const file = Array.from(e.dataTransfer?.files || []).find(isVideoFile);
+    if (!file) {
+      alert('Drop a video file here to attach or replace the current video.');
+      return;
+    }
+
+    await uploadVideoFileToCurrentCard(file);
   };
 
   const handleDelete = () => {
     deleteYoutubeVideo(videoId);
     setShowDeleteConfirm(false);
+  };
+
+  const handleRemoveVideoAttachment = async () => {
+    setIsDraggingVideoFile(false);
+    videoFileDragCounterRef.current = 0;
+    setVideoUploadProgress(null);
+
+    if (status === 'scheduled') {
+      setStatus('draft');
+    }
+
+    const savedVideo = await persistVideoUpdates({
+      storageProvider: 'legacy',
+      videoUrl: '',
+      videoFileName: '',
+      videoFileSize: null,
+      videoMimeType: '',
+      durationSeconds: null,
+      muxUploadId: '',
+      muxUploadStatus: '',
+      muxAssetId: '',
+      muxAssetStatus: '',
+      muxMasterStatus: '',
+      muxMasterAccessExpiresAt: null,
+      lastError: '',
+      ...(status === 'scheduled' ? { status: 'draft' } : {}),
+    });
+
+    if (savedVideo && getPlannerVideoAssetState(savedVideo) !== 'ready') {
+      setPreviewPlaying(false);
+    }
   };
 
   // Compose a richer topic for taste-aligned rolls
@@ -445,50 +843,91 @@ function YouTubeVideoDetails({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className={`rounded-full px-2 py-1 ${
+            assetState === 'ready'
+              ? 'bg-dark-100/15 text-dark-100'
+              : assetState === 'processing'
+                ? 'bg-blue-500/15 text-blue-200'
+                : assetState === 'errored'
+                  ? 'bg-red-500/15 text-red-200'
+                  : 'bg-dark-700 text-dark-300'
+          }`}>
+            {assetState === 'ready'
+              ? `Video ready${durationLabel !== '0:00' ? ` • ${durationLabel}` : ''}`
+              : assetState === 'processing'
+                ? 'Video processing'
+                : assetState === 'errored'
+                  ? 'Video failed'
+                  : 'Thumbnail-only draft'}
+          </span>
+          <span className={`rounded-full px-2 py-1 ${
+            video.thumbnailStatus === 'custom'
+              ? 'bg-dark-100/15 text-dark-100'
+              : video.thumbnailStatus === 'needs_custom'
+                ? 'bg-amber-500/15 text-amber-300'
+                : 'bg-dark-700 text-dark-300'
+          }`}>
+            {video.thumbnailStatus === 'custom'
+              ? 'Custom thumbnail'
+              : video.thumbnailStatus === 'needs_custom'
+                ? 'Custom thumbnail recommended'
+                : video.thumbnailStatus === 'auto'
+                  ? 'Video-frame thumbnail'
+                  : 'Thumbnail missing'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={() => onCopyThumbnail?.(video)}
-            disabled={!video.thumbnail}
+            onClick={() => onCopyVideo?.(video)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-200 rounded-lg text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Copy className="w-3.5 h-3.5" />
-            <span>Copy</span>
+            <span>Copy Video</span>
           </button>
           <button
             type="button"
-            onClick={() => onCutThumbnail?.(video)}
-            disabled={!video.thumbnail}
+            onClick={() => onCutVideo?.(video)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-200 rounded-lg text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Scissors className="w-3.5 h-3.5" />
-            <span>Cut</span>
+            <span>Cut Video</span>
           </button>
           <button
             type="button"
-            onClick={() => onPasteThumbnail?.(video)}
-            disabled={!thumbnailClipboard?.thumbnail}
+            onClick={() => onPasteVideo?.()}
+            disabled={!videoClipboard?.payload}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-100 hover:bg-white text-dark-900 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ClipboardPaste className="w-3.5 h-3.5" />
-            <span>Paste</span>
+            <span>Paste to Collection</span>
           </button>
         </div>
 
-        {thumbnailClipboard?.thumbnail && (
+        {videoClipboard?.payload && (
           <div className="rounded-lg border border-dark-600 bg-dark-700/60 px-3 py-2">
             <p className="text-xs text-dark-300">
-              {thumbnailClipboard.mode === 'cut' ? 'Cut' : 'Copied'} thumbnail ready
-              {thumbnailClipboard.sourceCollectionName ? ` from ${thumbnailClipboard.sourceCollectionName}` : ''}.
+              {videoClipboard.mode === 'cut' ? 'Cut' : 'Copied'} video ready
+              {videoClipboard.sourceCollectionName ? ` from ${videoClipboard.sourceCollectionName}` : ''}.
             </p>
             <p className="text-xs text-dark-500 truncate">
-              {thumbnailClipboard.sourceVideoTitle || 'Untitled video'}
+              {videoClipboard.sourceVideoTitle || 'Untitled video'}
             </p>
           </div>
         )}
 
         {/* Video File Upload */}
-        <div className="bg-dark-700 rounded-lg border border-dark-600">
+        <div
+          className={`bg-dark-700 rounded-lg border transition-colors ${
+            isDraggingVideoFile ? 'border-dark-100 bg-dark-650' : 'border-dark-600'
+          }`}
+          onDragEnter={handleVideoFileDragEnter}
+          onDragOver={handleVideoFileDragOver}
+          onDragLeave={handleVideoFileDragLeave}
+          onDrop={handleVideoFileDrop}
+        >
           <button
             onClick={() => setShowVideoFile(!showVideoFile)}
             className="w-full flex items-center justify-between p-3 hover:bg-dark-650 transition-colors"
@@ -498,7 +937,7 @@ function YouTubeVideoDetails({
               <span className="text-sm font-medium text-dark-200">Video File</span>
               {video.videoFileName && (
                 <span className="text-xs text-dark-400">
-                  ({(video.videoFileSize / 1024 / 1024).toFixed(1)} MB)
+                  ({video.videoFileSize ? `${(video.videoFileSize / 1024 / 1024).toFixed(1)} MB` : 'Uploaded'}{video.durationSeconds ? ` • ${durationLabel}` : ''}{assetState === 'processing' ? ' • Processing' : ''})
                 </span>
               )}
             </div>
@@ -507,42 +946,129 @@ function YouTubeVideoDetails({
 
           {showVideoFile && (
             <div className="p-3 pt-0">
+              <div className="relative">
+                {video.videoFileName ? (
+                  <div className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+                    isDraggingVideoFile ? 'bg-dark-700' : 'bg-dark-800'
+                  }`}>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Check className="w-4 h-4 text-dark-100 flex-shrink-0" />
+                      <span className="text-sm text-dark-200 truncate">
+                        {video.videoFileName}
+                        {assetState === 'processing' ? ' (processing)' : ''}
+                      </span>
+                    </div>
+                    <label className="ml-2 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors cursor-pointer flex-shrink-0">
+                      <span className="text-xs text-dark-300">Replace</span>
+                      <input
+                        ref={videoFileInputRef}
+                        type="file"
+                        accept="video/*"
+                        onChange={handleVideoFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleRemoveVideoAttachment}
+                      className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-dark-700 text-dark-300 transition-colors hover:bg-dark-600 hover:text-dark-100"
+                      title="Remove uploaded video"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg transition-colors cursor-pointer group ${
+                    isDraggingVideoFile
+                      ? 'border-dark-100 bg-dark-700/70'
+                      : 'border-dark-600 hover:border-dark-500/50 hover:bg-dark-600/50'
+                  }`}>
+                    <Upload className="w-8 h-8 text-dark-500 group-hover:text-dark-200 mb-2" />
+                    <span className="text-sm text-dark-300 group-hover:text-dark-200 mb-1">
+                      {video.thumbnail ? 'Attach video to this thumbnail' : 'Upload Video File'}
+                    </span>
+                    <span className="text-xs text-dark-500">
+                      Click or drag a video here. Large files upload directly when available.
+                    </span>
+                    <input
+                      ref={videoFileInputRef}
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
 
-          {video.videoFileName ? (
-            <div className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Check className="w-4 h-4 text-dark-100 flex-shrink-0" />
-                <span className="text-sm text-dark-200 truncate">{video.videoFileName}</span>
+                {video.videoFileName && (
+                  <p className="mt-2 text-xs text-dark-500">
+                    Click <span className="text-dark-300">Replace</span> or drag a new video onto this panel to swap the current file.
+                  </p>
+                )}
+
+                {videoUploadProgress && (
+                  <div className={`mt-3 rounded-lg border px-3 py-2 ${
+                    videoUploadProgress.phase === 'error'
+                      ? 'border-red-500/30 bg-red-500/10'
+                      : 'border-dark-600 bg-dark-800/80'
+                  }`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className={`text-sm font-medium ${
+                          videoUploadProgress.phase === 'error' ? 'text-red-200' : 'text-dark-100'
+                        }`}>
+                          {videoUploadProgress.label}
+                        </p>
+                        <p className={`text-xs ${
+                          videoUploadProgress.phase === 'error' ? 'text-red-300/80' : 'text-dark-400'
+                        }`}>
+                          {videoUploadProgress.details}
+                        </p>
+                      </div>
+                      {videoUploadProgress.phase === 'uploading' && (
+                        <span className="text-xs text-dark-300 tabular-nums">
+                          {Math.round(videoUploadProgress.percent || 0)}%
+                        </span>
+                      )}
+                      {videoUploadProgress.phase === 'processing' && (
+                        <RefreshCw className="w-4 h-4 text-dark-300 animate-spin" />
+                      )}
+                    </div>
+                    {videoUploadProgress.phase !== 'error' && (
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-dark-700">
+                        <div
+                          className={`h-full rounded-full transition-[width] duration-500 ease-out ${
+                            videoUploadProgress.phase === 'processing'
+                              ? 'w-full animate-pulse bg-dark-300'
+                              : 'bg-dark-100'
+                          }`}
+                          style={videoUploadProgress.phase === 'processing'
+                            ? undefined
+                            : { width: `${Math.max(6, videoUploadProgress.percent || 0)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {isDraggingVideoFile && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-dark-100 bg-dark-900/90 backdrop-blur-sm">
+                    <div className="text-center px-4">
+                      <Upload className="w-8 h-8 text-dark-100 mx-auto mb-2" />
+                      <p className="text-sm font-semibold text-dark-100">
+                        {video.videoFileName
+                          ? 'Drop to replace video'
+                          : video.thumbnail
+                            ? 'Drop to attach video'
+                            : 'Drop to add video'}
+                      </p>
+                      <p className="text-xs text-dark-400 mt-1">
+                        This drop zone only updates the current video card.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-              <label className="ml-2 px-3 py-1.5 bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors cursor-pointer flex-shrink-0">
-                <span className="text-xs text-dark-300">Replace</span>
-                <input
-                  ref={videoFileInputRef}
-                  type="file"
-                  accept="video/*"
-                  onChange={handleVideoFileChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          ) : (
-            <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-dark-600 rounded-lg hover:border-dark-500/50 hover:bg-dark-600/50 transition-colors cursor-pointer group">
-              <Upload className="w-8 h-8 text-dark-500 group-hover:text-dark-200 mb-2" />
-              <span className="text-sm text-dark-300 group-hover:text-dark-200 mb-1">
-                Upload Video File
-              </span>
-              <span className="text-xs text-dark-500">
-                MP4, MOV, AVI (max 256GB)
-              </span>
-              <input
-                ref={videoFileInputRef}
-                type="file"
-                accept="video/*"
-                onChange={handleVideoFileChange}
-                className="hidden"
-              />
-            </label>
-          )}
             </div>
           )}
         </div>
@@ -813,7 +1339,7 @@ function YouTubeVideoDetails({
               Schedule
               {scheduledDate && (
                 <span className="text-xs text-dark-400">
-                  ({new Date(scheduledDate).toLocaleDateString()})
+                  ({new Date(`${scheduledDate}T${scheduledTime || '12:00'}`).toLocaleDateString()})
                 </span>
               )}
             </label>
@@ -880,11 +1406,11 @@ function YouTubeVideoDetails({
           >
             {/* Player — 16:9 at 854px = 480px, same as YouTube 480p player */}
             <div className="relative w-full bg-black" style={{ aspectRatio: '16/9' }}>
-              {previewPlaying && video.videoFileName ? (
+              {previewPlaying && isVideoReady ? (
                 /* Playing state — real video with controls */
                 <video
                   ref={previewVideoRef}
-                  src={video.videoUrl || ''}
+                  src={isVideoReady ? video.videoUrl || '' : ''}
                   poster={video.thumbnail || undefined}
                   controls
                   autoPlay
@@ -904,11 +1430,11 @@ function YouTubeVideoDetails({
                       <Youtube className="w-20 h-20 text-[#ff0000]/30" />
                     </div>
                   )}
-                  {/* Play button — clickable when video exists, decorative when thumbnail only */}
-                  {(video.thumbnail || video.videoFileName) && (
+                  {/* Play button — clickable when a playable preview is ready */}
+                  {(video.thumbnail || isVideoReady) && (
                     <div
-                      className={`absolute inset-0 flex items-center justify-center ${video.videoFileName ? 'cursor-pointer' : 'pointer-events-none'}`}
-                      onClick={() => { if (video.videoFileName) setPreviewPlaying(true); }}
+                      className={`absolute inset-0 flex items-center justify-center ${isVideoReady ? 'cursor-pointer' : 'pointer-events-none'}`}
+                      onClick={() => { if (isVideoReady) setPreviewPlaying(true); }}
                     >
                       <div className="w-[68px] h-[48px] rounded-xl bg-[#ff0000]/90 flex items-center justify-center hover:bg-[#ff0000] transition-colors">
                         <div className="w-0 h-0 ml-1 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[18px] border-l-white" />
