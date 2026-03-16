@@ -1,5 +1,7 @@
 const Rollout = require('../models/Rollout');
 const { validateObjectId } = require('../utils/validators');
+const twinOsService = require('../services/twinOsService');
+const releaseCoordinator = require('../services/releaseCoordinatorService');
 
 /**
  * Rollout Controllers
@@ -630,7 +632,7 @@ exports.getSectionReadiness = async (req, res) => {
   }
 };
 
-// Get pacing recommendations
+// Get pacing recommendations (archetype-aware)
 exports.getPacingRecommendations = async (req, res) => {
   try {
     const { id } = req.params;
@@ -648,7 +650,26 @@ exports.getPacingRecommendations = async (req, res) => {
       return res.status(404).json({ error: 'Rollout not found' });
     }
 
-    const pacing = rolloutIntelligence.getPacingRecommendations(null, rollout);
+    // Fetch release archetype for personalized pacing
+    let archetypeId = null;
+    try {
+      const userId = req.user._id;
+      const [twinContext, velocityData, subtasteGenome] = await Promise.all([
+        twinOsService.getTwinContext(userId.toString()).catch(() => twinOsService.getDefaultContext(userId.toString())),
+        releaseCoordinator.getContentVelocity(userId).catch(() => ({ postsPerMonth: 0 })),
+        releaseCoordinator.fetchSubtasteGenome().catch(() => null),
+      ]);
+      const classification = releaseCoordinator.classifyReleaseArchetype(
+        twinContext,
+        subtasteGenome,
+        velocityData.postsPerMonth
+      );
+      archetypeId = classification.archetypeId;
+    } catch (err) {
+      console.warn('Could not classify archetype for pacing, using default:', err.message);
+    }
+
+    const pacing = rolloutIntelligence.getPacingRecommendations(archetypeId, rollout);
 
     res.json({
       success: true,
@@ -663,6 +684,89 @@ exports.getPacingRecommendations = async (req, res) => {
 // Stan velocity prediction — removed (was archetype-dependent)
 exports.getStanVelocityPrediction = async (req, res) => {
   res.status(410).json({ error: 'Stan velocity prediction has been removed' });
+};
+
+/**
+ * Release Coordinator: Get Release Archetype
+ * Classifies the user's release archetype from Twin OS + Subtaste + content velocity
+ */
+exports.getReleaseArchetype = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Fetch Twin OS context, content velocity, and Subtaste genome in parallel
+    const [twinContext, velocityData, subtasteGenome] = await Promise.all([
+      twinOsService.getTwinContext(userId.toString()).catch(() => twinOsService.getDefaultContext(userId.toString())),
+      releaseCoordinator.getContentVelocity(userId).catch(() => ({ postsPerMonth: 0 })),
+      releaseCoordinator.fetchSubtasteGenome().catch(() => null),
+    ]);
+
+    const classification = releaseCoordinator.classifyReleaseArchetype(
+      twinContext,
+      subtasteGenome,
+      velocityData.postsPerMonth
+    );
+
+    res.json({
+      success: true,
+      ...classification,
+      velocity: velocityData,
+    });
+  } catch (error) {
+    console.error('Get release archetype error:', error);
+    res.status(500).json({ error: 'Failed to classify release archetype' });
+  }
+};
+
+/**
+ * Release Coordinator: Get Seasonal Windows
+ * Returns active/upcoming/avoid seasonal windows + optimal release dates
+ */
+exports.getSeasonalWindows = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const start = startDate ? new Date(startDate) : new Date();
+    const end = endDate ? new Date(endDate) : new Date(start.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+    const intelligence = releaseCoordinator.getSeasonalIntelligence(start);
+    const windowsInRange = releaseCoordinator.getSeasonalWindowsForRange(start, end);
+
+    // Get user's archetype for optimal release windows
+    let optimalWindows = [];
+    try {
+      const userId = req.user._id;
+      const [twinContext, velocityData, subtasteGenome] = await Promise.all([
+        twinOsService.getTwinContext(userId.toString()).catch(() => twinOsService.getDefaultContext(userId.toString())),
+        releaseCoordinator.getContentVelocity(userId).catch(() => ({ postsPerMonth: 0 })),
+        releaseCoordinator.fetchSubtasteGenome().catch(() => null),
+      ]);
+
+      const classification = releaseCoordinator.classifyReleaseArchetype(
+        twinContext,
+        subtasteGenome,
+        velocityData.postsPerMonth
+      );
+
+      const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      optimalWindows = releaseCoordinator.getOptimalReleaseWindows(
+        classification.archetypeId,
+        start,
+        daysDiff
+      );
+    } catch (err) {
+      console.warn('Could not calculate optimal windows:', err.message);
+    }
+
+    res.json({
+      success: true,
+      current: intelligence,
+      windowsInRange,
+      optimalWindows: optimalWindows.slice(0, 10),
+    });
+  } catch (error) {
+    console.error('Get seasonal windows error:', error);
+    res.status(500).json({ error: 'Failed to get seasonal windows' });
+  }
 };
 
 module.exports = exports;

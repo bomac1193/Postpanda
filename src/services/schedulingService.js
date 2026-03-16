@@ -7,6 +7,7 @@ const youtubeApiService = require('./youtubeApiService');
 const { resolveYoutubeVideoSource } = require('./muxVideoService');
 const convictionService = require('./convictionService');
 const approvalGateService = require('./approvalGateService');
+const Notification = require('../models/Notification');
 const {
   getScheduledPlatforms,
   setScheduledPlatforms,
@@ -40,12 +41,14 @@ class SchedulingService {
     this.processScheduledCollections();
     this.processScheduledContent();
     this.processScheduledYoutubeVideos();
+    this.sendScheduleReminders();
 
     // Then run on interval
     this.interval = setInterval(() => {
       this.processScheduledCollections();
       this.processScheduledContent();
       this.processScheduledYoutubeVideos();
+      this.sendScheduleReminders();
     }, this.checkIntervalMs);
 
     console.log('✅ Scheduling service started');
@@ -147,6 +150,25 @@ class SchedulingService {
 
   async publishScheduledYoutubeVideo(video) {
     try {
+      // Conviction gating: score before publish if not yet scored
+      if (!video.conviction?.score) {
+        try {
+          const youtubeConvictionService = require('./youtubeConvictionService');
+          const { gating } = await youtubeConvictionService.scoreAndSave(video._id);
+          if (gating.status === 'blocked') {
+            console.log(`⚠️ YouTube video ${video._id} blocked by conviction gating (${gating.score}/100)`);
+            video.lastError = gating.reason;
+            await video.save();
+            return;
+          }
+          if (gating.status === 'warning') {
+            console.log(`⚠️ YouTube video ${video._id} has conviction warning (${gating.score}/100), proceeding`);
+          }
+        } catch (convErr) {
+          console.warn('[Scheduling] Conviction scoring failed, proceeding:', convErr.message);
+        }
+      }
+
       const { videoUrl } = await resolveYoutubeVideoSource(video);
 
       const user = await User.findById(video.userId);
@@ -242,6 +264,8 @@ class SchedulingService {
 
         if (!result.success) {
           failed = true;
+          content.lastError = result.error || 'Unknown posting error';
+          await this.notifyPostResult(content, platform, false, result.error);
           break;
         }
 
@@ -271,6 +295,9 @@ class SchedulingService {
         setScheduledPlatforms(content, []);
         content.scheduledProfileId = undefined;
         content.autoPost = false;
+        for (const p of pendingPlatforms) {
+          await this.notifyPostResult(content, p, true);
+        }
       } else if (publishedAny) {
         content.status = 'scheduled';
         setScheduledPlatforms(content, remainingPlatforms);
@@ -283,6 +310,7 @@ class SchedulingService {
       console.error(`❌ Error processing scheduled content ${content._id}:`, error);
       content.status = 'failed';
       await content.save();
+      await this.notifyPostResult(content, 'unknown', false, error.message);
     }
   }
 
@@ -448,11 +476,13 @@ class SchedulingService {
    */
   async postContent(user, content, platform, profileId = null) {
     try {
+      const tiktokSettings = content.editSettings?.tiktok || {};
       const options = {
         caption: content.caption,
         description: content.caption,
         title: content.title,
         tags: content.hashtags || [],
+        ...(platform === 'tiktok' ? tiktokSettings : {}),
       };
 
       let result;
@@ -711,6 +741,64 @@ class SchedulingService {
         reason: 'Conviction check failed, allowing post',
         error: error.message
       };
+    }
+  }
+
+  /**
+   * Send browser/bell notifications ~5 minutes before a scheduled post fires.
+   */
+  async sendScheduleReminders() {
+    try {
+      const now = new Date();
+      const fiveMinFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+
+      // Find posts scheduled to fire within the next 5 minutes that haven't been reminded yet
+      const upcoming = await Content.find({
+        status: 'scheduled',
+        scheduledTime: { $exists: true, $gt: now, $lte: fiveMinFromNow },
+        _notifiedReminder: { $ne: true },
+      });
+
+      for (const post of upcoming) {
+        const platforms = getScheduledPlatforms(post);
+        const platformLabel = platforms.join(', ') || 'platform';
+        const label = post.caption?.slice(0, 60) || post.title || 'Untitled';
+
+        await Notification.create({
+          userId: post.userId,
+          type: 'schedule_reminder',
+          title: 'Posting soon',
+          message: `"${label}" goes live on ${platformLabel} in ~5 min`,
+          contentId: post._id,
+          platform: platforms[0] || null,
+        });
+
+        // Mark so we don't remind again
+        post._notifiedReminder = true;
+        await post.save();
+      }
+    } catch (error) {
+      // Non-critical — don't log loudly
+    }
+  }
+
+  /**
+   * Create a notification after a post is published or fails.
+   */
+  async notifyPostResult(content, platform, success, error = null) {
+    try {
+      await Notification.create({
+        userId: content.userId,
+        type: success ? 'published' : 'failed',
+        title: success ? 'Published' : 'Posting failed',
+        message: success
+          ? `Posted to ${platform}`
+          : `Failed to post to ${platform}${error ? ': ' + error : ''}`,
+        contentId: content._id,
+        platform,
+      });
+    } catch (err) {
+      // Non-critical
     }
   }
 }

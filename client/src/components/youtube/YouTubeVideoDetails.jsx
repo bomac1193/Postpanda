@@ -47,6 +47,7 @@ import {
   SkipForward,
   X,
   ExternalLink,
+  Shield,
 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -196,6 +197,9 @@ function YouTubeVideoDetails({
   const [showDescription, setShowDescription] = useState(true);
   const [showDescriptionTemplateEditor, setShowDescriptionTemplateEditor] = useState(false);
   const [collectionDescriptionTemplate, setCollectionDescriptionTemplate] = useState(() => getCollectionDescriptionTemplate(currentCollection));
+
+  // Conviction scoring state
+  const [scoringConviction, setScoringConviction] = useState(false);
 
   // AI Generation state
   const [showAIPanel, setShowAIPanel] = useState(false);
@@ -910,6 +914,33 @@ function YouTubeVideoDetails({
       );
     } catch (error) {
       console.error('Failed to save rating:', error);
+    }
+  };
+
+  const handleScoreConviction = async () => {
+    if (!videoId || scoringConviction) return;
+    setScoringConviction(true);
+    try {
+      const result = await youtubeApi.scoreVideoConviction(videoId);
+      if (result.video) {
+        updateYoutubeVideo(videoId, { ...result.video, id: result.video._id || videoId });
+      }
+    } catch (error) {
+      console.error('Failed to score conviction:', error);
+    } finally {
+      setScoringConviction(false);
+    }
+  };
+
+  const handleOverrideConviction = async () => {
+    if (!videoId) return;
+    try {
+      const result = await youtubeApi.overrideVideoConviction(videoId, 'Manual override from video details');
+      if (result.video) {
+        updateYoutubeVideo(videoId, { ...result.video, id: result.video._id || videoId });
+      }
+    } catch (error) {
+      console.error('Failed to override conviction:', error);
     }
   };
 
@@ -1824,6 +1855,93 @@ function YouTubeVideoDetails({
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Conviction Score */}
+        <div className="border-t border-dark-700 pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-dark-200">
+              <Shield className="w-4 h-4" />
+              Conviction
+            </label>
+            <button
+              onClick={handleScoreConviction}
+              disabled={scoringConviction}
+              className="px-3 py-1.5 bg-dark-700 hover:bg-dark-600 text-dark-200 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              {scoringConviction ? 'Scoring...' : video.conviction?.score != null ? 'Re-score' : 'Score'}
+            </button>
+          </div>
+
+          {video.conviction?.score != null ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className={`text-2xl font-bold ${
+                  video.conviction.tier === 'exceptional' ? 'text-emerald-400' :
+                  video.conviction.tier === 'high' ? 'text-blue-400' :
+                  video.conviction.tier === 'medium' ? 'text-amber-400' :
+                  'text-red-400'
+                }`}>
+                  {video.conviction.score}
+                </div>
+                <div>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    video.conviction.tier === 'exceptional' ? 'bg-emerald-500/20 text-emerald-300' :
+                    video.conviction.tier === 'high' ? 'bg-blue-500/20 text-blue-300' :
+                    video.conviction.tier === 'medium' ? 'bg-amber-500/20 text-amber-300' :
+                    'bg-red-500/20 text-red-300'
+                  }`}>
+                    {video.conviction.tier}
+                  </span>
+                  {video.conviction.gatingStatus === 'override' && (
+                    <span className="ml-1.5 text-xs text-dark-400">Override active</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Breakdown */}
+              {video.conviction.breakdown && (
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Thumbnail', value: video.conviction.breakdown.thumbnail, weight: '45%' },
+                    { label: 'Title', value: video.conviction.breakdown.title, weight: '35%' },
+                    { label: 'Description', value: video.conviction.breakdown.description, weight: '20%' },
+                  ].map(({ label, value, weight }) => (
+                    <div key={label} className="bg-dark-700 rounded-lg p-2 text-center">
+                      <div className="text-lg font-semibold text-dark-100">{value ?? '—'}</div>
+                      <div className="text-[10px] text-dark-400">{label}</div>
+                      <div className="text-[10px] text-dark-500">{weight}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Gating message */}
+              {video.conviction.gatingReason && (
+                <p className={`text-xs ${
+                  video.conviction.gatingStatus === 'blocked' ? 'text-red-300' :
+                  video.conviction.gatingStatus === 'warning' ? 'text-amber-300' :
+                  'text-dark-400'
+                }`}>
+                  {video.conviction.gatingReason}
+                </p>
+              )}
+
+              {/* Override button for blocked/warning */}
+              {(video.conviction.gatingStatus === 'blocked' || video.conviction.gatingStatus === 'warning') && !video.conviction.userOverride && (
+                <button
+                  onClick={handleOverrideConviction}
+                  className="w-full px-3 py-2 bg-dark-700 hover:bg-dark-600 text-dark-300 hover:text-dark-100 rounded-lg text-xs transition-colors"
+                >
+                  Override gating — I know what I'm doing
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-dark-500">
+              Score this video to check publish readiness. Scores thumbnail, title hook, and description completeness.
+            </p>
+          )}
         </div>
 
       </div>

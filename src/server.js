@@ -37,6 +37,7 @@ const apiKeyManagementRoutes = require('./routes/apiKeyManagement');
 const bovedaRoutes = require('./routes/boveda');  // Boveda API proxy
 const twinOsRoutes = require('./routes/twinOs');
 const cruciblaRoutes = require('./routes/crucibla');
+const notificationRoutes = require('./routes/notification');
 
 const APP_ORIGIN = `${process.env.CLIENT_URL || process.env.FRONTEND_URL || process.env.FOLIO_APP_ORIGIN || 'http://localhost:5173'}`.replace(/\/+$/, '');
 const schedulingService = require('./services/schedulingService');
@@ -131,6 +132,7 @@ app.use('/api/admin/api-keys', apiKeyManagementRoutes); // API key management
 app.use('/api/boveda', bovedaRoutes); // Boveda API proxy
 app.use('/api/twin-os', twinOsRoutes); // Twin OS (Starforge + Clarosa)
 app.use('/api/crucibla', cruciblaRoutes); // Crucibla ecosystem proxy
+app.use('/api/notifications', notificationRoutes);
 
 // Proxy to Folio API to avoid CORS pain locally
 app.use('/folio', createProxyMiddleware({

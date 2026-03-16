@@ -75,6 +75,10 @@ function Calendar() {
   // Show legend
   const [showLegend, setShowLegend] = useState(true);
 
+  // Seasonal windows
+  const [seasonalWindows, setSeasonalWindows] = useState([]);
+  const [showSeasonalMarkers, setShowSeasonalMarkers] = useState(true);
+
   // Conviction features
   const [showConvictionInsights, setShowConvictionInsights] = useState(false);
   const [convictionGatingWarning, setConvictionGatingWarning] = useState(null);
@@ -152,6 +156,19 @@ function Calendar() {
     }
   }, []);
 
+  // Fetch seasonal windows for calendar overlay
+  const fetchSeasonalWindows = useCallback(async () => {
+    try {
+      const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      const data = await rolloutApi.getSeasonalWindows(start.toISOString(), end.toISOString());
+      setSeasonalWindows(data?.windowsInRange || []);
+    } catch (err) {
+      console.error('Failed to fetch seasonal windows:', err);
+      setSeasonalWindows([]);
+    }
+  }, [currentDate]);
+
   // Fetch available content for scheduling
   const fetchAvailableContent = useCallback(async () => {
     try {
@@ -167,7 +184,8 @@ function Calendar() {
   useEffect(() => {
     fetchScheduledPosts();
     fetchRolloutEvents();
-  }, [fetchScheduledPosts, fetchRolloutEvents]);
+    fetchSeasonalWindows();
+  }, [fetchScheduledPosts, fetchRolloutEvents, fetchSeasonalWindows]);
 
   // Fetch available collections and rollouts
   const fetchCollectionsAndRollouts = useCallback(async () => {
@@ -359,6 +377,17 @@ function Calendar() {
         postDate.getMonth() === date.getMonth() &&
         postDate.getDate() === date.getDate()
       );
+    });
+  };
+
+  // Get seasonal windows for a specific day
+  const getSeasonalWindowsForDay = (date) => {
+    if (!showSeasonalMarkers) return [];
+    const dateStr = date.toISOString().split('T')[0];
+    return seasonalWindows.filter((w) => {
+      if (w.date) return w.date === dateStr;
+      if (w.rangeStart && w.rangeEnd) return dateStr >= w.rangeStart && dateStr <= w.rangeEnd;
+      return false;
     });
   };
 
@@ -595,21 +624,40 @@ function Calendar() {
               {days.map((day, index) => {
                 const posts = getPostsForDay(day.date);
                 const dayRolloutEvents = getRolloutEventsForDay(day.date);
+                const daySeasonalWindows = getSeasonalWindowsForDay(day.date);
                 const isTodayCell = isToday(day.date);
                 const totalItems = posts.length + dayRolloutEvents.length;
+                const hasBoost = daySeasonalWindows.some(w => !w.isAvoid);
+                const hasAvoid = daySeasonalWindows.some(w => w.isAvoid);
                 return (
                   <div
                     key={index}
                     onClick={() => handleDayClick(day.date)}
-                    className={`min-h-[88px] border-b border-r border-dark-700/60 px-1.5 py-1 transition-colors hover:bg-dark-700/40 cursor-pointer ${
+                    className={`min-h-[88px] border-b border-r border-dark-700/60 px-1.5 py-1 transition-colors hover:bg-dark-700/40 cursor-pointer relative group ${
                       !day.isCurrentMonth ? 'bg-dark-900/40' : ''
-                    } ${isTodayCell ? 'bg-accent-purple/8' : ''}`}
+                    } ${isTodayCell ? 'bg-accent-purple/8' : ''} ${hasBoost && !isTodayCell ? 'bg-green-900/8' : ''} ${hasAvoid && !isTodayCell ? 'bg-amber-900/10' : ''}`}
                   >
+                    {/* Seasonal window tooltip */}
+                    {daySeasonalWindows.length > 0 && (
+                      <div className="absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block pointer-events-none">
+                        <div className="bg-dark-900 border border-dark-600 rounded px-2 py-1.5 shadow-lg whitespace-nowrap">
+                          {daySeasonalWindows.slice(0, 2).map((w, i) => (
+                            <div key={i} className="text-[10px] text-dark-300">
+                              {w.label} <span className={w.isAvoid ? 'text-dark-500' : 'text-dark-200'}>{w.boost}x</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-0.5">
                       <span className={`text-xs leading-none ${!day.isCurrentMonth ? 'text-dark-600' : isTodayCell ? 'text-accent-purple font-semibold' : 'text-dark-400'}`}>
                         {day.day}
                       </span>
-                      {isTodayCell && <span className="text-[9px] bg-accent-purple text-white px-1 py-px rounded font-medium">Today</span>}
+                      <div className="flex items-center gap-0.5">
+                        {hasBoost && <span className="w-1.5 h-1.5 rounded-full bg-green-700/60" title="Boost window" />}
+                        {hasAvoid && <span className="w-1.5 h-1.5 rounded-full bg-amber-700/60" title="Avoid zone" />}
+                        {isTodayCell && <span className="text-[9px] bg-accent-purple text-white px-1 py-px rounded font-medium">Today</span>}
+                      </div>
                     </div>
                     <div className="space-y-0.5">
                       {dayRolloutEvents.slice(0, 2).map((event) => (
@@ -846,6 +894,13 @@ function Calendar() {
               <Target className="w-3 h-3 text-dark-400" />
               <span>Deadline</span>
             </div>
+            <button
+              onClick={() => setShowSeasonalMarkers(!showSeasonalMarkers)}
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${showSeasonalMarkers ? 'bg-dark-700/60 text-dark-300' : 'text-dark-600'}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-green-700/60" />
+              <span>Seasons</span>
+            </button>
             <button
               onClick={() => setShowLegend(false)}
               className="text-dark-600 hover:text-dark-400"

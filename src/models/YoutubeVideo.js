@@ -136,6 +136,43 @@ const youtubeVideoSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+
+  // Conviction scoring (pre-publish quality gating)
+  aiScores: {
+    thumbnailScore: { type: Number, min: 0, max: 100, default: 0 },
+    titleScore: { type: Number, min: 0, max: 100, default: 0 },
+    descriptionScore: { type: Number, min: 0, max: 100, default: 0 },
+    convictionScore: { type: Number, min: 0, max: 100, default: 0 }
+  },
+  conviction: {
+    score: { type: Number, min: 0, max: 100 },
+    tier: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'exceptional']
+    },
+    gatingStatus: {
+      type: String,
+      enum: ['approved', 'warning', 'blocked', 'override']
+    },
+    gatingReason: { type: String },
+    userOverride: { type: Boolean, default: false },
+    overrideReason: { type: String },
+    calculatedAt: { type: Date }
+  },
+
+  // Post-publish analytics (populated by conviction loop)
+  postPublishMetrics: {
+    views: { type: Number },
+    likes: { type: Number },
+    comments: { type: Number },
+    shares: { type: Number },
+    avgViewDuration: { type: Number },
+    avgViewPercentage: { type: Number },
+    subscribersGained: { type: Number },
+    estimatedMinutesWatched: { type: Number },
+    lastFetchedAt: { type: Date }
+  },
+
   createdAt: {
     type: Date,
     default: Date.now

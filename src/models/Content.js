@@ -372,6 +372,10 @@ const contentSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  _notifiedReminder: {
+    type: Boolean,
+    default: false
+  },
   publishedAt: Date,
   platformPostUrl: String, // Direct link to post on Instagram/TikTok
   platformPostId: String,  // Platform-specific post ID

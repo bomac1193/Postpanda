@@ -79,4 +79,17 @@ router.delete('/videos/:id', youtubeController.deleteVideo);
 // Reorder videos in collection
 router.post('/videos/reorder', youtubeController.reorderVideos);
 
+/**
+ * Conviction Scoring Routes
+ */
+
+// Score a single video's conviction
+router.post('/videos/:id/conviction', youtubeController.scoreVideoConviction);
+
+// Override conviction gating
+router.post('/videos/:id/conviction/override', youtubeController.overrideVideoConviction);
+
+// Score all videos in a collection
+router.post('/collections/:id/conviction', youtubeController.scoreCollectionConviction);
+
 module.exports = router;

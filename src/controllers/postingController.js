@@ -75,10 +75,12 @@ exports.postContent = async (req, res) => {
     }
 
     // Post content
+    const tiktokSettings = content.editSettings?.tiktok || {};
     const options = {
       caption: caption || content.caption,
       description: caption || content.caption,
       tags: Array.isArray(hashtags) ? hashtags : content.hashtags || [],
+      ...(platform === 'tiktok' ? tiktokSettings : {}),
     };
     const result = await publishToPlatform({ user, content, platform, options, profileId });
 
@@ -160,7 +162,8 @@ exports.postNow = async (req, res) => {
       finalCaption = `${finalCaption}\n\n${hashtagStr}`.trim();
     }
 
-    const options = {
+    const tiktokSettings = content.editSettings?.tiktok || {};
+    const baseOptions = {
       caption: finalCaption,
       description: finalCaption,
       tags: Array.isArray(hashtags) ? hashtags : content.hashtags || [],
@@ -168,6 +171,10 @@ exports.postNow = async (req, res) => {
 
     // Post to each platform
     for (const platform of platformArray) {
+      const options = {
+        ...baseOptions,
+        ...(platform === 'tiktok' ? tiktokSettings : {}),
+      };
       try {
         // Validate credentials
         const validation = profileId

@@ -11,6 +11,13 @@ const STATUS_COLORS = {
   published: 'bg-dark-100',
 };
 
+const CONVICTION_TIER_COLORS = {
+  exceptional: 'bg-emerald-500/90',
+  high: 'bg-blue-500/90',
+  medium: 'bg-amber-500/90',
+  low: 'bg-red-500/90',
+};
+
 const STATUS_LABELS = {
   draft: 'Draft',
   scheduled: 'Scheduled',
@@ -81,14 +88,20 @@ function YouTubeVideoCard({ video, displayIndex, isSelected, isLocked, isDropTar
           </div>
         )}
 
-        {/* Status Badge */}
-        {video.status && (
-          <div className="absolute top-2 left-2">
+        {/* Status Badge + Conviction Score */}
+        <div className="absolute top-2 left-2 flex items-center gap-1">
+          {video.status && (
             <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${STATUS_COLORS[video.status] || STATUS_COLORS.draft}`}>
               {STATUS_LABELS[video.status] || 'Draft'}
             </span>
-          </div>
-        )}
+          )}
+          {video.conviction?.score != null && (
+            <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${CONVICTION_TIER_COLORS[video.conviction.tier] || 'bg-dark-500'}`}
+              title={`Conviction: ${video.conviction.tier} (${video.conviction.score}/100)`}>
+              {video.conviction.score}
+            </span>
+          )}
+        </div>
 
         <div className="absolute right-2 top-2 flex items-center gap-1">
           {isFirstInQueue && (

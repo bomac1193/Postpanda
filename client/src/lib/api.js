@@ -331,6 +331,20 @@ export const youtubeApi = {
     const { data } = await api.delete(`/api/youtube/collections/${collectionId}/versions/${index}`);
     return data;
   },
+
+  // Conviction
+  async scoreVideoConviction(id) {
+    const { data } = await api.post(`/api/youtube/videos/${id}/conviction`);
+    return data;
+  },
+  async scoreCollectionConviction(id) {
+    const { data } = await api.post(`/api/youtube/collections/${id}/conviction`);
+    return data;
+  },
+  async overrideVideoConviction(id, reason) {
+    const { data } = await api.post(`/api/youtube/videos/${id}/conviction/override`, { reason });
+    return data;
+  },
 };
 
 // Crucibla API (ecosystem proxy)
@@ -425,6 +439,19 @@ export const rolloutApi = {
   },
   async getStanVelocityPrediction(rolloutId) {
     const { data } = await api.get(`/api/rollout/${rolloutId}/velocity`);
+    return data;
+  },
+
+  // Release Coordinator
+  async getReleaseArchetype() {
+    const { data } = await api.get('/api/rollout/release-archetype');
+    return data;
+  },
+  async getSeasonalWindows(startDate, endDate) {
+    const params = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const { data } = await api.get('/api/rollout/seasonal-windows', { params });
     return data;
   },
 };

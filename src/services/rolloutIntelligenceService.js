@@ -2,10 +2,11 @@
  * Rollout Intelligence Service
  *
  * Conviction-based rollout readiness and pacing analysis.
+ * Now archetype-aware: uses Release Coordinator archetypes for personalized pacing.
  *
  * Core Features:
  * 1. Conviction-Based Phase Gating (can't advance with low-quality content)
- * 2. Standard Pacing Recommendations
+ * 2. Archetype-Aware Pacing Recommendations
  * 3. Burnout Prevention (workload analysis)
  */
 
@@ -15,20 +16,38 @@ const YoutubeCollection = require('../models/YoutubeCollection');
 const YoutubeVideo = require('../models/YoutubeVideo');
 const Collection = require('../models/Collection');
 const convictionService = require('./convictionService');
+const {
+  RELEASE_ARCHETYPES,
+  classifyReleaseArchetype,
+  getContentVelocity,
+  getSeasonalIntelligence,
+  fetchSubtasteGenome,
+} = require('./releaseCoordinatorService');
 
 /**
- * Default pacing config (replaces archetype-specific ROLLOUT_DNA)
+ * Default pacing config — fallback when no archetype is provided
  */
 const DEFAULT_PACING = {
   label: 'Standard',
   pacing: { optimalCadenceDays: 5, minCadenceDays: 3, maxCadenceDays: 7 },
   phases: { optimal: 5, min: 3, max: 7 },
+  convictionThreshold: 70,
 };
 
 /**
- * Get Rollout DNA — always returns default pacing
+ * Get Rollout DNA — returns archetype pacing or default
+ * @param {string|null} archetypeId - Release archetype ID (optional)
  */
-function getRolloutDNA() {
+function getRolloutDNA(archetypeId) {
+  if (archetypeId && RELEASE_ARCHETYPES[archetypeId]) {
+    const arch = RELEASE_ARCHETYPES[archetypeId];
+    return {
+      label: arch.label,
+      pacing: arch.pacing,
+      phases: arch.phases,
+      convictionThreshold: arch.convictionThreshold,
+    };
+  }
   return DEFAULT_PACING;
 }
 
@@ -36,9 +55,14 @@ function getRolloutDNA() {
  * CONVICTION-BASED PHASE GATING
  *
  * Analyzes if a section is ready to advance based on content conviction scores.
- * Blocks advancement if content quality is too low.
+ * Uses archetype-specific conviction threshold when provided.
+ *
+ * @param {Object} rollout
+ * @param {string} sectionId
+ * @param {Object} user
+ * @param {string|null} archetypeId - Optional archetype for custom threshold
  */
-async function analyzeSectionReadiness(rollout, sectionId, user) {
+async function analyzeSectionReadiness(rollout, sectionId, user, archetypeId) {
   try {
     const section = rollout.sections.find(s => s.id === sectionId);
     if (!section) {
@@ -47,12 +71,15 @@ async function analyzeSectionReadiness(rollout, sectionId, user) {
 
     // Get all content from collections in this section
     const allContent = [];
+    let youtubeVideoCount = 0;
 
     for (const collectionId of section.collectionIds) {
       // Try YouTube collection
       const youtubeCollection = await YoutubeCollection.findById(collectionId);
       if (youtubeCollection) {
         const videos = await YoutubeVideo.find({ collectionId: youtubeCollection._id });
+        youtubeVideoCount += videos.length;
+        // YouTube videos don't have conviction scores yet — count them but skip conviction analysis
         continue;
       }
 
@@ -67,7 +94,9 @@ async function analyzeSectionReadiness(rollout, sectionId, user) {
       }
     }
 
-    if (allContent.length === 0) {
+    const totalPieces = allContent.length + youtubeVideoCount;
+
+    if (totalPieces === 0) {
       return {
         ready: false,
         canAdvance: false,
@@ -75,6 +104,8 @@ async function analyzeSectionReadiness(rollout, sectionId, user) {
         message: 'No content found in this section',
         stats: {
           totalPieces: 0,
+          scoredPieces: 0,
+          youtubeVideos: 0,
           avgConviction: 0,
           belowThreshold: 0,
           aboveThreshold: 0
@@ -84,8 +115,37 @@ async function analyzeSectionReadiness(rollout, sectionId, user) {
       };
     }
 
-    // Calculate conviction stats
-    const threshold = 70;
+    // Use archetype threshold or default
+    const dna = getRolloutDNA(archetypeId);
+    const threshold = dna.convictionThreshold;
+
+    // Calculate conviction stats (IG/TikTok content only — YouTube lacks conviction)
+    if (allContent.length === 0) {
+      // Section has only YouTube videos — pass through (no conviction gating on YouTube yet)
+      return {
+        ready: true,
+        canAdvance: true,
+        reason: 'YOUTUBE_ONLY',
+        message: `${youtubeVideoCount} YouTube video(s) — conviction scoring not yet available for YouTube`,
+        stats: {
+          totalPieces,
+          scoredPieces: 0,
+          youtubeVideos: youtubeVideoCount,
+          avgConviction: null,
+          belowThreshold: 0,
+          aboveThreshold: 0,
+          threshold
+        },
+        blockers: [],
+        suggestions: youtubeVideoCount > 0
+          ? ['YouTube conviction scoring coming soon — videos pass through for now']
+          : [],
+        estimatedTimeToReady: null,
+        overrideAllowed: false,
+        overrideWarning: null
+      };
+    }
+
     const convictionScores = allContent.map(c => c.conviction?.score || 0);
     const avgConviction = convictionScores.reduce((a, b) => a + b, 0) / convictionScores.length;
 
@@ -121,6 +181,10 @@ async function analyzeSectionReadiness(rollout, sectionId, user) {
       suggestions.push(`Increase average conviction from ${avgConviction.toFixed(1)} to ${threshold}+`);
     }
 
+    if (youtubeVideoCount > 0) {
+      suggestions.push(`${youtubeVideoCount} YouTube video(s) not yet conviction-scored`);
+    }
+
     let estimatedDays = 0;
     if (!ready) {
       estimatedDays = Math.ceil(belowThreshold.length * 1);
@@ -134,7 +198,9 @@ async function analyzeSectionReadiness(rollout, sectionId, user) {
         ? `Section ready to advance (avg conviction: ${avgConviction.toFixed(1)})`
         : `${belowThreshold.length} piece(s) below threshold - fix before advancing`,
       stats: {
-        totalPieces: allContent.length,
+        totalPieces,
+        scoredPieces: allContent.length,
+        youtubeVideos: youtubeVideoCount,
         avgConviction: Math.round(avgConviction * 10) / 10,
         belowThreshold: belowThreshold.length,
         aboveThreshold: aboveThreshold.length,
@@ -154,10 +220,12 @@ async function analyzeSectionReadiness(rollout, sectionId, user) {
 }
 
 /**
- * Pacing recommendations (simplified, no archetype)
+ * Pacing recommendations — now archetype-aware
+ * @param {string|null} archetypeId - Release archetype ID (falls back to DEFAULT_PACING)
+ * @param {Object} rollout
  */
-function getPacingRecommendations(archetype, rollout) {
-  const dna = DEFAULT_PACING;
+function getPacingRecommendations(archetypeId, rollout) {
+  const dna = getRolloutDNA(archetypeId);
 
   const currentPhaseCount = rollout.sections.length;
   const currentCadence = calculateAverageCadence(rollout);
@@ -202,6 +270,7 @@ function getPacingRecommendations(archetype, rollout) {
 
   return {
     label: dna.label,
+    archetypeId: archetypeId || null,
     optimal: {
       cadenceDays: dna.pacing.optimalCadenceDays,
       phaseCount: dna.phases.optimal,
@@ -245,7 +314,7 @@ function calculateAverageCadence(rollout) {
 /**
  * COMPREHENSIVE ROLLOUT INTELLIGENCE
  *
- * Combines readiness + pacing into single analysis
+ * Combines readiness + pacing + release archetype + seasonal intelligence
  */
 async function analyzeRollout(rolloutId, userId) {
   try {
@@ -255,25 +324,41 @@ async function analyzeRollout(rolloutId, userId) {
     }
 
     const User = require('../models/User');
+    const twinOsService = require('./twinOsService');
+
     const user = await User.findById(userId);
 
-    // Run analyses
+    // Fetch Twin OS context, content velocity, and Subtaste genome in parallel
+    const [twinContext, velocityData, subtasteGenome] = await Promise.all([
+      twinOsService.getTwinContext(userId.toString()).catch(() => twinOsService.getDefaultContext(userId.toString())),
+      getContentVelocity(userId).catch(() => ({ postsPerMonth: 0 })),
+      fetchSubtasteGenome().catch(() => null),
+    ]);
+
+    // Classify release archetype
+    const releaseArchetype = classifyReleaseArchetype(twinContext, subtasteGenome, velocityData.postsPerMonth);
+    const archetypeId = releaseArchetype.archetypeId;
+
+    // Run analyses with archetype context
     const [
       pacing,
-      sectionAnalyses
+      sectionAnalyses,
+      seasonalIntelligence
     ] = await Promise.all([
-      Promise.resolve(getPacingRecommendations(null, rollout)),
+      Promise.resolve(getPacingRecommendations(archetypeId, rollout)),
       Promise.all(rollout.sections.map(section =>
-        analyzeSectionReadiness(rollout, section.id, user)
-      ))
+        analyzeSectionReadiness(rollout, section.id, user, archetypeId)
+      )),
+      Promise.resolve(getSeasonalIntelligence()),
     ]);
 
     // Calculate overall readiness
     const allSectionsReady = sectionAnalyses.every(s => s.ready);
     const totalPieces = sectionAnalyses.reduce((sum, s) => sum + s.stats.totalPieces, 0);
+    const scoredPieces = sectionAnalyses.reduce((sum, s) => sum + (s.stats.scoredPieces || s.stats.totalPieces), 0);
     const avgConviction = sectionAnalyses.reduce((sum, s) =>
-      sum + (s.stats.avgConviction * s.stats.totalPieces), 0
-    ) / Math.max(1, totalPieces);
+      sum + ((s.stats.avgConviction || 0) * (s.stats.scoredPieces || s.stats.totalPieces)), 0
+    ) / Math.max(1, scoredPieces);
 
     return {
       rolloutId: rollout._id,
@@ -288,6 +373,8 @@ async function analyzeRollout(rolloutId, userId) {
       },
 
       pacing,
+      releaseArchetype,
+      seasonalIntelligence,
 
       sections: rollout.sections.map((section, idx) => ({
         sectionId: section.id,

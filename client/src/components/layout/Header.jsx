@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../stores/useAppStore';
 import {
-  Bell,
   Search,
   User,
   Plus,
 } from 'lucide-react';
+import NotificationDropdown from './NotificationDropdown';
 
 function Header() {
   const navigate = useNavigate();
@@ -43,9 +43,7 @@ function Header() {
         <div className="w-px h-8 bg-dark-600" />
 
         {/* Notifications */}
-        <button className="btn-icon relative">
-          <Bell className="w-5 h-5" />
-        </button>
+        <NotificationDropdown />
 
         {/* User Menu */}
         <button

@@ -1287,4 +1287,84 @@ exports.deleteVersion = async (req, res) => {
   }
 };
 
+/**
+ * Conviction Scoring Controllers
+ */
+
+const youtubeConvictionService = require('../services/youtubeConvictionService');
+
+// Score a single video's conviction
+exports.scoreVideoConviction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const video = await YoutubeVideo.findOne({ _id: id, userId: req.user._id });
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const { video: updated, gating } = await youtubeConvictionService.scoreAndSave(id);
+
+    res.json({
+      success: true,
+      conviction: updated.conviction,
+      aiScores: updated.aiScores,
+      gating
+    });
+  } catch (error) {
+    console.error('Score video conviction error:', error);
+    res.status(500).json({ error: 'Failed to score video' });
+  }
+};
+
+// Score all videos in a collection
+exports.scoreCollectionConviction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const YoutubeCollection = require('../models/YoutubeCollection');
+    const collection = await YoutubeCollection.findOne({ _id: id, userId: req.user._id });
+    if (!collection) {
+      return res.status(404).json({ error: 'Collection not found' });
+    }
+
+    const result = await youtubeConvictionService.scoreCollection(id, req.user._id);
+
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    console.error('Score collection conviction error:', error);
+    res.status(500).json({ error: 'Failed to score collection' });
+  }
+};
+
+// Override conviction gating for a video
+exports.overrideVideoConviction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const video = await YoutubeVideo.findOne({ _id: id, userId: req.user._id });
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    video.conviction = {
+      ...video.conviction?.toObject?.() || video.conviction || {},
+      userOverride: true,
+      overrideReason: reason || 'User override',
+      gatingStatus: 'override'
+    };
+    await video.save();
+
+    res.json({
+      success: true,
+      conviction: video.conviction
+    });
+  } catch (error) {
+    console.error('Override conviction error:', error);
+    res.status(500).json({ error: 'Failed to override conviction' });
+  }
+};
+
 module.exports = exports;

@@ -416,10 +416,22 @@ exports.updateContent = async (req, res) => {
     if (originalMediaUrl !== undefined) content.originalMediaUrl = originalMediaUrl;
     if (scheduledFor !== undefined) {
       content.scheduledFor = scheduledFor;
+      content.scheduledTime = scheduledFor; // Keep in sync for scheduling service
       // Update status to scheduled if a date is set
       if (scheduledFor) {
         content.status = 'scheduled';
       }
+    }
+    // Also accept scheduledTime directly
+    if (req.body.scheduledTime !== undefined) {
+      content.scheduledTime = req.body.scheduledTime;
+      if (!content.scheduledFor) content.scheduledFor = req.body.scheduledTime;
+    }
+    if (req.body.scheduledPlatforms !== undefined) {
+      content.scheduledPlatforms = req.body.scheduledPlatforms;
+    }
+    if (req.body.autoPost !== undefined) {
+      content.autoPost = req.body.autoPost;
     }
     if (status) content.status = status;
     // Handle carousel images update

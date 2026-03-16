@@ -16,6 +16,10 @@ router.get('/calendar/scheduled', rolloutController.getScheduledRollouts);
 // Auto-generate a rollout playbook (taste-aware)
 router.post('/auto-playbook', rolloutController.generateAutoPlaybook);
 
+// Release Coordinator: archetype classification + seasonal intelligence
+router.get('/release-archetype', rolloutController.getReleaseArchetype);
+router.get('/seasonal-windows', rolloutController.getSeasonalWindows);
+
 /**
  * Rollout CRUD Routes
  */

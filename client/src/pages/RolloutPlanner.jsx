@@ -3,6 +3,7 @@ import { Plus, ChevronDown, Trash2, Edit3, Check, X, GripVertical, Folder, Searc
 import { useAppStore } from '../stores/useAppStore';
 import { gridApi, reelCollectionApi, rolloutApi } from '../lib/api';
 import RolloutIntelligencePanel from '../components/rollout/RolloutIntelligencePanel';
+import { ReleaseArchetypePanel, SeasonalIntelligencePanel } from '../components/rollout';
 
 // TikTok icon component
 function TikTokIcon({ className }) {
@@ -797,6 +798,10 @@ function RolloutPlanner() {
               saving={savingRollout}
             />
           )}
+
+          {/* Release Coordinator Panels */}
+          <ReleaseArchetypePanel />
+          <SeasonalIntelligencePanel />
 
           {/* BLUE OCEAN: Rollout Intelligence Panel */}
           {currentRollout && currentRolloutId && (
