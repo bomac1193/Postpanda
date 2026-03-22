@@ -56,6 +56,7 @@ import {
   Link2,
   Unlink,
   Package,
+  Type,
 } from 'lucide-react';
 
 // Preset colors for grids
@@ -868,53 +869,22 @@ function GridPlanner() {
               </button>
 
               {showGridSelector && (
-                <div className="absolute top-full left-0 mt-1 w-72 bg-dark-700 shadow-xl border border-dark-600 z-20">
-                  <div className="p-2 border-b border-dark-600">
-                    <p className="text-xs text-dark-400 uppercase tracking-wide">Your Collections ({grids.length}) {loading ? '(loading...)' : ''}</p>
-                    {console.log('[Dropdown] Rendering with grids:', grids.length, 'loading:', loading, grids)}
+                <div className="absolute top-full left-0 mt-1 w-56 bg-dark-800 shadow-2xl border border-dark-700/80 z-20 backdrop-blur-sm">
+                  <div className="px-3 py-2.5 border-b border-dark-700/60">
+                    <p className="text-[11px] text-dark-500 tracking-widest">{grids.length} collection{grids.length !== 1 ? 's' : ''}</p>
                   </div>
-                  <div className="max-h-64 overflow-auto">
+                  <div className="max-h-72 overflow-auto py-1">
                     {grids.map((grid) => (
                       <div
                         key={grid._id}
                         className={`group relative ${
                           currentGridId === grid._id
-                            ? 'bg-dark-600 border-l-2 border-l-white'
-                            : 'hover:bg-dark-600/50 border-l-2 border-l-transparent'
+                            ? 'bg-white/[0.06]'
+                            : 'hover:bg-white/[0.03]'
                         }`}
                       >
                         {/* Editing Mode */}
-                        {editingGridId === grid._id ? (
-                          <div className="px-3 py-2 flex items-center gap-2">
-                            <Grid3X3 className="w-4 h-4 text-dark-400 flex-shrink-0" />
-                            <input
-                              type="text"
-                              value={editingName}
-                              onChange={(e) => setEditingName(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleSaveRename(e, grid._id);
-                                if (e.key === 'Escape') handleCancelRename(e);
-                              }}
-                              className="flex-1 bg-dark-800 border border-dark-500 rounded px-2 py-1 text-sm text-dark-100 focus:outline-none focus:border-dark-300"
-                              autoFocus
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <button
-                              onClick={(e) => handleSaveRename(e, grid._id)}
-                              className="p-1 text-dark-100 hover:bg-dark-500 rounded"
-                              title="Save"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={handleCancelRename}
-                              className="p-1 text-dark-400 hover:bg-dark-500 rounded"
-                              title="Cancel"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : showDeleteConfirm === grid._id ? (
+                        {showDeleteConfirm === grid._id ? (
                           /* Delete Confirmation */
                           <div className="px-3 py-2">
                             <p className="text-sm text-dark-200 mb-2">Delete "{grid.name}"?</p>
@@ -938,24 +908,37 @@ function GridPlanner() {
                           <>
                             <button
                               onClick={() => handleSelectGrid(grid)}
-                              className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors ${
+                              className={`w-full px-3 py-2 text-left text-[13px] flex items-center gap-2.5 transition-colors ${
                                 currentGridId === grid._id
-                                  ? 'text-dark-100'
-                                  : 'text-dark-200'
+                                  ? 'text-white'
+                                  : 'text-dark-300 hover:text-dark-100'
                               }`}
                             >
-                              {/* Color dot */}
                               <div
-                                className="w-3 h-3 rounded-full flex-shrink-0 border border-dark-500"
-                                style={{ backgroundColor: gridMeta[grid._id]?.color || '#6b7280' }}
+                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: gridMeta[grid._id]?.color || (currentGridId === grid._id ? '#fff' : '#4b5563') }}
                               />
-                              <Grid3X3 className="w-4 h-4 flex-shrink-0" />
-                              <span className="flex-1 truncate">{grid.name}</span>
-                              <span className="text-xs text-dark-500 mr-1">
+                              {editingGridId === grid._id ? (
+                                <input
+                                  type="text"
+                                  value={editingName}
+                                  onChange={(e) => setEditingName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveRename(e, grid._id);
+                                    if (e.key === 'Escape') handleCancelRename(e);
+                                  }}
+                                  onBlur={(e) => handleSaveRename(e, grid._id)}
+                                  className="flex-1 min-w-0 bg-transparent text-[13px] text-white p-0 m-0 border-none focus:outline-none"
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              ) : (
+                                <span className="flex-1 truncate">{grid.name}</span>
+                              )}
+                              <span className="text-[11px] text-dark-600 tabular-nums">
                                 {grid.cells?.filter(c => !c.isEmpty).length || 0}
                               </span>
 
-                              {/* More menu trigger - show on hover */}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -964,63 +947,66 @@ function GridPlanner() {
                                   setShowRolloutPickerFor(null);
                                   setShowCruciblaPickerFor(null);
                                 }}
-                                className="hidden group-hover:block p-1 text-dark-400 hover:text-white hover:bg-dark-500 rounded"
+                                className="opacity-0 group-hover:opacity-100 p-0.5 text-dark-500 hover:text-white transition-opacity"
                               >
                                 <MoreVertical className="w-3.5 h-3.5" />
                               </button>
                             </button>
 
-                            {/* Grid context menu */}
+                            {/* Grid actions — inline expand */}
                             {showGridMenuFor === grid._id && (
-                              <div className="absolute right-0 top-full mt-1 w-44 bg-dark-800 border border-dark-600 shadow-xl z-50 py-1" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  onClick={(e) => {
+                              <div className="px-3 pb-2 pt-0.5 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <div className="relative group/tip">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShowColorPickerFor(showColorPickerFor === grid._id ? null : grid._id);
+                                      setShowRolloutPickerFor(null);
+                                      setShowCruciblaPickerFor(null);
+                                    }}
+                                    className="p-1.5 transition-opacity hover:opacity-80"
+                                  >
+                                    <div className="w-3.5 h-3.5" style={{ background: 'linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #8b5cf6)' }} />
+                                  </button>
+                                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-dark-900 border border-dark-700 whitespace-nowrap opacity-0 group-hover/tip:opacity-100 pointer-events-none transition-opacity">
+                                    Color
+                                  </span>
+                                </div>
+                                {[
+                                  { label: 'Rollout', icon: Link2, onClick: (e) => {
                                     e.stopPropagation();
-                                    setShowColorPickerFor(grid._id);
-                                    setShowGridMenuFor(null);
-                                  }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-dark-200 hover:bg-dark-700"
-                                >
-                                  <Palette className="w-3.5 h-3.5 text-dark-400" />
-                                  Set Color
-                                </button>
-                                <button
-                                  onClick={(e) => {
+                                    setShowRolloutPickerFor(showRolloutPickerFor === grid._id ? null : grid._id);
+                                    setShowColorPickerFor(null);
+                                    setShowCruciblaPickerFor(null);
+                                  }},
+                                  { label: 'Project', icon: Package, onClick: (e) => {
                                     e.stopPropagation();
-                                    setShowRolloutPickerFor(grid._id);
-                                    setShowGridMenuFor(null);
-                                  }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-dark-200 hover:bg-dark-700"
-                                >
-                                  <Link2 className="w-3.5 h-3.5 text-dark-400" />
-                                  {gridMeta[grid._id]?.rolloutId ? 'Change Rollout' : 'Assign to Rollout'}
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowCruciblaPickerFor(grid._id);
-                                    setShowGridMenuFor(null);
-                                  }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-dark-200 hover:bg-dark-700"
-                                >
-                                  <Package className="w-3.5 h-3.5 text-dark-400" />
-                                  {grid.cruciblaProjectId ? 'Change Project' : 'Link Project'}
-                                </button>
-                                <div className="border-t border-dark-600 my-1" />
-                                <button
-                                  onClick={(e) => { handleStartRename(e, grid); setShowGridMenuFor(null); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-dark-200 hover:bg-dark-700"
-                                >
-                                  <Pencil className="w-3.5 h-3.5 text-dark-400" />
-                                  Rename
-                                </button>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(grid._id); setShowGridMenuFor(null); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-red-400 hover:bg-dark-700"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  Delete
-                                </button>
+                                    setShowCruciblaPickerFor(showCruciblaPickerFor === grid._id ? null : grid._id);
+                                    setShowColorPickerFor(null);
+                                    setShowRolloutPickerFor(null);
+                                  }},
+                                  { label: 'Rename', icon: Type, onClick: (e) => { handleStartRename(e, grid); setShowGridMenuFor(null); } },
+                                ].map(({ label, icon: Icon, onClick }) => (
+                                  <div key={label} className="relative group/tip">
+                                    <button onClick={onClick} className="p-1.5 text-dark-500 hover:text-white transition-colors">
+                                      <Icon className="w-3.5 h-3.5" />
+                                    </button>
+                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-dark-900 border border-dark-700 whitespace-nowrap opacity-0 group-hover/tip:opacity-100 pointer-events-none transition-opacity">
+                                      {label}
+                                    </span>
+                                  </div>
+                                ))}
+                                <div className="relative group/tip ml-auto">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(grid._id); setShowGridMenuFor(null); }}
+                                    className="p-1.5 text-dark-500 hover:text-red-400 transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 text-[10px] text-white bg-dark-900 border border-dark-700 whitespace-nowrap opacity-0 group-hover/tip:opacity-100 pointer-events-none transition-opacity">
+                                    Delete
+                                  </span>
+                                </div>
                               </div>
                             )}
 
@@ -1058,80 +1044,69 @@ function GridPlanner() {
                               </div>
                             )}
 
-                            {/* Color Picker Dropdown */}
+                            {/* Color Picker — inline */}
                             {showColorPickerFor === grid._id && (
-                              <div className="absolute left-full top-0 ml-1 w-36 bg-dark-900 border border-dark-600 shadow-xl z-50 p-2" onClick={(e) => e.stopPropagation()}>
-                                <p className="text-xs text-dark-400 mb-2 px-1">Select Color</p>
-                                <div className="grid grid-cols-5 gap-1">
-                                  {GRID_COLORS.map((color) => (
-                                    <button
-                                      key={color.id}
-                                      onClick={(e) => handleGridColorSelect(e, grid._id, color.value)}
-                                      className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
-                                        gridMeta[grid._id]?.color === color.value ? 'border-white' : 'border-transparent'
-                                      }`}
-                                      style={{ backgroundColor: color.value }}
-                                      title={color.name}
-                                    />
-                                  ))}
-                                </div>
+                              <div className="px-3 pb-2 flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                                {GRID_COLORS.map((color) => (
+                                  <button
+                                    key={color.id}
+                                    onClick={(e) => handleGridColorSelect(e, grid._id, color.value)}
+                                    className={`w-4 h-4 border transition-transform hover:scale-125 ${
+                                      gridMeta[grid._id]?.color === color.value ? 'border-white' : 'border-transparent'
+                                    }`}
+                                    style={{ backgroundColor: color.value }}
+                                    title={color.name}
+                                  />
+                                ))}
                                 <button
                                   onClick={(e) => handleGridColorSelect(e, grid._id, null)}
-                                  className="w-full mt-2 px-2 py-1 text-xs text-dark-400 hover:text-dark-200 hover:bg-dark-700 rounded"
+                                  className="text-[10px] text-dark-500 hover:text-dark-300 ml-1 transition-colors"
                                 >
-                                  Clear Color
+                                  Clear
                                 </button>
                               </div>
                             )}
 
-                            {/* Rollout Picker Dropdown */}
+                            {/* Rollout Picker — inline */}
                             {showRolloutPickerFor === grid._id && (
-                              <div className="absolute left-full top-0 ml-1 w-56 bg-dark-900 border border-dark-600 shadow-xl z-50 p-2 max-h-64 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                                <p className="text-xs text-dark-400 mb-2 px-1">Assign to Phase</p>
+                              <div className="px-3 pb-2" onClick={(e) => e.stopPropagation()}>
                                 {rollouts.length === 0 ? (
-                                  <p className="text-xs text-dark-500 px-1">No rollouts created yet</p>
+                                  <p className="text-[11px] text-dark-500">No rollouts yet</p>
                                 ) : (
                                   rollouts.map((rollout) => (
-                                    <div key={rollout.id} className="mb-2">
-                                      <p className="text-xs font-medium text-dark-300 px-1 mb-1">{rollout.name}</p>
-                                      {rollout.sections.length === 0 ? (
-                                        <p className="text-xs text-dark-500 px-1 ml-2">No phases</p>
-                                      ) : (
-                                        rollout.sections.map((section) => (
+                                    <div key={rollout.id} className="mb-1">
+                                      <p className="text-[10px] text-dark-500 mb-0.5">{rollout.name}</p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {rollout.sections.map((section) => (
                                           <button
                                             key={section.id}
                                             onClick={(e) => handleAssignGridToRollout(e, grid._id, rollout.id, section.id)}
-                                            className={`w-full flex items-center gap-2 px-2 py-1.5 text-left rounded hover:bg-dark-700 ${
-                                              gridMeta[grid._id]?.sectionId === section.id ? 'bg-dark-700' : ''
+                                            className={`flex items-center gap-1 px-1.5 py-0.5 text-[11px] transition-colors ${
+                                              gridMeta[grid._id]?.sectionId === section.id
+                                                ? 'text-white bg-white/[0.1]'
+                                                : 'text-dark-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08]'
                                             }`}
                                           >
-                                            <span
-                                              className="w-3 h-3 rounded-full flex-shrink-0"
-                                              style={{ backgroundColor: section.color || '#6b7280' }}
-                                            />
-                                            <span className="text-xs text-dark-200 truncate">{section.name}</span>
-                                            {gridMeta[grid._id]?.sectionId === section.id && (
-                                              <Check className="w-3 h-3 text-dark-100 ml-auto" />
-                                            )}
+                                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: section.color || '#6b7280' }} />
+                                            {section.name}
                                           </button>
-                                        ))
-                                      )}
+                                        ))}
+                                      </div>
                                     </div>
                                   ))
                                 )}
                                 {gridMeta[grid._id]?.rolloutId && (
                                   <button
                                     onClick={(e) => handleUnassignGridFromRollout(e, grid._id)}
-                                    className="w-full mt-2 px-2 py-1.5 text-xs text-dark-300 hover:bg-dark-600/30 rounded flex items-center gap-2"
+                                    className="text-[10px] text-dark-500 hover:text-dark-300 mt-1 transition-colors"
                                   >
-                                    <Unlink className="w-3 h-3" />
-                                    Remove from Rollout
+                                    Remove
                                   </button>
                                 )}
                               </div>
                             )}
 
-                            {/* Crucibla Project Picker Dropdown */}
+                            {/* Crucibla Project Picker — inline */}
                             <CruciblaProjectPicker
                               isOpen={showCruciblaPickerFor === grid._id}
                               targetId={grid._id}
@@ -1139,27 +1114,28 @@ function GridPlanner() {
                               onAssign={handleAssignCruciblaProject}
                               onUnassign={handleUnassignCruciblaProject}
                               onClose={() => setShowCruciblaPickerFor(null)}
+                              inline
                             />
                           </>
                         )}
                       </div>
                     ))}
                     {grids.length === 0 && !loading && (
-                      <p className="px-3 py-4 text-sm text-dark-400 text-center">No collections yet</p>
+                      <p className="px-3 py-6 text-[12px] text-dark-500 text-center">No collections yet</p>
                     )}
                     {grids.length === 0 && loading && (
-                      <div className="px-3 py-4 flex justify-center">
-                        <Loader2 className="w-5 h-5 text-dark-400 animate-spin" />
+                      <div className="px-3 py-6 flex justify-center">
+                        <Loader2 className="w-4 h-4 text-dark-500 animate-spin" />
                       </div>
                     )}
                   </div>
-                  <div className="p-2 border-t border-dark-600">
+                  <div className="px-3 py-2 border-t border-dark-700/60">
                     <button
                       onClick={handleCreateGrid}
-                      className="w-full px-3 py-2 text-sm text-dark-100 hover:bg-dark-600 rounded-md flex items-center gap-2"
+                      className="w-full px-2 py-1.5 text-[12px] text-dark-400 hover:text-dark-100 flex items-center gap-2 transition-colors"
                     >
-                      <FolderPlus className="w-4 h-4" />
-                      Create New Collection
+                      <Plus className="w-3.5 h-3.5" />
+                      New collection
                     </button>
                   </div>
                 </div>
