@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { User, Upload, ZoomIn, ZoomOut, X, Check, Camera, RotateCcw, Save, GripVertical, Replace, Layers, Trash2, Eye, EyeOff, Play, ChevronDown, ChevronUp, FolderPlus, Pencil, LayoutGrid, Loader2, CalendarPlus, ChevronRight, ChevronLeft, Heart, MessageCircle, Bookmark, Send, Share2, MoreHorizontal, Plus, Gauge, TrendingUp, Bug, Library, Copy } from 'lucide-react';
 import PostAIGenerator from './PostAIGenerator';
 import { setInternalDragActive } from '../../utils/dragState';
@@ -159,6 +160,27 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
   const [isShiftDrag, setIsShiftDrag] = useState(false);
   const dragCounterRef = useRef(0); // Counter to handle nested element drag events
 
+  // Subtle 3D tilt on hover
+  const [tiltX, setTiltX] = useState(0);
+  const [tiltY, setTiltY] = useState(0);
+  const tiltRef = useRef(null);
+
+  const handleTiltMouseMove = useCallback((e) => {
+    if (isDragging) return;
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const mouseX = e.clientX - (rect.left + rect.width / 2);
+    const mouseY = e.clientY - (rect.top + rect.height / 2);
+    const maxTilt = 3;
+    setTiltY((mouseX / (rect.width / 2)) * maxTilt);
+    setTiltX(-(mouseY / (rect.height / 2)) * maxTilt);
+  }, [isDragging]);
+
+  const handleTiltMouseLeave = useCallback(() => {
+    setTiltX(0);
+    setTiltY(0);
+  }, []);
+
   // Get all images for this post (for carousel support)
   const images = post.images || (post.image ? [post.image] : []);
   const isCarousel = images.length > 1;
@@ -177,6 +199,10 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
 
   const handleDragStart = (e) => {
     e.stopPropagation();
+
+    // Reset tilt on drag start
+    setTiltX(0);
+    setTiltY(0);
 
     // Set global flag IMMEDIATELY to prevent file drop overlay
     setInternalDragActive(true);
@@ -296,7 +322,13 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
   };
 
   return (
-    <div
+    <motion.div
+      layout
+      layoutId={postId}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: isDragging ? 0.4 : 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ layout: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }, opacity: { duration: 0.2 }, scale: { duration: 0.2 } }}
       draggable
       onClick={handleClick}
       onDragStart={handleDragStart}
@@ -305,10 +337,20 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`aspect-square bg-dark-700 overflow-hidden cursor-grab active:cursor-grabbing relative select-none ${
-        isDragging ? 'opacity-40' : ''
-      } ${isSelected ? 'ring-4 ring-dark-300' : ''} ${isOver ? 'ring-4 ring-dark-300 scale-105 transition-all duration-150' : ''} ${isFileOver ? 'ring-4 ring-dark-300 scale-105 transition-all duration-150' : ''}`}
+      className={`aspect-square bg-dark-700 cursor-grab active:cursor-grabbing relative select-none ${
+        isSelected ? 'ring-4 ring-dark-300' : ''
+      } ${isOver ? 'ring-4 ring-dark-300 scale-105 transition-all duration-150' : ''} ${isFileOver ? 'ring-4 ring-dark-300 scale-105 transition-all duration-150' : ''}`}
     >
+      <div
+        ref={tiltRef}
+        className="w-full h-full overflow-hidden relative"
+        style={{
+          transform: `perspective(800px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`,
+          transition: isDragging ? 'none' : 'transform 0.15s ease-out',
+        }}
+        onMouseMove={handleTiltMouseMove}
+        onMouseLeave={handleTiltMouseLeave}
+      >
       {images.length > 0 ? (
         <>
           {(() => {
@@ -403,7 +445,8 @@ function DraggableGridItem({ post, postId, onDragStart, onDragEnd, onFileDrop, o
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -4127,6 +4170,7 @@ function GridPreview({ posts, layout, showRowHandles = true, showConvictionScore
             }}
           >
         {/* Row Drag and Drop */}
+        <LayoutGroup>
         <DndContext
           sensors={rowSensors}
           collisionDetection={closestCenter}
@@ -4144,6 +4188,7 @@ function GridPreview({ posts, layout, showRowHandles = true, showConvictionScore
                       gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                     }}
                   >
+                    <AnimatePresence mode="popLayout">
                     {row.map((post) => (
                       <DraggableGridItem
                         key={post.id || post._id}
@@ -4159,6 +4204,7 @@ function GridPreview({ posts, layout, showRowHandles = true, showConvictionScore
                         showConvictionOverlays={showConvictionOverlays}
                       />
                     ))}
+                    </AnimatePresence>
                     {rowIndex === rows.length - 1 && row.length < cols && (
                       <button
                         onClick={() => addFileInputRef.current?.click()}
@@ -4217,6 +4263,7 @@ function GridPreview({ posts, layout, showRowHandles = true, showConvictionScore
             ) : null}
           </DragOverlay>
         </DndContext>
+        </LayoutGroup>
         <input
           ref={addFileInputRef}
           type="file"

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../../stores/useAppStore';
 import { postingApi } from '../../lib/api';
 import { Image } from 'lucide-react';
@@ -59,11 +60,22 @@ function PostDetails({ post, onReplace }) {
 
   if (!post) {
     return (
-      <div className="h-full bg-dark-800 rounded-2xl border border-dark-700 p-6 flex flex-col items-center justify-center text-center">
-        <Image className="w-12 h-12 text-dark-500 mb-4" />
-        <p className="text-dark-300 mb-2">No post selected</p>
-        <p className="text-sm text-dark-500">Click on a grid item to view and edit its details</p>
-      </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="empty"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -10 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30, mass: 0.8 }}
+          className="h-full"
+        >
+          <div className="h-full bg-dark-800 rounded-2xl border border-dark-700 p-6 flex flex-col items-center justify-center text-center">
+            <Image className="w-12 h-12 text-dark-500 mb-4" />
+            <p className="text-dark-300 mb-2">No post selected</p>
+            <p className="text-sm text-dark-500">Click on a grid item to view and edit its details</p>
+          </div>
+        </motion.div>
+      </AnimatePresence>
     );
   }
 
@@ -82,7 +94,18 @@ function PostDetails({ post, onReplace }) {
     ? 'X/Twitter'
     : qe.platform.charAt(0).toUpperCase() + qe.platform.slice(1);
 
+  const postKey = post?.id || post?._id || 'empty';
+
   return (
+    <AnimatePresence mode="wait">
+    <motion.div
+      key={postKey}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -10 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30, mass: 0.8 }}
+      className="h-full"
+    >
     <div className="h-full bg-dark-800 rounded-2xl border border-dark-700 flex flex-col overflow-visible relative">
 
       {/* Floating Quick Edit Panel */}
@@ -257,6 +280,8 @@ function PostDetails({ post, onReplace }) {
         <BestTimeModal onClose={() => setShowBestTimeModal(false)} />
       )}
     </div>
+    </motion.div>
+    </AnimatePresence>
   );
 }
 

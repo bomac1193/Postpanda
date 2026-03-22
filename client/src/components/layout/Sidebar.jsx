@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { motion, LayoutGroup } from 'framer-motion';
 import { useAppStore } from '../../stores/useAppStore';
 import ProfileSwitcher from '../profile/ProfileSwitcher';
 import {
@@ -66,7 +67,7 @@ function NavItem({ item, collapsed }) {
         <NavLink
           to={item.path}
           className={({ isActive }) =>
-            `h-8 flex items-center px-2.5 transition-colors ${
+            `h-8 flex items-center px-2.5 transition-colors relative ${
               isActive
                 ? 'text-dark-100 font-medium'
                 : 'text-dark-400 hover:text-dark-200'
@@ -74,10 +75,21 @@ function NavItem({ item, collapsed }) {
           }
           title={collapsed ? item.label : undefined}
         >
-          {collapsed ? (
-            <span className="text-xs font-medium">{item.label.charAt(0)}</span>
-          ) : (
-            <span className="text-sm">{item.label}</span>
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <motion.div
+                  layoutId="nav-pill"
+                  className="absolute inset-0 bg-white/[0.08] rounded-md"
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+              {collapsed ? (
+                <span className="text-xs font-medium relative z-[1]">{item.label.charAt(0)}</span>
+              ) : (
+                <span className="text-sm relative z-[1]">{item.label}</span>
+              )}
+            </>
           )}
         </NavLink>
       </li>
@@ -121,14 +133,25 @@ function NavItem({ item, collapsed }) {
               <NavLink
                 to={child.path}
                 className={({ isActive }) =>
-                  `h-8 flex items-center px-2.5 transition-colors text-sm ${
+                  `h-8 flex items-center px-2.5 transition-colors text-sm relative ${
                     isActive
                       ? 'text-dark-100 font-medium'
                       : 'text-dark-500 hover:text-dark-200'
                   }`
                 }
               >
-                <span>{child.label}</span>
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.div
+                        layoutId="nav-pill"
+                        className="absolute inset-0 bg-white/[0.08] rounded-md"
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-[1]">{child.label}</span>
+                  </>
+                )}
               </NavLink>
             </li>
           ))}
@@ -171,6 +194,7 @@ function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto">
+        <LayoutGroup>
         <div className="px-2 space-y-3">
           {navSections.map((section, i) => (
             <div key={section.id} className={i > 0 ? 'pt-2 mt-2 border-t border-dark-700/50' : ''}>
@@ -186,6 +210,7 @@ function Sidebar() {
             </div>
           ))}
         </div>
+        </LayoutGroup>
       </nav>
 
       {/* Collapse Toggle */}
